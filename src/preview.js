@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { ConvexGeometry } from 'three/addons/geometries/ConvexGeometry.js';
 import { Brush, INTERSECTION } from 'three-bvh-csg';
 
 export class CutterPreview {
@@ -177,35 +178,13 @@ export class CutterPreview {
 
 
   // Hiển thị vùng xem trước cắt vát mặt phẳng 3D tổng quát qua 3 điểm chuẩn xác
-  showPlane3Points(p1, p2, p3, cutPositive, bounds, currentBrush, cadEngine) {
-    const P1 = new THREE.Vector3(p1.x, p1.y, p1.z);
-    const P2 = new THREE.Vector3(p2.x, p2.y, p2.z);
-    const P3 = new THREE.Vector3(p3.x, p3.y, p3.z);
-
-    const v1 = new THREE.Vector3().subVectors(P2, P1);
-    const v2 = new THREE.Vector3().subVectors(P3, P1);
-    const normal = new THREE.Vector3().crossVectors(v1, v2);
-    if (normal.lengthSq() < 1e-8) {
+  showPlane3Points(p1, p2, p3, cutPositive, bounds, currentBrush, cadEngine, isFullDepth = false) {
+    if (!cadEngine) return;
+    const geom = cadEngine.createPlaneCutterGeometry(p1, p2, p3, cutPositive, isFullDepth);
+    if (!geom) {
       this.clear();
       return;
     }
-    normal.normalize();
-
-    if (!cutPositive) {
-      normal.negate();
-    }
-
-    const center = new THREE.Vector3().add(P1).add(P2).add(P3).multiplyScalar(1 / 3);
-
-    const SPAN = 60;
-    const geom = new THREE.BoxGeometry(SPAN, SPAN, SPAN);
-    geom.translate(0, 0, SPAN / 2);
-
-    const defaultDir = new THREE.Vector3(0, 0, 1);
-    const quat = new THREE.Quaternion().setFromUnitVectors(defaultDir, normal);
-    geom.applyQuaternion(quat);
-    geom.translate(center.x, center.y, center.z);
-    geom.computeVertexNormals();
 
     if (currentBrush && cadEngine) {
       const cutter = new Brush(geom);
@@ -217,27 +196,101 @@ export class CutterPreview {
           this.setPreviewGeom(previewBrush.geometry);
           return;
         }
-      } catch (e) {
-        // Fallback below
+      } catch (e) {}
+    }
+
+    this.setPreviewGeom(geom);
+  }
+
+  // Hiển thị vùng xem trước cắt đa giác / khối đa diện tự do qua N điểm
+  showMultiPointVolume(points3D, depth, isFullDepth, bounds, currentBrush, cadEngine) {
+    if (!points3D || points3D.length < 3) {
+      this.clear();
+      return;
+    }
+
+    const pts = points3D.map(p => new THREE.Vector3(p.x, p.y, p.z));
+
+    // 1. Kiểm tra nếu là khối đa diện 3D không đồng phẳng (3D Hull)
+    let isPlanar = true;
+    if (pts.length >= 4) {
+      const v1 = new THREE.Vector3().subVectors(pts[1], pts[0]);
+      const v2 = new THREE.Vector3().subVectors(pts[2], pts[0]);
+      const normal = new THREE.Vector3().crossVectors(v1, v2).normalize();
+      for (let i = 3; i < pts.length; i++) {
+        const vi = new THREE.Vector3().subVectors(pts[i], pts[0]);
+        if (Math.abs(normal.dot(vi)) > 0.05) {
+          isPlanar = false;
+          break;
+        }
       }
     }
 
-    const w = bounds ? bounds.w : 6;
-    const h = bounds ? bounds.h : 4;
-    const d = bounds ? bounds.d : 4;
-    const boxGeom = new THREE.BoxGeometry(w, h, d);
-    boxGeom.translate(w / 2, h / 2, d / 2);
-    boxGeom.computeVertexNormals();
-    try {
-      const boxBrush = new Brush(boxGeom);
-      const cutter = new Brush(geom);
-      boxBrush.updateMatrixWorld();
-      cutter.updateMatrixWorld();
-      const previewBrush = cadEngine.evaluator.evaluate(boxBrush, cutter, INTERSECTION);
-      this.setPreviewGeom(previewBrush.geometry);
-    } catch (e) {
-      this.clear();
+    if (!isPlanar && pts.length >= 4) {
+      try {
+        const geom = new ConvexGeometry(pts);
+        geom.computeVertexNormals();
+        this.setPreviewGeom(geom);
+        return;
+      } catch (err) {}
     }
+
+    // 2. Nếu là đa giác phẳng: Extrude preview
+    const xs = pts.map(p => p.x);
+    const ys = pts.map(p => p.y);
+    const zs = pts.map(p => p.z);
+
+    const minX = Math.min(...xs), maxX = Math.max(...xs);
+    const minY = Math.min(...ys), maxY = Math.max(...ys);
+    const minZ = Math.min(...zs), maxZ = Math.max(...zs);
+
+    let planeType = 'XY';
+    let pts2d = [];
+    let depthSpan = isFullDepth ? (bounds ? bounds.d : 4) : (depth || 4);
+    let faceCoord = 0;
+
+    if (maxZ - minZ < 0.05) {
+      planeType = 'XY';
+      pts2d = pts.map(p => new THREE.Vector2(p.x, p.y));
+      faceCoord = minZ;
+      if (isFullDepth && bounds) depthSpan = bounds.d;
+    } else if (maxX - minX < 0.05) {
+      planeType = 'ZY';
+      pts2d = pts.map(p => new THREE.Vector2(p.z, p.y));
+      faceCoord = minX;
+      if (isFullDepth && bounds) depthSpan = bounds.w;
+    } else {
+      planeType = 'XZ';
+      pts2d = pts.map(p => new THREE.Vector2(p.x, p.z));
+      faceCoord = minY;
+      if (isFullDepth && bounds) depthSpan = bounds.h;
+    }
+
+    const shape = new THREE.Shape(pts2d);
+    const geom = new THREE.ExtrudeGeometry(shape, { steps: 1, depth: depthSpan, bevelEnabled: false });
+
+    if (planeType === 'XY') {
+      if (faceCoord > 0.05) {
+        geom.translate(0, 0, faceCoord - depthSpan);
+      }
+    } else if (planeType === 'ZY') {
+      geom.rotateY(-Math.PI / 2);
+      if (faceCoord > 0.05) {
+        geom.translate(faceCoord, 0, 0);
+      } else {
+        geom.translate(faceCoord + depthSpan, 0, 0);
+      }
+    } else if (planeType === 'XZ') {
+      geom.rotateX(Math.PI / 2);
+      if (faceCoord > 0.05) {
+        geom.translate(0, faceCoord, 0);
+      } else {
+        geom.translate(0, faceCoord + depthSpan, 0);
+      }
+    }
+
+    geom.computeVertexNormals();
+    this.setPreviewGeom(geom);
   }
 
   // Rãnh V hiển thị chuẩn xác 100% theo các điểm ô lưới mà người dùng đã chọn

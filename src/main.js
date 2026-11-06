@@ -413,9 +413,8 @@ window.addEventListener('resize', () => {
 
 // --- KHỞI TẠO 2D CAD VÀ BỘ CHUYỂN ĐỔI 3D <-> 2D ---
 const projectionEngine = new ProjectionEngine(cad);
-const cad2dEditor = new CAD2DEditor(container, projectionEngine, () => {
-  switchTo3D();
-});
+const canvas2d = document.getElementById('cad2d-canvas');
+const cad2dEditor = new CAD2DEditor(canvas2d, projectionEngine);
 
 let appMode = '3d'; // '3d' hoặc '2d'
 
@@ -428,18 +427,23 @@ function switchTo2D() {
   if (appModeTitle) appModeTitle.textContent = '2D CAD';
   if (appModeSub) appModeSub.textContent = '⚡ ĐỔI SANG 3D CAD';
 
-  // Ẩn giao diện 3D
-  const sidebar = document.getElementById('cad-sidebar');
+  // Chuyển nội dung trong sidebar dùng chung: ẩn 3D, hiện 2D
+  const sidebar3d = document.getElementById('sidebar-3d-tools');
+  const sidebar2d = document.getElementById('sidebar-2d-tools');
+  if (sidebar3d) sidebar3d.style.display = 'none';
+  if (sidebar2d) sidebar2d.style.display = 'flex';
+
+  // Ẩn HUD và helper 3D
   const hud = document.getElementById('interactive-hud');
   const helper = document.querySelector('.hud-helper');
   const popover = document.getElementById('dim-popover');
-  if (sidebar) sidebar.style.display = 'none';
   if (hud) hud.style.display = 'none';
   if (helper) helper.style.display = 'none';
   if (popover) popover.style.display = 'none';
 
-  // Hiện giao diện 2D
+  // Hiện 2D canvas và tự động nạp nét chiếu từ 3D
   cad2dEditor.show(currentBrush, { w: W, h: H, d: D });
+  cad2dEditor.syncFrom3D();
 }
 
 function switchTo3D() {
@@ -451,15 +455,19 @@ function switchTo3D() {
   if (appModeTitle) appModeTitle.textContent = '3D Block CAD';
   if (appModeSub) appModeSub.textContent = '⚡ ĐỔI SANG 2D CAD';
 
-  // Hiện giao diện 3D
-  const sidebar = document.getElementById('cad-sidebar');
+  // Chuyển nội dung trong sidebar dùng chung: hiện 3D, ẩn 2D
+  const sidebar3d = document.getElementById('sidebar-3d-tools');
+  const sidebar2d = document.getElementById('sidebar-2d-tools');
+  if (sidebar3d) sidebar3d.style.display = 'block';
+  if (sidebar2d) sidebar2d.style.display = 'none';
+
+  // Hiện lại HUD và helper 3D
   const hud = document.getElementById('interactive-hud');
   const helper = document.querySelector('.hud-helper');
-  if (sidebar) sidebar.style.display = 'flex';
   if (hud) hud.style.display = 'block';
   if (helper) helper.style.display = 'block';
 
-  // Ẩn giao diện 2D
+  // Ẩn 2D canvas
   cad2dEditor.hide();
 }
 
@@ -474,6 +482,43 @@ function toggleAppMode() {
 document.getElementById('btn-toggle-app-mode')?.addEventListener('click', toggleAppMode);
 document.getElementById('switch-to-3d')?.addEventListener('click', switchTo3D);
 document.getElementById('switch-to-2d')?.addEventListener('click', switchTo2D);
+
+// Lắng nghe các nút chọn mặt phẳng 2D trong sidebar
+document.querySelectorAll('.cad2d-plane-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.cad2d-plane-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const plane = btn.getAttribute('data-plane');
+    cad2dEditor.setPlane(plane);
+  });
+});
+
+// Lắng nghe các nút công cụ nét vẽ 2D trong sidebar
+document.querySelectorAll('.cad2d-tool-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.cad2d-tool-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const tool = btn.getAttribute('data-tool');
+    cad2dEditor.setTool(tool);
+  });
+});
+
+// Nút lấy nét từ 3D
+document.getElementById('btn-2d-sync-3d')?.addEventListener('click', () => {
+  cad2dEditor.syncFrom3D();
+});
+
+// Nút xóa sạch mặt phẳng 2D hiện tại
+document.getElementById('btn-2d-clear')?.addEventListener('click', () => {
+  if (confirm('Bạn có chắc chắn muốn xóa toàn bộ nét trên mặt phẳng này không?')) {
+    cad2dEditor.clearPlane();
+  }
+});
+
+// Nút xuất file AutoCAD (.DXF)
+document.getElementById('btn-2d-export-dxf')?.addEventListener('click', () => {
+  cad2dEditor.exportDXF();
+});
 
 // --- KHỞI CHẠY LẦN ĐẦU ---
 resetBaseBlock();

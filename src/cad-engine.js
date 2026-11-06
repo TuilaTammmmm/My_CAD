@@ -280,23 +280,22 @@ export class CadEngine {
     let depthSpan = isFullDepth ? 60 : (customDepth || 4);
     let faceCoord = 0;
 
-    if (maxZ - minZ < 0.05) {
+    const spanX = maxX - minX;
+    const spanY = maxY - minY;
+    const spanZ = maxZ - minZ;
+
+    if (spanZ <= spanX && spanZ <= spanY) {
       planeType = 'XY';
       pts2d = pts.map(p => new THREE.Vector2(p.x, p.y));
       faceCoord = minZ;
-    } else if (maxX - minX < 0.05) {
+    } else if (spanX <= spanZ && spanX <= spanY) {
       planeType = 'ZY';
       pts2d = pts.map(p => new THREE.Vector2(p.z, p.y));
       faceCoord = minX;
-    } else if (maxY - minY < 0.05) {
+    } else {
       planeType = 'XZ';
       pts2d = pts.map(p => new THREE.Vector2(p.x, p.z));
       faceCoord = minY;
-    } else {
-      // Mặc định ZY nếu trải dài theo Z và Y
-      planeType = 'ZY';
-      pts2d = pts.map(p => new THREE.Vector2(p.z, p.y));
-      faceCoord = minX;
     }
 
     const shape = new THREE.Shape(pts2d);

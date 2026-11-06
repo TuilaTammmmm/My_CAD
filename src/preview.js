@@ -276,12 +276,16 @@ export class CutterPreview {
     let depthSpan = isFullDepth ? (bounds ? bounds.d : 4) : (depth || 4);
     let faceCoord = 0;
 
-    if (maxZ - minZ < 0.05) {
+    const spanX = maxX - minX;
+    const spanY = maxY - minY;
+    const spanZ = maxZ - minZ;
+
+    if (spanZ <= spanX && spanZ <= spanY) {
       planeType = 'XY';
       pts2d = pts.map(p => new THREE.Vector2(p.x, p.y));
       faceCoord = minZ;
       if (isFullDepth && bounds) depthSpan = bounds.d;
-    } else if (maxX - minX < 0.05) {
+    } else if (spanX <= spanZ && spanX <= spanY) {
       planeType = 'ZY';
       pts2d = pts.map(p => new THREE.Vector2(p.z, p.y));
       faceCoord = minX;

@@ -99,9 +99,8 @@ export class CAD2DEditor {
     this.bounds = bounds;
     this.canvas.parentElement.style.display = 'block';
     this.resize();
-    this.centerView();
-    if (this.elements.length === 0) {
-      this.syncFrom3D();
+    if (this.offsetX === 0 && this.offsetY === 0) {
+      this.centerView();
     }
     this.updateHUDHint();
     this.render();
@@ -873,25 +872,7 @@ export class CAD2DEditor {
     const maxV = Math.ceil((this.offsetY) / s) + 1;
     const minV = Math.floor((this.offsetY - rect.height) / s) - 1;
 
-    // 2. Vùng khung khối vật thể gốc W x H (Khung tham chiếu mờ)
-    const blockPixelX = this.offsetX;
-    const blockPixelY = this.offsetY - h * s;
-    const blockPixelW = w * s;
-    const blockPixelH = h * s;
-
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.6)';
-    ctx.fillRect(blockPixelX, blockPixelY, blockPixelW, blockPixelH);
-    ctx.strokeStyle = 'rgba(56, 189, 248, 0.25)';
-    ctx.lineWidth = 1.5;
-    ctx.strokeRect(blockPixelX, blockPixelY, blockPixelW, blockPixelH);
-
-    // Nhãn khung khối
-    ctx.font = 'bold 12px -apple-system, sans-serif';
-    ctx.fillStyle = 'rgba(56, 189, 248, 0.6)';
-    ctx.textAlign = 'left';
-    ctx.fillText(`📐 Khung Khối Vật Thể (${w} x ${h})`, blockPixelX + 4, blockPixelY - 8);
-
-    // 3. Lưới ô phụ (Subgrid) trải rộng khắp màn hình
+    // 2. Lưới ô phụ (Subgrid) trải rộng khắp màn hình
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
     ctx.lineWidth = 1;
     ctx.setLineDash([]);
@@ -919,7 +900,7 @@ export class CAD2DEditor {
       }
     }
 
-    // 4. TRỤC TỌA ĐỘ X VÀ Y ĐẬM NÉT (ĐẬM HƠN TRỤC X, Y THEO YÊU CẦU)
+    // 3. TRỤC TỌA ĐỘ X VÀ Y ĐẬM NÉT (ĐẬM HƠN TRỤC X, Y THEO YÊU CẦU)
     // Trục X (Màu xanh cyan sáng, nét dày 3px)
     ctx.strokeStyle = '#38bdf8';
     ctx.lineWidth = 3.0;
@@ -963,7 +944,8 @@ export class CAD2DEditor {
     ctx.font = 'bold 12px monospace';
     ctx.fillStyle = '#f43f5e';
     ctx.textAlign = 'right';
-    ctx.fillText('O (0,0)', this.offsetX - 8, this.offsetY + 16);
+    ctx.textBaseline = 'top';
+    ctx.fillText('O(0,0)', this.offsetX - 8, this.offsetY + 8);
 
     // Các vạch số trên trục X
     ctx.font = '11px monospace';

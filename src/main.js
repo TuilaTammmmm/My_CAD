@@ -441,9 +441,8 @@ function switchTo2D() {
   if (helper) helper.style.display = 'none';
   if (popover) popover.style.display = 'none';
 
-  // Hiện 2D canvas và tự động nạp nét chiếu từ 3D
+  // Hiện 2D canvas (không tự động tải đè từ 3D)
   cad2dEditor.show(currentBrush, { w: W, h: H, d: D });
-  cad2dEditor.syncFrom3D();
 }
 
 function switchTo3D() {

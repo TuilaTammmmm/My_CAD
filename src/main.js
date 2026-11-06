@@ -8,6 +8,8 @@ import { GridOverlay } from './grid-overlay.js';
 import { CutterPreview } from './preview.js';
 import { InteractivePicker } from './picker.js';
 import { exportToOBJ } from './exporter.js';
+import { ProjectionEngine } from './projection-engine.js';
+import { CAD2DEditor } from './cad2d-editor.js';
 
 // --- INITIALIZE THREE.JS ---
 const container = document.getElementById('viewport-container');
@@ -408,6 +410,70 @@ window.addEventListener('resize', () => {
   camera.updateProjectionMatrix();
   renderer.setSize(w, h);
 });
+
+// --- KHỞI TẠO 2D CAD VÀ BỘ CHUYỂN ĐỔI 3D <-> 2D ---
+const projectionEngine = new ProjectionEngine(cad);
+const cad2dEditor = new CAD2DEditor(container, projectionEngine, () => {
+  switchTo3D();
+});
+
+let appMode = '3d'; // '3d' hoặc '2d'
+
+function switchTo2D() {
+  appMode = '2d';
+  document.getElementById('switch-to-3d')?.classList.remove('active');
+  document.getElementById('switch-to-2d')?.classList.add('active');
+  const appModeTitle = document.getElementById('app-mode-title');
+  const appModeSub = document.getElementById('app-mode-sub');
+  if (appModeTitle) appModeTitle.textContent = '2D CAD';
+  if (appModeSub) appModeSub.textContent = '⚡ ĐỔI SANG 3D CAD';
+
+  // Ẩn giao diện 3D
+  const sidebar = document.getElementById('cad-sidebar');
+  const hud = document.getElementById('interactive-hud');
+  const helper = document.querySelector('.hud-helper');
+  const popover = document.getElementById('dim-popover');
+  if (sidebar) sidebar.style.display = 'none';
+  if (hud) hud.style.display = 'none';
+  if (helper) helper.style.display = 'none';
+  if (popover) popover.style.display = 'none';
+
+  // Hiện giao diện 2D
+  cad2dEditor.show(currentBrush, { w: W, h: H, d: D });
+}
+
+function switchTo3D() {
+  appMode = '3d';
+  document.getElementById('switch-to-2d')?.classList.remove('active');
+  document.getElementById('switch-to-3d')?.classList.add('active');
+  const appModeTitle = document.getElementById('app-mode-title');
+  const appModeSub = document.getElementById('app-mode-sub');
+  if (appModeTitle) appModeTitle.textContent = '3D Block CAD';
+  if (appModeSub) appModeSub.textContent = '⚡ ĐỔI SANG 2D CAD';
+
+  // Hiện giao diện 3D
+  const sidebar = document.getElementById('cad-sidebar');
+  const hud = document.getElementById('interactive-hud');
+  const helper = document.querySelector('.hud-helper');
+  if (sidebar) sidebar.style.display = 'flex';
+  if (hud) hud.style.display = 'block';
+  if (helper) helper.style.display = 'block';
+
+  // Ẩn giao diện 2D
+  cad2dEditor.hide();
+}
+
+function toggleAppMode() {
+  if (appMode === '3d') {
+    switchTo2D();
+  } else {
+    switchTo3D();
+  }
+}
+
+document.getElementById('btn-toggle-app-mode')?.addEventListener('click', toggleAppMode);
+document.getElementById('switch-to-3d')?.addEventListener('click', switchTo3D);
+document.getElementById('switch-to-2d')?.addEventListener('click', switchTo2D);
 
 // --- KHỞI CHẠY LẦN ĐẦU ---
 resetBaseBlock();

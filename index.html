@@ -14,8 +14,8 @@
     <!-- THANH CÔNG CỤ DỌC CHUYÊN NGHIỆP BÊN TRÁI (VERTICAL CAD TOOLBAR) -->
     <aside class="cad-sidebar" id="cad-sidebar">
       
-      <!-- LOGO BRANDING -->
-      <div class="sidebar-brand">
+      <!-- LOGO BRANDING / CHUYỂN ĐỔI 3D BLOCK CAD <-> 2D CAD -->
+      <div class="sidebar-brand clickable-brand" id="btn-toggle-app-mode" title="Nhấn để chuyển đổi giữa 3D Block CAD và Bản Vẽ 2D CAD">
         <div class="brand-logo-glow">
           <svg class="brand-svg" viewBox="0 0 32 32" fill="none">
             <path d="M16 2L28 8.5V23.5L16 30L4 23.5V8.5L16 2Z" stroke="#38bdf8" stroke-width="2.2" stroke-linejoin="round"/>
@@ -23,9 +23,15 @@
           </svg>
         </div>
         <div class="brand-info">
-          <span class="brand-title">3D Block CAD</span>
-          <span class="brand-badge">PRO</span>
+          <span class="brand-title" id="app-mode-title">3D Block CAD</span>
+          <span class="brand-badge" id="app-mode-sub">⚡ ĐỔI SANG 2D CAD</span>
         </div>
+      </div>
+
+      <!-- THANH CHUYỂN CHẾ ĐỘ 3D / 2D TRỰC TIẾP -->
+      <div class="mode-switcher-bar">
+        <button class="switcher-btn active" id="switch-to-3d">🧊 3D Block</button>
+        <button class="switcher-btn" id="switch-to-2d">📐 2D CAD</button>
       </div>
 
       <!-- NHÓM 1: CÔNG CỤ CẮT GỌT / THAO TÁC -->

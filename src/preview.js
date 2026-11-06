@@ -43,7 +43,7 @@ export class CutterPreview {
     this.scene.add(this.previewEdges);
   }
 
-  showBox(x1, x2, y1, y2, z1, z2) {
+  showBox(x1, x2, y1, y2, z1, z2, currentBrush = null, cadEngine = null) {
     const minX = Math.min(x1, x2), maxX = Math.max(x1, x2);
     const minY = Math.min(y1, y2), maxY = Math.max(y1, y2);
     const minZ = Math.min(z1, z2), maxZ = Math.max(z1, z2);

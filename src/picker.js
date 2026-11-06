@@ -702,6 +702,32 @@ export class InteractivePicker {
     );
   }
 
+
+  updatePreviewForPlane3Points() {
+    if (this.selectedPoints.length < 3) return;
+    const [p1, p2, p3] = this.selectedPoints;
+    this.preview.showPlane3Points(
+      p1, p2, p3,
+      this.slantCutAbove,
+      this.bounds,
+      this.currentBrush,
+      this.cad,
+      this.isFullDepth
+    );
+  }
+
+  updatePreviewForPoly() {
+    if (this.selectedPoints.length < 3) return;
+    this.preview.showMultiPointVolume(
+      this.selectedPoints,
+      this.customDepth,
+      this.isFullDepth,
+      this.bounds,
+      this.currentBrush,
+      this.cad
+    );
+  }
+
   getBoxSliceParams() {
     if (this.selectedPoints.length < 2) return null;
     const p1 = this.selectedPoints[0];
@@ -722,7 +748,7 @@ export class InteractivePicker {
   updatePreviewForBox() {
     const params = this.getBoxSliceParams();
     if (!params) return;
-    this.preview.showBox(params.x1, params.x2, params.y1, params.y2, params.z1, params.z2);
+    this.preview.showBox(params.x1, params.x2, params.y1, params.y2, params.z1, params.z2, this.currentBrush, this.cad);
   }
 
   getVGrooveSliceParams() {

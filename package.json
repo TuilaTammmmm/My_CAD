@@ -1,0 +1,16 @@
+{
+  "name": "isometric-3d-cad",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "three": "^0.187.0",
+    "three-bvh-csg": "^0.0.18",
+    "three-mesh-bvh": "^0.9.18",
+    "vite": "^8.3.6"
+  }
+}

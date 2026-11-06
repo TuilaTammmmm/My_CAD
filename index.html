@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3D Block CAD - Mô Phỏng Hình Vẽ Kỹ Thuật</title>
+  <link rel="stylesheet" href="./src/style.css">
+</head>
+<body>
+
+  <!-- KHÔNG GIAN 3D TOÀN MÀN HÌNH -->
+  <div id="viewport-container">
+
+    <!-- THANH CÔNG CỤ ĐỒNG BỘ TINH GỌN TRÊN CÙNG -->
+    <header class="app-topbar">
+      <div class="brand">
+        <span class="brand-icon">📐</span>
+        <span class="brand-name">3D Block CAD</span>
+      </div>
+
+      <div class="topbar-divider"></div>
+
+      <!-- NHÓM 1: CÁC GÓC NHÌN KỸ THUẬT -->
+      <div class="topbar-group">
+        <button class="topbar-btn active" id="view-iso" title="Phối cảnh trục đo 3D">📐 Trục đo</button>
+        <button class="topbar-btn" id="view-horizontal" title="Chiếu ngang 90°: Nhấn để xoay góc nhìn 90° (Đứng -> Cạnh phải -> Sau -> Cạnh trái)">🔄 Chiếu Ngang (90°)</button>
+        <button class="topbar-btn" id="view-top" title="Hình chiếu bằng (Nhìn từ trên)">👁️ Chiếu Bằng</button>
+      </div>
+
+      <div class="topbar-divider"></div>
+
+      <!-- NHÓM 2: CHẾ ĐỘ THAO TÁC / CẮT GỌT -->
+      <div class="topbar-group">
+        <button class="mode-btn active" data-mode="view" title="Chế độ quan sát: Ẩn toàn bộ điểm lưới và grid, xoay tự do">👁️ Chỉ Xem</button>
+        <button class="mode-btn" data-mode="slant" title="Vát nghiêng: Click chọn 2 điểm trên hình 3D">📐 Vát Chéo</button>
+        <button class="mode-btn" data-mode="corner" title="Vát góc tam giác: Click chọn 3 điểm trên hình 3D">🔺 Vát Góc</button>
+        <button class="mode-btn" data-mode="box" title="Khoét rãnh hộp: Click chọn 2 góc đối diện">📦 Cắt Hộp</button>
+        <button class="mode-btn" data-mode="vgroove" title="Rãnh V: Click chọn Đỉnh và 2 chân rãnh">🔻 Rãnh V</button>
+      </div>
+
+      <div class="topbar-divider"></div>
+
+      <!-- NHÓM 3: TIỆN ÍCH & LỊCH SỬ -->
+      <div class="topbar-group">
+        <button class="topbar-btn" id="btn-undo" disabled title="Hoàn tác thao tác trước (Ctrl+Z)">↩️ Hoàn tác</button>
+        <button class="topbar-btn" id="btn-redo" disabled title="Làm lại thao tác vừa hủy (Ctrl+Y)">↪️ Làm lại</button>
+        <button class="topbar-btn" id="btn-open-dim" title="Cài đặt kích thước ô lưới khối ban đầu">⚙️ Kích thước</button>
+        <button class="topbar-btn" id="btn-import-obj" title="Nhập mô hình 3D từ file (.OBJ)">📁 Nhập OBJ</button>
+        <button class="topbar-btn" id="btn-export-obj" title="Xuất mô hình 3D định dạng Wavefront (.OBJ)">💾 Xuất OBJ</button>
+      </div>
+      <input type="file" id="input-import-obj" accept=".obj" style="display: none;">
+    </header>
+
+    <!-- POPOVER CÀI ĐẶT KÍCH THƯỚC KHỐI BAN ĐẦU -->
+    <div id="dim-popover" class="dim-popover" style="display: none;">
+      <div class="popover-header">
+        <span>⚙️ Kích Thước Khối Hộp (Số Ô Lưới)</span>
+        <button id="btn-close-dim" class="close-x">✖️</button>
+      </div>
+      <div class="dim-grid">
+        <div class="dim-field">
+          <label>Rộng (W)</label>
+          <input type="number" id="dim-w" value="6" min="1" max="30">
+        </div>
+        <div class="dim-field">
+          <label>Cao (H)</label>
+          <input type="number" id="dim-h" value="4" min="1" max="30">
+        </div>
+        <div class="dim-field">
+          <label>Sâu (D)</label>
+          <input type="number" id="dim-d" value="4" min="1" max="30">
+        </div>
+      </div>
+      <button class="btn-primary-reset" id="btn-reset-block">
+        🔄 TẠO LẠI KHỐI MỚI (RESET)
+      </button>
+    </div>
+
+    <!-- THANH HƯỚNG DẪN & NÚT BẤM NỔI DƯỚI ĐÁY MÀN HÌNH (INTERACTIVE HUD) -->
+    <div id="interactive-hud" class="interactive-hud">
+      <!-- Nội dung được cập nhật động từ picker.js -->
+    </div>
+
+    <!-- TOOLTIP TỌA ĐỘ BAY THEO CHUỘT -->
+    <div id="picker-tooltip" class="picker-tooltip" style="display: none;"></div>
+
+    <!-- HƯỚNG DẪN THAO TÁC GÓC DƯỚI PHẢI -->
+    <div class="hud-helper">
+      👁️ <b>Chỉ xem:</b> Kéo chuột xoay tự do không vướng điểm<br>
+      📐 <b>Cắt gọt:</b> Chọn nút công cụ ở thanh trên để hiện điểm bắt dính<br>
+      🔍 <b>Phóng to / Thu nhỏ:</b> Cuộn bánh xe chuột<br>
+      ✋ <b>Di chuyển góc nhìn:</b> Shift + Chuột phải<br>
+      ⌨️ <b>Phím tắt:</b> Enter (Cắt), Esc (Hủy), Ctrl+Z (Undo)
+    </div>
+
+  </div>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>

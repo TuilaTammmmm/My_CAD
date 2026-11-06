@@ -218,6 +218,32 @@ export class InteractivePicker {
     this.updateHUD();
   }
 
+  removeLastPoint() {
+    if (this.selectedPoints.length > 0) {
+      this.selectedPoints.pop();
+      this.renderPointMarkers();
+      if (this.mode === 'poly') {
+        if (this.selectedPoints.length >= 3) {
+          this.updatePreviewForPoly();
+        } else {
+          this.preview.clear();
+        }
+      } else if (this.mode === 'slant') {
+        if (this.selectedPoints.length === 2) {
+          this.updatePreviewForSlant();
+        } else {
+          this.preview.clear();
+        }
+      } else {
+        this.preview.clear();
+      }
+      this.updateHUD();
+      if (this.callbacks.onPointsChanged) {
+        this.callbacks.onPointsChanged(this.mode, this.selectedPoints);
+      }
+    }
+  }
+
   bindEvents() {
     const dom = this.renderer.domElement;
 
@@ -276,46 +302,7 @@ export class InteractivePicker {
           this.removeLastPoint();
         }
       } else if (e.key === 'Tab' || e.key.toLowerCase() === 'f') {
-        if (this.mode === 'poly') {
-      if (count === 0) {
-        html = `
-          <div class="hud-step">
-            <span class="hud-badge pulse">Bước 1</span>
-            <span>Click chọn <b>CÁC ĐIỂM LIÊN TIẾP</b> trên khối (3, 4, 5, 6... điểm) để tự kết nối thành vùng kín</span>
-          </div>
-        `;
-      } else if (count < 3) {
-        html = `
-          <div class="hud-step">
-            <span class="hud-badge done">Đã chọn ${count} điểm</span>
-            <span>👉 Click tiếp <b>ĐIỂM THỨ ${count + 1}</b> để tạo thành hình kín...</span>
-            <button class="hud-btn-action" id="hud-remove-point">↩️ Xóa điểm</button>
-            <button class="hud-btn-cancel" id="hud-cancel-btn">✖️ Hủy</button>
-          </div>
-        `;
-      } else {
-        html = `
-          <div class="hud-actions">
-            <div class="hud-coords">⬡ Đa giác / Khối kín (${count} điểm tự nối)</div>
-            <div class="hud-stepper">
-              <span>Độ sâu:</span>
-              <button class="step-btn" id="depth-minus" title="Giảm độ sâu">➖</button>
-              <b id="depth-display">${depthText}</b>
-              <button class="step-btn" id="depth-plus" title="Tăng độ sâu">➕</button>
-              <button class="hud-btn-toggle" id="depth-full">Xuyên suốt</button>
-            </div>
-            <button class="hud-btn-action hud-btn-cut" id="hud-cut-btn">
-              ✂️ CẮT PHẦN TRONG ĐÓ (Enter)
-            </button>
-            <button class="hud-btn-action" id="hud-remove-point" title="Xóa điểm gần nhất (Backspace)">
-              ↩️ Xóa điểm cuối
-            </button>
-            <button class="hud-btn-cancel" id="hud-cancel-btn">✖️ Hủy</button>
-          </div>
-        `;
-      }
-
-    } else if (this.mode === 'slant') {
+        if (this.mode === 'slant') {
           e.preventDefault();
           this.toggleSlantDirection();
         } else if (this.mode === 'vgroove') {
@@ -862,7 +849,7 @@ export class InteractivePicker {
 
   changeDepth(delta) {
     this.isFullDepth = false;
-    let maxVal = this.bounds.d;
+    let maxVal = Math.max(this.bounds.w, this.bounds.h, this.bounds.d);
     if (this.mode === 'slant') {
       const sp = this.getSlantSliceParams();
       if (sp) maxVal = sp.maxD;
@@ -874,12 +861,13 @@ export class InteractivePicker {
     if (this.mode === 'vgroove') this.updatePreviewForVGroove();
     else if (this.mode === 'slant') this.updatePreviewForSlant();
     else if (this.mode === 'box') this.updatePreviewForBox();
+    else if (this.mode === 'poly') this.updatePreviewForPoly();
     this.updateHUD();
   }
 
   setFullDepth() {
     this.isFullDepth = true;
-    let maxVal = this.bounds.d;
+    let maxVal = Math.max(this.bounds.w, this.bounds.h, this.bounds.d);
     if (this.mode === 'slant') {
       const sp = this.getSlantSliceParams();
       if (sp) maxVal = sp.maxD;
@@ -891,6 +879,7 @@ export class InteractivePicker {
     if (this.mode === 'vgroove') this.updatePreviewForVGroove();
     else if (this.mode === 'slant') this.updatePreviewForSlant();
     else if (this.mode === 'box') this.updatePreviewForBox();
+    else if (this.mode === 'poly') this.updatePreviewForPoly();
     this.updateHUD();
   }
 
@@ -1006,7 +995,46 @@ export class InteractivePicker {
 
     const depthText = this.isFullDepth ? `Xuyên suốt (${this.customDepth} ô)` : `${this.customDepth} ô`;
 
-    if (this.mode === 'slant') {
+    if (this.mode === 'poly') {
+      if (count === 0) {
+        html = `
+          <div class="hud-step">
+            <span class="hud-badge pulse">Bước 1</span>
+            <span>Click chọn <b>CÁC ĐIỂM LIÊN TIẾP</b> trên khối (3, 4, 5, 6... điểm) để tự kết nối thành vùng kín</span>
+          </div>
+        `;
+      } else if (count < 3) {
+        html = `
+          <div class="hud-step">
+            <span class="hud-badge done">Đã chọn ${count} điểm</span>
+            <span>👉 Click tiếp <b>ĐIỂM THỨ ${count + 1}</b> để tạo thành hình kín...</span>
+            <button class="hud-btn-action" id="hud-remove-point">↩️ Xóa điểm</button>
+            <button class="hud-btn-cancel" id="hud-cancel-btn">✖️ Hủy</button>
+          </div>
+        `;
+      } else {
+        html = `
+          <div class="hud-actions">
+            <div class="hud-coords">⬡ Đa giác / Khối kín (${count} điểm tự nối)</div>
+            <div class="hud-stepper">
+              <span>Độ sâu:</span>
+              <button class="step-btn" id="depth-minus" title="Giảm độ sâu">➖</button>
+              <b id="depth-display">${depthText}</b>
+              <button class="step-btn" id="depth-plus" title="Tăng độ sâu">➕</button>
+              <button class="hud-btn-toggle" id="depth-full">Xuyên suốt</button>
+            </div>
+            <button class="hud-btn-action hud-btn-cut" id="hud-cut-btn">
+              ✂️ CẮT PHẦN TRONG ĐÓ (Enter)
+            </button>
+            <button class="hud-btn-action" id="hud-remove-point" title="Xóa điểm gần nhất (Backspace)">
+              ↩️ Xóa điểm cuối
+            </button>
+            <button class="hud-btn-cancel" id="hud-cancel-btn">✖️ Hủy</button>
+          </div>
+        `;
+      }
+
+    } else if (this.mode === 'slant') {
       if (count === 0) {
         html = `
           <div class="hud-step">

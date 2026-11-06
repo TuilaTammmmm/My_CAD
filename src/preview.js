@@ -290,6 +290,20 @@ export class CutterPreview {
     }
 
     geom.computeVertexNormals();
+
+    if (currentBrush && cadEngine) {
+      const cutter = new Brush(geom);
+      cutter.updateMatrixWorld();
+      currentBrush.updateMatrixWorld();
+      try {
+        const previewBrush = cadEngine.evaluator.evaluate(currentBrush, cutter, INTERSECTION);
+        if (previewBrush && previewBrush.geometry && previewBrush.geometry.attributes.position.count > 0) {
+          this.setPreviewGeom(previewBrush.geometry);
+          return;
+        }
+      } catch (e) {}
+    }
+
     this.setPreviewGeom(geom);
   }
 

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { Brush, INTERSECTION } from 'three-bvh-csg';
 
 export class CutterPreview {
   constructor(scene) {
@@ -172,6 +173,71 @@ export class CutterPreview {
     geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
     geom.computeVertexNormals();
     this.setPreviewGeom(geom);
+  }
+
+
+  // Hiển thị vùng xem trước cắt vát mặt phẳng 3D tổng quát qua 3 điểm chuẩn xác
+  showPlane3Points(p1, p2, p3, cutPositive, bounds, currentBrush, cadEngine) {
+    const P1 = new THREE.Vector3(p1.x, p1.y, p1.z);
+    const P2 = new THREE.Vector3(p2.x, p2.y, p2.z);
+    const P3 = new THREE.Vector3(p3.x, p3.y, p3.z);
+
+    const v1 = new THREE.Vector3().subVectors(P2, P1);
+    const v2 = new THREE.Vector3().subVectors(P3, P1);
+    const normal = new THREE.Vector3().crossVectors(v1, v2);
+    if (normal.lengthSq() < 1e-8) {
+      this.clear();
+      return;
+    }
+    normal.normalize();
+
+    if (!cutPositive) {
+      normal.negate();
+    }
+
+    const center = new THREE.Vector3().add(P1).add(P2).add(P3).multiplyScalar(1 / 3);
+
+    const SPAN = 60;
+    const geom = new THREE.BoxGeometry(SPAN, SPAN, SPAN);
+    geom.translate(0, 0, SPAN / 2);
+
+    const defaultDir = new THREE.Vector3(0, 0, 1);
+    const quat = new THREE.Quaternion().setFromUnitVectors(defaultDir, normal);
+    geom.applyQuaternion(quat);
+    geom.translate(center.x, center.y, center.z);
+    geom.computeVertexNormals();
+
+    if (currentBrush && cadEngine) {
+      const cutter = new Brush(geom);
+      cutter.updateMatrixWorld();
+      currentBrush.updateMatrixWorld();
+      try {
+        const previewBrush = cadEngine.evaluator.evaluate(currentBrush, cutter, INTERSECTION);
+        if (previewBrush && previewBrush.geometry && previewBrush.geometry.attributes.position.count > 0) {
+          this.setPreviewGeom(previewBrush.geometry);
+          return;
+        }
+      } catch (e) {
+        // Fallback below
+      }
+    }
+
+    const w = bounds ? bounds.w : 6;
+    const h = bounds ? bounds.h : 4;
+    const d = bounds ? bounds.d : 4;
+    const boxGeom = new THREE.BoxGeometry(w, h, d);
+    boxGeom.translate(w / 2, h / 2, d / 2);
+    boxGeom.computeVertexNormals();
+    try {
+      const boxBrush = new Brush(boxGeom);
+      const cutter = new Brush(geom);
+      boxBrush.updateMatrixWorld();
+      cutter.updateMatrixWorld();
+      const previewBrush = cadEngine.evaluator.evaluate(boxBrush, cutter, INTERSECTION);
+      this.setPreviewGeom(previewBrush.geometry);
+    } catch (e) {
+      this.clear();
+    }
   }
 
   // Rãnh V hiển thị chuẩn xác 100% theo các điểm ô lưới mà người dùng đã chọn

@@ -398,18 +398,18 @@ export class InteractivePicker {
       }
 
     } else if (this.mode === 'slant') {
-      if (this.selectedPoints.length >= 2) {
+      if (this.selectedPoints.length >= 3) {
         this.selectedPoints = [pt];
       } else {
-        if (this.selectedPoints.length === 1) {
-          const p1 = this.selectedPoints[0];
-          if (p1.x === pt.x && p1.y === pt.y && p1.z === pt.z) return;
-        }
+        const isDuplicate = this.selectedPoints.some(p => p.x === pt.x && p.y === pt.y && p.z === pt.z);
+        if (isDuplicate) return;
         this.selectedPoints.push(pt);
       }
       this.renderPointMarkers();
       if (this.selectedPoints.length === 2) {
         this.updatePreviewForSlant();
+      } else if (this.selectedPoints.length === 3) {
+        this.updatePreviewForPlane3Points();
       } else {
         this.preview.clear();
       }
@@ -559,13 +559,13 @@ export class InteractivePicker {
       const line = new THREE.Line(lineGeom, lineMat);
       line.renderOrder = 1004;
       this.pickerGroup.add(line);
-    } else if (pts.length === 3 && this.mode === 'corner') {
+    } else if (pts.length === 3 && (this.mode === 'corner' || this.mode === 'slant')) {
       const p1 = new THREE.Vector3(pts[0].x, pts[0].y, pts[0].z);
       const p2 = new THREE.Vector3(pts[1].x, pts[1].y, pts[1].z);
       const p3 = new THREE.Vector3(pts[2].x, pts[2].y, pts[2].z);
       const lineGeom = new THREE.BufferGeometry().setFromPoints([p1, p2, p3, p1]);
       const lineMat = new THREE.LineBasicMaterial({
-        color: 0xf59e0b,
+        color: (this.mode === 'slant') ? 0x38bdf8 : 0xf59e0b,
         linewidth: 3,
         depthTest: false
       });
@@ -772,7 +772,11 @@ export class InteractivePicker {
 
   toggleSlantDirection() {
     this.slantCutAbove = !this.slantCutAbove;
-    this.updatePreviewForSlant();
+    if (this.selectedPoints.length === 3) {
+      this.updatePreviewForPlane3Points();
+    } else {
+      this.updatePreviewForSlant();
+    }
     this.updateHUD();
   }
 
@@ -839,17 +843,26 @@ export class InteractivePicker {
         );
 
       } else if (this.mode === 'slant') {
-        const params = this.getSlantSliceParams();
-        if (!params) return;
-        newBrush = this.cad.cutSlant(
-          this.currentBrush,
-          params.plane,
-          params.p1_2d,
-          params.p2_2d,
-          params.dMin,
-          params.dMax,
-          this.slantCutAbove
-        );
+        if (this.selectedPoints.length === 3) {
+          const [p1, p2, p3] = this.selectedPoints;
+          newBrush = this.cad.cutPlane3Points(
+            this.currentBrush,
+            p1, p2, p3,
+            this.slantCutAbove
+          );
+        } else {
+          const params = this.getSlantSliceParams();
+          if (!params) return;
+          newBrush = this.cad.cutSlant(
+            this.currentBrush,
+            params.plane,
+            params.p1_2d,
+            params.p2_2d,
+            params.dMin,
+            params.dMax,
+            this.slantCutAbove
+          );
+        }
 
       } else if (this.mode === 'box') {
         const params = this.getBoxSliceParams();
@@ -909,7 +922,7 @@ export class InteractivePicker {
         html = `
           <div class="hud-step">
             <span class="hud-badge pulse">Bước 1</span>
-            <span>Rê chuột và <b>Click chọn GÓC 1</b> trên mặt nhìn thấy</span>
+            <span>Click chọn <b>ĐIỂM 1</b> trên mặt khối (Vát theo 2 điểm hoặc 3 điểm)</span>
           </div>
         `;
       } else if (count === 1) {
@@ -917,11 +930,11 @@ export class InteractivePicker {
         html = `
           <div class="hud-step">
             <span class="hud-badge done">Điểm 1 (${p.x}, ${p.y}, ${p.z})</span>
-            <span>👉 Hãy <b>Click chọn GÓC 2</b> để tạo đường vát...</span>
+            <span>👉 Hãy <b>Click chọn ĐIỂM 2</b> (hoặc click tiếp Điểm 3 để tạo Mặt Phẳng 3D)...</span>
             <button class="hud-btn-cancel" id="hud-cancel-btn">✖️ Hủy</button>
           </div>
         `;
-      } else {
+      } else if (count === 2) {
         const p1 = this.selectedPoints[0];
         const p2 = this.selectedPoints[1];
         const dirText = this.slantCutAbove ? 'Phía TRÊN' : 'Phía DƯỚI';
@@ -938,10 +951,28 @@ export class InteractivePicker {
             <button class="hud-btn-action hud-btn-cut" id="hud-cut-btn">
               ✂️ CẮT VÁT (Enter)
             </button>
-            <button class="hud-btn-action" id="hud-toggle-dir">
+            <button class="hud-btn-action" id="hud-toggle-dir" title="Đổi phía không gian cắt">
               🔄 ${dirText}
             </button>
+            <span style="font-size:12px; opacity:0.85; margin:0 4px;">👉 Hoặc click <b>ĐIỂM 3</b> để vát mặt phẳng 3D</span>
             <button class="hud-btn-cancel" id="hud-cancel-btn">✖️</button>
+          </div>
+        `;
+      } else {
+        const p1 = this.selectedPoints[0];
+        const p2 = this.selectedPoints[1];
+        const p3 = this.selectedPoints[2];
+        const dirText = this.slantCutAbove ? 'Bên Phải/Trên' : 'Bên Trái/Dưới';
+        html = `
+          <div class="hud-actions">
+            <div class="hud-coords">📐 Mặt phẳng 3D: 🟢 (${p1.x},${p1.y},${p1.z}) ➔ 🔵 (${p2.x},${p2.y},${p2.z}) ➔ 🟡 (${p3.x},${p3.y},${p3.z})</div>
+            <button class="hud-btn-action hud-btn-cut" id="hud-cut-btn">
+              ✂️ CẮT MẶT PHẲNG (Enter)
+            </button>
+            <button class="hud-btn-action" id="hud-toggle-dir" title="Đổi chiều mặt phẳng cắt">
+              🔄 Đổi bên vát (Tab)
+            </button>
+            <button class="hud-btn-cancel" id="hud-cancel-btn">✖️ Hủy</button>
           </div>
         `;
       }

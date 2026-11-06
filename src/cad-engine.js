@@ -124,6 +124,47 @@ export class CadEngine {
     return result;
   }
 
+  // Cắt vát mặt phẳng 3D tổng quát qua 3 điểm tự do (General 3-Point Plane Cut)
+  cutPlane3Points(targetBrush, p1, p2, p3, cutPositive = true) {
+    const P1 = new THREE.Vector3(p1.x, p1.y, p1.z);
+    const P2 = new THREE.Vector3(p2.x, p2.y, p2.z);
+    const P3 = new THREE.Vector3(p3.x, p3.y, p3.z);
+
+    const v1 = new THREE.Vector3().subVectors(P2, P1);
+    const v2 = new THREE.Vector3().subVectors(P3, P1);
+    const normal = new THREE.Vector3().crossVectors(v1, v2);
+    if (normal.lengthSq() < 1e-8) return targetBrush;
+    normal.normalize();
+
+    if (!cutPositive) {
+      normal.negate();
+    }
+
+    const center = new THREE.Vector3().add(P1).add(P2).add(P3).multiplyScalar(1 / 3);
+
+    const SPAN = 60;
+    const geom = new THREE.BoxGeometry(SPAN, SPAN, SPAN);
+    geom.translate(0, 0, SPAN / 2);
+
+    const defaultDir = new THREE.Vector3(0, 0, 1);
+    const quat = new THREE.Quaternion().setFromUnitVectors(defaultDir, normal);
+    geom.applyQuaternion(quat);
+    geom.translate(center.x, center.y, center.z);
+
+    const uvCount = geom.attributes.position.count * 2;
+    geom.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(uvCount), 2));
+    geom.computeVertexNormals();
+
+    const cutter = new Brush(geom);
+    cutter.updateMatrixWorld();
+    targetBrush.updateMatrixWorld();
+
+    const result = this.evaluator.evaluate(targetBrush, cutter, SUBTRACTION);
+    result.material = this.material;
+    result.geometry.computeVertexNormals();
+    return result;
+  }
+
   // Cắt rãnh chữ V (V-Groove):
   // Apex giữ nguyên chuẩn tọa độ grid, chỉ mở nhẹ 2 chân base ra ngoài để đục thủng
   cutVGroove(targetBrush, planeType, apex, base1, base2, depthMin, depthMax) {

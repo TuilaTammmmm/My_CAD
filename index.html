@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>3D Block CAD - Mô Phỏng Hình Vẽ Kỹ Thuật</title>
+  <title>3D Block CAD - Mô Phỏng Vẽ Kỹ Thuật Chuyên Nghiệp</title>
   <link rel="stylesheet" href="./src/style.css">
 </head>
 <body>
@@ -11,46 +11,134 @@
   <!-- KHÔNG GIAN 3D TOÀN MÀN HÌNH -->
   <div id="viewport-container">
 
-    <!-- THANH CÔNG CỤ ĐỒNG BỘ TINH GỌN TRÊN CÙNG -->
-    <header class="app-topbar">
-      <div class="brand">
-        <span class="brand-icon">📐</span>
-        <span class="brand-name">3D Block CAD</span>
+    <!-- THANH CÔNG CỤ DỌC CHUYÊN NGHIỆP BÊN TRÁI (VERTICAL CAD TOOLBAR) -->
+    <aside class="cad-sidebar" id="cad-sidebar">
+      
+      <!-- LOGO BRANDING -->
+      <div class="sidebar-brand">
+        <div class="brand-logo-glow">
+          <svg class="brand-svg" viewBox="0 0 32 32" fill="none">
+            <path d="M16 2L28 8.5V23.5L16 30L4 23.5V8.5L16 2Z" stroke="#38bdf8" stroke-width="2.2" stroke-linejoin="round"/>
+            <path d="M16 30V15.5M28 8.5L16 15.5M4 8.5L16 15.5" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="brand-info">
+          <span class="brand-title">3D Block CAD</span>
+          <span class="brand-badge">PRO</span>
+        </div>
       </div>
 
-      <div class="topbar-divider"></div>
+      <!-- NHÓM 1: CÔNG CỤ CẮT GỌT / THAO TÁC -->
+      <div class="sidebar-section">
+        <div class="section-label">CHẾ ĐỘ CẮT GỌT</div>
+        <div class="tool-list">
+          <button class="tool-btn mode-btn active" data-mode="view" title="Chế độ quan sát: Xoay tự do không vướng điểm">
+            <span class="tool-icon">
+              <svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </span>
+            <span class="tool-text">Chỉ Xem</span>
+          </button>
 
-      <!-- NHÓM 1: CÁC GÓC NHÌN KỸ THUẬT -->
-      <div class="topbar-group">
-        <button class="topbar-btn active" id="view-iso" title="Phối cảnh trục đo 3D">📐 Trục đo</button>
-        <button class="topbar-btn" id="view-horizontal" title="Chiếu ngang 90°: Nhấn để xoay góc nhìn 90° (Đứng -> Cạnh phải -> Sau -> Cạnh trái)">🔄 Chiếu Ngang (90°)</button>
-        <button class="topbar-btn" id="view-top" title="Hình chiếu bằng (Nhìn từ trên)">👁️ Chiếu Bằng</button>
+          <button class="tool-btn mode-btn" data-mode="slant" title="Vát nghiêng: Chọn 2 điểm cắt xiên, hoặc 3 điểm cắt mặt phẳng 3D / rãnh tam giác">
+            <span class="tool-icon">
+              <svg viewBox="0 0 24 24"><polygon points="3 3 21 3 3 21"/><line x1="3" y1="21" x2="21" y2="3" stroke-dasharray="2 2"/></svg>
+            </span>
+            <span class="tool-text">Vát Chéo (2/3 Điểm)</span>
+          </button>
+
+          <button class="tool-btn mode-btn" data-mode="poly" title="Cắt đa giác / khối tự do: Click chọn N điểm (3, 4, 5... điểm) tự kết nối kín để khoét vùng trong đó">
+            <span class="tool-icon">
+              <svg viewBox="0 0 24 24"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5"/></svg>
+            </span>
+            <span class="tool-text">Cắt Đa Giác (N Điểm)</span>
+          </button>
+
+          <button class="tool-btn mode-btn" data-mode="corner" title="Vát góc tam giác 3D: Click chọn 3 điểm xuất phát từ đỉnh góc">
+            <span class="tool-icon">
+              <svg viewBox="0 0 24 24"><path d="M4 20h16M20 20V4M4 20L20 4"/></svg>
+            </span>
+            <span class="tool-text">Vát Góc 3D</span>
+          </button>
+
+          <button class="tool-btn mode-btn" data-mode="box" title="Khoét rãnh hộp chữ nhật: Click 2 góc đối diện">
+            <span class="tool-icon">
+              <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><rect x="8" y="8" width="8" height="8" stroke-dasharray="2 2"/></svg>
+            </span>
+            <span class="tool-text">Cắt Hộp</span>
+          </button>
+
+          <button class="tool-btn mode-btn" data-mode="vgroove" title="Rãnh chữ V: Click Đỉnh và 2 chân rãnh đáy">
+            <span class="tool-icon">
+              <svg viewBox="0 0 24 24"><path d="M3 4h6l3 12 3-12h6"/></svg>
+            </span>
+            <span class="tool-text">Rãnh Chữ V</span>
+          </button>
+        </div>
       </div>
 
-      <div class="topbar-divider"></div>
+      <!-- NHÓM 2: GÓC CHIẾU KỸ THUẬT -->
+      <div class="sidebar-section">
+        <div class="section-label">GÓC CHIẾU KỸ THUẬT</div>
+        <div class="tool-list">
+          <button class="tool-btn topbar-btn active" id="view-iso" title="Phối cảnh trục đo 3D">
+            <span class="tool-icon">
+              <svg viewBox="0 0 24 24"><path d="M12 2l9 5v10l-9 5-9-5V7l9-5z"/><line x1="12" y1="22" x2="12" y2="12"/><line x1="21" y1="7" x2="12" y2="12"/><line x1="3" y1="7" x2="12" y2="12"/></svg>
+            </span>
+            <span class="tool-text">Trục Đo (3D)</span>
+          </button>
 
-      <!-- NHÓM 2: CHẾ ĐỘ THAO TÁC / CẮT GỌT -->
-      <div class="topbar-group">
-        <button class="mode-btn active" data-mode="view" title="Chế độ quan sát: Ẩn toàn bộ điểm lưới và grid, xoay tự do">👁️ Chỉ Xem</button>
-        <button class="mode-btn" data-mode="slant" title="Vát nghiêng: Click 2 điểm theo trục hoặc 3 điểm tạo mặt phẳng 3D tự do">📐 Vát Chéo (2/3 Điểm)</button>
-        <button class="mode-btn" data-mode="poly" title="Cắt đa giác / khối tự do: Click chọn N điểm (3, 4, 5, 6... điểm) tự kết nối lại để cắt phần bên trong">⬡ Cắt Đa Giác (N Điểm)</button>
-        <button class="mode-btn" data-mode="corner" title="Vát góc tam giác: Click chọn 3 điểm trên hình 3D">🔺 Vát Góc</button>
-        <button class="mode-btn" data-mode="box" title="Khoét rãnh hộp: Click chọn 2 góc đối diện">📦 Cắt Hộp</button>
-        <button class="mode-btn" data-mode="vgroove" title="Rãnh V: Click chọn Đỉnh và 2 chân rãnh">🔻 Rãnh V</button>
+          <button class="tool-btn topbar-btn" id="view-horizontal" title="Chiếu ngang 90°: Nhấn để xoay góc nhìn 90° (Đứng -> Cạnh phải -> Sau -> Cạnh trái)">
+            <span class="tool-icon">
+              <svg viewBox="0 0 24 24"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.19"/></svg>
+            </span>
+            <span class="tool-text">Chiếu Ngang (90°)</span>
+          </button>
+
+          <button class="tool-btn topbar-btn" id="view-top" title="Hình chiếu bằng (Nhìn từ trên xuống)">
+            <span class="tool-icon">
+              <svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><circle cx="12" cy="12" r="2"/></svg>
+            </span>
+            <span class="tool-text">Chiếu Bằng (Top)</span>
+          </button>
+        </div>
       </div>
-
-      <div class="topbar-divider"></div>
 
       <!-- NHÓM 3: TIỆN ÍCH & LỊCH SỬ -->
-      <div class="topbar-group">
-        <button class="topbar-btn" id="btn-undo" disabled title="Hoàn tác thao tác trước (Ctrl+Z)">↩️ Hoàn tác</button>
-        <button class="topbar-btn" id="btn-redo" disabled title="Làm lại thao tác vừa hủy (Ctrl+Y)">↪️ Làm lại</button>
-        <button class="topbar-btn" id="btn-open-dim" title="Cài đặt kích thước ô lưới khối ban đầu">⚙️ Kích thước</button>
-        <button class="topbar-btn" id="btn-import-obj" title="Nhập mô hình 3D từ file (.OBJ)">📁 Nhập OBJ</button>
-        <button class="topbar-btn" id="btn-export-obj" title="Xuất mô hình 3D định dạng Wavefront (.OBJ)">💾 Xuất OBJ</button>
+      <div class="sidebar-section">
+        <div class="section-label">TIỆN ÍCH & TẬP TIN</div>
+        
+        <div class="sidebar-grid-2">
+          <button class="tool-btn-compact" id="btn-undo" disabled title="Hoàn tác (Ctrl+Z)">
+            <svg viewBox="0 0 24 24"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
+            <span>Undo</span>
+          </button>
+          <button class="tool-btn-compact" id="btn-redo" disabled title="Làm lại (Ctrl+Y)">
+            <svg viewBox="0 0 24 24"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"/></svg>
+            <span>Redo</span>
+          </button>
+        </div>
+
+        <button class="tool-btn" id="btn-open-dim" title="Cài đặt kích thước ô lưới khối ban đầu">
+          <span class="tool-icon">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          </span>
+          <span class="tool-text">Kích Thước Khối</span>
+        </button>
+
+        <div class="sidebar-grid-2">
+          <button class="tool-btn-compact" id="btn-import-obj" title="Nhập mô hình 3D từ file (.OBJ)">
+            <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <span>Nhập OBJ</span>
+          </button>
+          <button class="tool-btn-compact" id="btn-export-obj" title="Xuất mô hình 3D (.OBJ)">
+            <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span>Xuất OBJ</span>
+          </button>
+        </div>
+        <input type="file" id="input-import-obj" accept=".obj" style="display: none;">
       </div>
-      <input type="file" id="input-import-obj" accept=".obj" style="display: none;">
-    </header>
+
+    </aside>
 
     <!-- POPOVER CÀI ĐẶT KÍCH THƯỚC KHỐI BAN ĐẦU -->
     <div id="dim-popover" class="dim-popover" style="display: none;">
@@ -88,10 +176,10 @@
     <!-- HƯỚNG DẪN THAO TÁC GÓC DƯỚI PHẢI -->
     <div class="hud-helper">
       👁️ <b>Chỉ xem:</b> Kéo chuột xoay tự do không vướng điểm<br>
-      📐 <b>Cắt gọt:</b> Chọn nút công cụ ở thanh trên để hiện điểm bắt dính<br>
+      📐 <b>Cắt gọt:</b> Chọn nút công cụ ở menu bên trái để hiện điểm bắt dính<br>
       🔍 <b>Phóng to / Thu nhỏ:</b> Cuộn bánh xe chuột<br>
       ✋ <b>Di chuyển góc nhìn:</b> Shift + Chuột phải<br>
-      ⌨️ <b>Phím tắt:</b> Enter (Cắt), Esc (Hủy), Ctrl+Z (Undo)
+      ⌨️ <b>Phím tắt:</b> Enter (Cắt), Esc (Hủy), Backspace (Xóa điểm), Ctrl+Z (Undo)
     </div>
 
   </div>

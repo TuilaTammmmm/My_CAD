@@ -361,7 +361,12 @@ function applyHorizontalView(stepNext = false) {
   }
   const view = horizontalViews[horizontalViewIndex];
   if (btn) {
-    btn.innerHTML = `🔄 ${view.name}`;
+    const textSpan = btn.querySelector('.tool-text');
+    if (textSpan) {
+      textSpan.textContent = view.name;
+    } else {
+      btn.innerHTML = `🔄 ${view.name}`;
+    }
     btn.title = `Góc chiếu ngang 90° - Đang ở [${view.name}]. Click để xoay 90° tiếp`;
   }
   const dist = Math.max(W, H, D) * 4;

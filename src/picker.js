@@ -632,7 +632,7 @@ export class InteractivePicker {
   updatePreviewForCorner() {
     const params = this.getCornerParams();
     if (!params) return;
-    this.preview.showCorner3Points(params.p1, params.p2, params.p3, params.corner);
+    this.preview.showCorner3Points(params.p1, params.p2, params.p3, params.corner, this.currentBrush, this.cad);
   }
 
   cycleCornerO() {
@@ -687,7 +687,9 @@ export class InteractivePicker {
       params.dMin,
       params.dMax,
       this.slantCutAbove,
-      this.bounds
+      this.bounds,
+      this.currentBrush,
+      this.cad
     );
   }
 
@@ -701,7 +703,8 @@ export class InteractivePicker {
       this.bounds,
       this.currentBrush,
       this.cad,
-      this.isFullDepth
+      this.isFullDepth,
+      this.customDepth
     );
   }
 
@@ -789,7 +792,7 @@ export class InteractivePicker {
   updatePreviewForVGroove() {
     const params = this.getVGrooveSliceParams();
     if (!params) return;
-    this.preview.showVGroove(params.plane, params.a2d, params.b1_2d, params.b2_2d, params.dMin, params.dMax);
+    this.preview.showVGroove(params.plane, params.a2d, params.b1_2d, params.b2_2d, params.dMin, params.dMax, this.currentBrush, this.cad);
   }
 
   computeSlantParameters(p1, p2) {
@@ -859,7 +862,10 @@ export class InteractivePicker {
     }
     this.customDepth = Math.max(1, Math.min(maxVal, this.customDepth + delta));
     if (this.mode === 'vgroove') this.updatePreviewForVGroove();
-    else if (this.mode === 'slant') this.updatePreviewForSlant();
+    else if (this.mode === 'slant') {
+      if (this.selectedPoints.length === 3) this.updatePreviewForPlane3Points();
+      else this.updatePreviewForSlant();
+    }
     else if (this.mode === 'box') this.updatePreviewForBox();
     else if (this.mode === 'poly') this.updatePreviewForPoly();
     this.updateHUD();
@@ -877,7 +883,10 @@ export class InteractivePicker {
     }
     this.customDepth = maxVal;
     if (this.mode === 'vgroove') this.updatePreviewForVGroove();
-    else if (this.mode === 'slant') this.updatePreviewForSlant();
+    else if (this.mode === 'slant') {
+      if (this.selectedPoints.length === 3) this.updatePreviewForPlane3Points();
+      else this.updatePreviewForSlant();
+    }
     else if (this.mode === 'box') this.updatePreviewForBox();
     else if (this.mode === 'poly') this.updatePreviewForPoly();
     this.updateHUD();
@@ -922,12 +931,21 @@ export class InteractivePicker {
       } else if (this.mode === 'slant') {
         if (this.selectedPoints.length === 3) {
           const [p1, p2, p3] = this.selectedPoints;
-          newBrush = this.cad.cutPlane3Points(
-            this.currentBrush,
-            p1, p2, p3,
-            this.slantCutAbove,
-            this.isFullDepth
-          );
+          if (this.cad.isCoplanarOnFace && this.cad.isCoplanarOnFace(p1, p2, p3)) {
+            newBrush = this.cad.cutMultiPointVolume(
+              this.currentBrush,
+              this.selectedPoints,
+              this.customDepth,
+              this.isFullDepth
+            );
+          } else {
+            newBrush = this.cad.cutPlane3Points(
+              this.currentBrush,
+              p1, p2, p3,
+              this.slantCutAbove,
+              this.isFullDepth
+            );
+          }
         } else if (this.selectedPoints.length === 2) {
           const params = this.getSlantSliceParams();
           if (!params) return;
@@ -1079,23 +1097,44 @@ export class InteractivePicker {
         const p1 = this.selectedPoints[0];
         const p2 = this.selectedPoints[1];
         const p3 = this.selectedPoints[2];
-        const dirText = this.slantCutAbove ? 'Bên Phải/Trên' : 'Bên Trái/Dưới';
-        const boundText = this.isFullDepth ? 'Xuyên suốt khối' : 'Giới hạn theo điểm';
-        html = `
-          <div class="hud-actions">
-            <div class="hud-coords">📐 Mặt phẳng 3D: 🟢 (${p1.x},${p1.y},${p1.z}) ➔ 🔵 (${p2.x},${p2.y},${p2.z}) ➔ 🟡 (${p3.x},${p3.y},${p3.z})</div>
-            <button class="hud-btn-action hud-btn-cut" id="hud-cut-btn">
-              ✂️ CẮT MẶT PHẲNG (Enter)
-            </button>
-            <button class="hud-btn-action" id="hud-toggle-dir" title="Đổi chiều mặt phẳng cắt">
-              🔄 Đổi bên vát (Tab)
-            </button>
-            <button class="hud-btn-toggle" id="hud-toggle-bound" title="Nhấn để đổi giữa giới hạn theo phạm vi điểm và xuyên suốt">
-              🎯 ${boundText}
-            </button>
-            <button class="hud-btn-cancel" id="hud-cancel-btn">✖️ Hủy</button>
-          </div>
-        `;
+        const isCoplanar = this.cad.isCoplanarOnFace && this.cad.isCoplanarOnFace(p1, p2, p3);
+
+        if (isCoplanar) {
+          html = `
+            <div class="hud-actions">
+              <div class="hud-coords">📐 Rãnh tam giác trên mặt: 🟢 (${p1.x},${p1.y},${p1.z}) ➔ 🔵 (${p2.x},${p2.y},${p2.z}) ➔ 🟡 (${p3.x},${p3.y},${p3.z})</div>
+              <div class="hud-stepper">
+                <span>Độ sâu:</span>
+                <button class="step-btn" id="depth-minus" title="Giảm độ sâu">➖</button>
+                <b id="depth-display">${depthText}</b>
+                <button class="step-btn" id="depth-plus" title="Tăng độ sâu">➕</button>
+                <button class="hud-btn-toggle" id="depth-full">Xuyên suốt</button>
+              </div>
+              <button class="hud-btn-action hud-btn-cut" id="hud-cut-btn">
+                ✂️ CẮT RÃNH TAM GIÁC (Enter)
+              </button>
+              <button class="hud-btn-cancel" id="hud-cancel-btn">✖️ Hủy</button>
+            </div>
+          `;
+        } else {
+          const dirText = this.slantCutAbove ? 'Bên Phải/Trên' : 'Bên Trái/Dưới';
+          const boundText = this.isFullDepth ? 'Xuyên suốt khối' : 'Giới hạn theo điểm';
+          html = `
+            <div class="hud-actions">
+              <div class="hud-coords">📐 Mặt phẳng 3D: 🟢 (${p1.x},${p1.y},${p1.z}) ➔ 🔵 (${p2.x},${p2.y},${p2.z}) ➔ 🟡 (${p3.x},${p3.y},${p3.z})</div>
+              <button class="hud-btn-action hud-btn-cut" id="hud-cut-btn">
+                ✂️ CẮT MẶT PHẲNG (Enter)
+              </button>
+              <button class="hud-btn-action" id="hud-toggle-dir" title="Đổi chiều mặt phẳng cắt">
+                🔄 Đổi bên vát (Tab)
+              </button>
+              <button class="hud-btn-toggle" id="hud-toggle-bound" title="Nhấn để đổi giữa giới hạn theo phạm vi điểm và xuyên suốt">
+                🎯 ${boundText}
+              </button>
+              <button class="hud-btn-cancel" id="hud-cancel-btn">✖️ Hủy</button>
+            </div>
+          `;
+        }
       }
 
     } else if (this.mode === 'corner') {

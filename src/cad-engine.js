@@ -125,7 +125,15 @@ export class CadEngine {
     return result;
   }
 
-  // Tạo khối dao cắt mặt phẳng 3D qua 3 điểm (có hỗ trợ tự động giới hạn phạm vi theo điểm)
+  // Kiểm tra 3 điểm có cùng nằm trên 1 mặt phẳng chính (XY, ZY hoặc XZ) không
+  isCoplanarOnFace(p1, p2, p3) {
+    if (Math.abs(p1.z - p2.z) < 0.01 && Math.abs(p1.z - p3.z) < 0.01) return 'XY';
+    if (Math.abs(p1.x - p2.x) < 0.01 && Math.abs(p1.x - p3.x) < 0.01) return 'ZY';
+    if (Math.abs(p1.y - p2.y) < 0.01 && Math.abs(p1.y - p3.y) < 0.01) return 'XZ';
+    return null;
+  }
+
+  // Tạo khối dao cắt mặt phẳng 3D qua 3 điểm (chuẩn nửa không gian, giới hạn chính xác tuyệt đối)
   createPlaneCutterGeometry(p1, p2, p3, cutPositive = true, isFullDepth = false) {
     const P1 = new THREE.Vector3(p1.x, p1.y, p1.z);
     const P2 = new THREE.Vector3(p2.x, p2.y, p2.z);
@@ -141,49 +149,69 @@ export class CadEngine {
       normal.negate();
     }
 
-    let spanX = 60, spanY = 60, spanZ = 60;
-    let posX = (P1.x + P2.x + P3.x) / 3;
-    let posY = (P1.y + P2.y + P3.y) / 3;
-    let posZ = (P1.z + P2.z + P3.z) / 3;
+    const mid = new THREE.Vector3().add(P1).add(P2).add(P3).multiplyScalar(1 / 3);
 
-    // Nếu mặt phẳng song song với trục X (normal.x ≈ 0) và không chọn cắt xuyên suốt:
-    // Giới hạn dao cắt chính xác theo bề rộng X của các điểm chọn (không cắt lẹm sang phần còn lại)
-    if (!isFullDepth) {
-      if (Math.abs(normal.x) < 0.01) {
-        const minX = Math.min(P1.x, P2.x, P3.x) - 0.05;
-        const maxX = Math.max(P1.x, P2.x, P3.x) + 0.05;
-        spanX = Math.max(0.1, maxX - minX);
-        posX = (minX + maxX) / 2;
-      } else if (Math.abs(normal.y) < 0.01) {
-        const minY = Math.min(P1.y, P2.y, P3.y) - 0.05;
-        const maxY = Math.max(P1.y, P2.y, P3.y) + 0.05;
-        spanY = Math.max(0.1, maxY - minY);
-        posY = (minY + maxY) / 2;
-      } else if (Math.abs(normal.z) < 0.01) {
-        const minZ = Math.min(P1.z, P2.z, P3.z) - 0.05;
-        const maxZ = Math.max(P1.z, P2.z, P3.z) + 0.05;
-        spanZ = Math.max(0.1, maxZ - minZ);
-        posZ = (minZ + maxZ) / 2;
-      }
-    }
-
-    const SPAN = 60;
-    const geom = new THREE.BoxGeometry(spanX, Math.min(spanY, SPAN), Math.min(spanZ, SPAN));
+    // Khối hộp đồng nhất lớn (Half-space box)
+    const SPAN = 100;
+    const geom = new THREE.BoxGeometry(SPAN, SPAN, SPAN);
+    // Dời tâm để mặt phẳng cắt đi đúng qua z=0
     geom.translate(0, 0, SPAN / 2);
 
     const defaultDir = new THREE.Vector3(0, 0, 1);
     const quat = new THREE.Quaternion().setFromUnitVectors(defaultDir, normal);
     geom.applyQuaternion(quat);
-    geom.translate(posX, posY, posZ);
+    geom.translate(mid.x, mid.y, mid.z);
 
     const uvCount = geom.attributes.position.count * 2;
     geom.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(uvCount), 2));
     geom.computeVertexNormals();
+
+    // Giới hạn theo phạm vi điểm dọc trục bất biến (nếu không chọn cắt xuyên suốt)
+    if (!isFullDepth) {
+      let boundBox = null;
+      if (Math.abs(normal.x) < 0.02) {
+        const minX = Math.min(P1.x, P2.x, P3.x) - 0.05;
+        const maxX = Math.max(P1.x, P2.x, P3.x) + 0.05;
+        boundBox = new THREE.BoxGeometry(Math.max(0.1, maxX - minX), SPAN, SPAN);
+        boundBox.translate((minX + maxX) / 2, mid.y, mid.z);
+      } else if (Math.abs(normal.y) < 0.02) {
+        const minY = Math.min(P1.y, P2.y, P3.y) - 0.05;
+        const maxY = Math.max(P1.y, P2.y, P3.y) + 0.05;
+        boundBox = new THREE.BoxGeometry(SPAN, Math.max(0.1, maxY - minY), SPAN);
+        boundBox.translate(mid.x, (minY + maxY) / 2, mid.z);
+      } else if (Math.abs(normal.z) < 0.02) {
+        const minZ = Math.min(P1.z, P2.z, P3.z) - 0.05;
+        const maxZ = Math.max(P1.z, P2.z, P3.z) + 0.05;
+        boundBox = new THREE.BoxGeometry(SPAN, SPAN, Math.max(0.1, maxZ - minZ));
+        boundBox.translate(mid.x, mid.y, (minZ + maxZ) / 2);
+      }
+
+      if (boundBox) {
+        boundBox.computeVertexNormals();
+        const bUv = boundBox.attributes.position.count * 2;
+        boundBox.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(bUv), 2));
+        const b1 = new Brush(geom);
+        const b2 = new Brush(boundBox);
+        b1.updateMatrixWorld();
+        b2.updateMatrixWorld();
+        try {
+          const boundedBrush = this.evaluator.evaluate(b1, b2, INTERSECTION);
+          if (boundedBrush && boundedBrush.geometry && boundedBrush.geometry.attributes.position.count > 0) {
+            return boundedBrush.geometry;
+          }
+        } catch (e) {}
+      }
+    }
+
     return geom;
   }
 
-  // Cắt vát mặt phẳng 3D tổng quát qua 3 điểm tự do (General 3-Point Plane Cut)
-  cutPlane3Points(targetBrush, p1, p2, p3, cutPositive = true, isFullDepth = false) {
+  // Cắt vát qua 3 điểm: Tự động phân loại rãnh tam giác trên mặt hoặc mặt phẳng 3D
+  cutPlane3Points(targetBrush, p1, p2, p3, cutPositive = true, isFullDepth = false, customDepth = 0) {
+    if (this.isCoplanarOnFace(p1, p2, p3)) {
+      return this.cutMultiPointVolume(targetBrush, [p1, p2, p3], customDepth, isFullDepth);
+    }
+
     const geom = this.createPlaneCutterGeometry(p1, p2, p3, cutPositive, isFullDepth);
     if (!geom) return targetBrush;
 

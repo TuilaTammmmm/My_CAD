@@ -453,16 +453,18 @@ export class InteractivePicker {
       }
 
     } else if (this.mode === 'slant') {
-      const isDuplicate = this.selectedPoints.some(p => p.x === pt.x && p.y === pt.y && p.z === pt.z);
-      if (isDuplicate) return;
-      this.selectedPoints.push(pt);
+      if (this.selectedPoints.length >= 3) {
+        this.selectedPoints = [pt];
+      } else {
+        const isDuplicate = this.selectedPoints.some(p => p.x === pt.x && p.y === pt.y && p.z === pt.z);
+        if (isDuplicate) return;
+        this.selectedPoints.push(pt);
+      }
       this.renderPointMarkers();
       if (this.selectedPoints.length === 2) {
         this.updatePreviewForSlant();
       } else if (this.selectedPoints.length === 3) {
         this.updatePreviewForPlane3Points();
-      } else if (this.selectedPoints.length >= 4) {
-        this.updatePreviewForPoly();
       } else {
         this.preview.clear();
       }
@@ -612,7 +614,7 @@ export class InteractivePicker {
       const line = new THREE.Line(lineGeom, lineMat);
       line.renderOrder = 1004;
       this.pickerGroup.add(line);
-    } else if ((pts.length >= 3 && (this.mode === 'poly' || this.mode === 'slant')) || (pts.length === 3 && this.mode === 'corner')) {
+    } else if ((pts.length >= 3 && this.mode === 'poly') || (pts.length === 3 && (this.mode === 'slant' || this.mode === 'corner'))) {
       const loopPts = pts.map(p => new THREE.Vector3(p.x, p.y, p.z));
       loopPts.push(new THREE.Vector3(pts[0].x, pts[0].y, pts[0].z)); // Closed loop
       const lineGeom = new THREE.BufferGeometry().setFromPoints(loopPts);
@@ -920,7 +922,7 @@ export class InteractivePicker {
           params.corner
         );
 
-      } else if (this.mode === 'poly' || (this.mode === 'slant' && this.selectedPoints.length >= 4)) {
+      } else if (this.mode === 'poly') {
         newBrush = this.cad.cutMultiPointVolume(
           this.currentBrush,
           this.selectedPoints,
@@ -937,7 +939,7 @@ export class InteractivePicker {
             this.slantCutAbove,
             this.isFullDepth
           );
-        } else {
+        } else if (this.selectedPoints.length === 2) {
           const params = this.getSlantSliceParams();
           if (!params) return;
           newBrush = this.cad.cutSlant(
@@ -1045,7 +1047,7 @@ export class InteractivePicker {
             <button class="hud-btn-cancel" id="hud-cancel-btn">✖️</button>
           </div>
         `;
-      } else if (count === 3) {
+      } else {
         const p1 = this.selectedPoints[0];
         const p2 = this.selectedPoints[1];
         const p3 = this.selectedPoints[2];
@@ -1053,7 +1055,7 @@ export class InteractivePicker {
         const boundText = this.isFullDepth ? 'Xuyên suốt khối' : 'Giới hạn theo điểm';
         html = `
           <div class="hud-actions">
-            <div class="hud-coords">📐 Mặt phẳng: 🟢 (${p1.x},${p1.y},${p1.z}) ➔ 🔵 (${p2.x},${p2.y},${p2.z}) ➔ 🟡 (${p3.x},${p3.y},${p3.z})</div>
+            <div class="hud-coords">📐 Mặt phẳng 3D: 🟢 (${p1.x},${p1.y},${p1.z}) ➔ 🔵 (${p2.x},${p2.y},${p2.z}) ➔ 🟡 (${p3.x},${p3.y},${p3.z})</div>
             <button class="hud-btn-action hud-btn-cut" id="hud-cut-btn">
               ✂️ CẮT MẶT PHẲNG (Enter)
             </button>
@@ -1062,20 +1064,6 @@ export class InteractivePicker {
             </button>
             <button class="hud-btn-toggle" id="hud-toggle-bound" title="Nhấn để đổi giữa giới hạn theo phạm vi điểm và xuyên suốt">
               🎯 ${boundText}
-            </button>
-            <span style="font-size:12px; opacity:0.85; margin:0 4px;">👉 Hoặc click thêm để tạo khối đa diện ${count} điểm</span>
-            <button class="hud-btn-cancel" id="hud-cancel-btn">✖️ Hủy</button>
-          </div>
-        `;
-      } else {
-        html = `
-          <div class="hud-actions">
-            <div class="hud-coords">⬡ Khối tự do: Đã chọn ${count} điểm tự nối kín</div>
-            <button class="hud-btn-action hud-btn-cut" id="hud-cut-btn">
-              ✂️ CẮT VÙNG TRONG ĐÓ (Enter)
-            </button>
-            <button class="hud-btn-action" id="hud-remove-point" title="Xóa điểm vừa chọn gần nhất (Backspace)">
-              ↩️ Xóa điểm cuối
             </button>
             <button class="hud-btn-cancel" id="hud-cancel-btn">✖️ Hủy</button>
           </div>

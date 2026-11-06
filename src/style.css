@@ -40,7 +40,7 @@ body {
   left: 18px;
   top: 18px;
   bottom: 18px;
-  width: 236px;
+  width: 246px;
   background: rgba(15, 23, 42, 0.88);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
@@ -53,8 +53,17 @@ body {
   flex-direction: column;
   gap: 16px;
   overflow-y: auto;
+  overflow-x: hidden;
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+}
+
+#sidebar-3d-tools,
+#sidebar-2d-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
 }
 
 .cad-sidebar::-webkit-scrollbar {
@@ -233,6 +242,19 @@ body {
 .tool-btn-compact:disabled {
   opacity: 0.35;
   cursor: not-allowed;
+}
+
+.btn-export-dxf {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(5, 150, 105, 0.25)) !important;
+  border: 1px solid rgba(16, 185, 129, 0.45) !important;
+  color: #34d399 !important;
+}
+
+.btn-export-dxf:hover {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.28), rgba(5, 150, 105, 0.45)) !important;
+  border-color: #34d399 !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 15px rgba(16, 185, 129, 0.35) !important;
 }
 
 /* ===================================================

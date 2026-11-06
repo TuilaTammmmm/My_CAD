@@ -458,7 +458,7 @@ function switchTo3D() {
   // Chuyển nội dung trong sidebar dùng chung: hiện 3D, ẩn 2D
   const sidebar3d = document.getElementById('sidebar-3d-tools');
   const sidebar2d = document.getElementById('sidebar-2d-tools');
-  if (sidebar3d) sidebar3d.style.display = 'block';
+  if (sidebar3d) sidebar3d.style.display = 'flex';
   if (sidebar2d) sidebar2d.style.display = 'none';
 
   // Hiện lại HUD và helper 3D

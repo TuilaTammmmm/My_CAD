@@ -146,33 +146,26 @@ export class CAD2DEditor {
 
     this.elements = [];
 
-    // Chia nhỏ từng cạnh dài thành các đoạn 0.5/1.0 để người dùng có thể xóa tỉa từng đoạn nhỏ!
-    const addSubsegmentedLines = (lines, style) => {
-      for (const line of lines) {
-        const dx = line.p2.u - line.p1.u;
-        const dy = line.p2.v - line.p1.v;
-        const len = Math.hypot(dx, dy);
-        const steps = Math.max(1, Math.round(len / 0.5));
-
-        for (let i = 0; i < steps; i++) {
-          const t1 = i / steps;
-          const t2 = (i + 1) / steps;
-          const u1 = Number((line.p1.u + dx * t1).toFixed(3));
-          const v1 = Number((line.p1.v + dy * t1).toFixed(3));
-          const u2 = Number((line.p1.u + dx * t2).toFixed(3));
-          const v2 = Number((line.p1.v + dy * t2).toFixed(3));
-          this.elements.push({
-            type: 'line',
-            style,
-            p1: { u: u1, v: v1 },
-            p2: { u: u2, v: v2 }
-          });
-        }
+    if (front.visible) {
+      for (const line of front.visible) {
+        this.elements.push({
+          type: 'line',
+          style: 'visible',
+          p1: { u: line.p1.u, v: line.p1.v },
+          p2: { u: line.p2.u, v: line.p2.v }
+        });
       }
-    };
-
-    if (front.visible) addSubsegmentedLines(front.visible, 'visible');
-    if (front.hidden) addSubsegmentedLines(front.hidden, 'hidden');
+    }
+    if (front.hidden) {
+      for (const line of front.hidden) {
+        this.elements.push({
+          type: 'line',
+          style: 'hidden',
+          p1: { u: line.p1.u, v: line.p1.v },
+          p2: { u: line.p2.u, v: line.p2.v }
+        });
+      }
+    }
 
     this.saveHistory();
     this.render();
@@ -219,10 +212,13 @@ export class CAD2DEditor {
       }
 
       if (e.button === 0) {
+        const rawU = Number(((mouseX - this.offsetX) / this.scale).toFixed(3));
+        const rawV = Number((-(mouseY - this.offsetY) / this.scale).toFixed(3));
+        const rawPoint = { u: rawU, v: rawV };
         const snap = this.getSnapPoint(mouseX, mouseY);
         if (!snap) return;
 
-        this.handleToolClick(snap);
+        this.handleToolClick(snap, rawPoint);
       }
     });
 
@@ -287,7 +283,7 @@ export class CAD2DEditor {
     });
   }
 
-  handleToolClick(snap) {
+  handleToolClick(snap, rawPoint) {
     // 1. Vẽ nét thẳng (Thấy hoặc Khuất)
     if (this.tool === 'line-visible' || this.tool === 'line-hidden') {
       if (this.pendingPoints.length === 0) {
@@ -297,23 +293,13 @@ export class CAD2DEditor {
         const p2 = snap;
 
         if (p1.u !== p2.u || p1.v !== p2.v) {
-          // Tự động phân tách nét dài thành các phân đoạn 0.5 unit để cho phép xóa tỉa từng mẩu nhỏ
-          const dx = p2.u - p1.u;
-          const dy = p2.v - p1.v;
-          const len = Math.hypot(dx, dy);
-          const steps = Math.max(1, Math.round(len / 0.5));
           const style = (this.tool === 'line-hidden') ? 'hidden' : 'visible';
-
-          for (let i = 0; i < steps; i++) {
-            const t1 = i / steps;
-            const t2 = (i + 1) / steps;
-            this.elements.push({
-              type: 'line',
-              style,
-              p1: { u: Number((p1.u + dx * t1).toFixed(2)), v: Number((p1.v + dy * t1).toFixed(2)) },
-              p2: { u: Number((p1.u + dx * t2).toFixed(2)), v: Number((p1.v + dy * t2).toFixed(2)) }
-            });
-          }
+          this.elements.push({
+            type: 'line',
+            style,
+            p1: { u: p1.u, v: p1.v },
+            p2: { u: p2.u, v: p2.v }
+          });
           this.saveHistory();
         }
         this.pendingPoints = [];
@@ -329,21 +315,8 @@ export class CAD2DEditor {
         const [A, B, C] = this.pendingPoints;
         const circleParams = this.calculateCircleFrom3Points(A, B, C);
         if (circleParams) {
-          // Tính góc bắt đầu và góc kết thúc
-          let startAngle = Math.atan2(A.v - circleParams.cy, A.u - circleParams.cx);
-          let midAngle = Math.atan2(B.v - circleParams.cy, B.u - circleParams.cx);
-          let endAngle = Math.atan2(C.v - circleParams.cy, C.u - circleParams.cx);
-
-          this.elements.push({
-            type: 'arc',
-            style: 'visible',
-            cx: Number(circleParams.cx.toFixed(3)),
-            cy: Number(circleParams.cy.toFixed(3)),
-            r: Number(circleParams.r.toFixed(3)),
-            startAngle,
-            endAngle,
-            pA: A, pB: B, pC: C
-          });
+          const arcObj = this.makeCCWArc(circleParams.cx, circleParams.cy, circleParams.r, A, B, C, 'visible');
+          this.elements.push(arcObj);
           this.saveHistory();
         }
         this.pendingPoints = [];
@@ -397,40 +370,439 @@ export class CAD2DEditor {
       return;
     }
 
-    // 5. XÓA TỈA NÉT CHI TIẾT (Precision Eraser)
+    // 5. TỈA NÉT CẮT AUTOCAD (TRIM TOOL)
     if (this.tool === 'erase') {
-      this.eraseSegmentNear(snap);
+      this.trimAtPoint(rawPoint || snap);
       return;
     }
   }
 
-  // Xóa tỉa nét chi tiết từng đoạn nhỏ 0.5 unit
-  eraseSegmentNear(snap) {
-    const EPS = 0.4;
-    const initialCount = this.elements.length;
+  // --- HỆ THỐNG TỈA NÉT CẮT AUTOCAD CHUẨN XÁC (TRIM ENGINE) ---
+  normAngle(a) {
+    let res = a % (Math.PI * 2);
+    if (res < 0) res += Math.PI * 2;
+    return res;
+  }
 
-    this.elements = this.elements.filter(elem => {
-      if (elem.type === 'line') {
-        // Khoảng cách từ snap đến đoạn thẳng p1-p2
-        const dist = this.pointToSegmentDistance(snap, elem.p1, elem.p2);
-        return dist > EPS;
-      } else if (elem.type === 'circle') {
-        const distCenter = Math.hypot(snap.u - elem.cx, snap.v - elem.cy);
-        return Math.abs(distCenter - elem.r) > EPS;
-      } else if (elem.type === 'arc') {
-        const distCenter = Math.hypot(snap.u - elem.cx, snap.v - elem.cy);
-        if (Math.abs(distCenter - elem.r) < EPS) return false;
-        return true;
-      } else if (elem.type === 'dim') {
-        const dist = this.pointToSegmentDistance(snap, elem.p1, elem.p2);
-        return dist > EPS;
+  isAngleOnArc(angle, startAngle, endAngle) {
+    const normA = this.normAngle(angle);
+    const normS = this.normAngle(startAngle);
+    const normE = this.normAngle(endAngle);
+
+    let sweep = normE - normS;
+    if (sweep < 0) sweep += Math.PI * 2;
+    if (sweep < 1e-5) sweep = Math.PI * 2;
+
+    let delta = normA - normS;
+    if (delta < 0) delta += Math.PI * 2;
+
+    return delta >= -1e-4 && delta <= sweep + 1e-4;
+  }
+
+  intersectSegmentSegment(p1, p2, p3, p4) {
+    const d1x = p2.u - p1.u, d1y = p2.v - p1.v;
+    const d2x = p4.u - p3.u, d2y = p4.v - p3.v;
+    const cross = d1x * d2y - d1y * d2x;
+    if (Math.abs(cross) < 1e-7) return null;
+
+    const dx = p3.u - p1.u;
+    const dy = p3.v - p1.v;
+    const t = (dx * d2y - dy * d2x) / cross;
+    const s = (dx * d1y - dy * d1x) / cross;
+
+    if (t > 1e-4 && t < 1 - 1e-4 && s > 1e-4 && s < 1 - 1e-4) {
+      return {
+        u: p1.u + t * d1x,
+        v: p1.v + t * d1y,
+        tA: t,
+        tB: s
+      };
+    }
+    return null;
+  }
+
+  intersectSegmentCircle(p1, p2, circle) {
+    const dx = p2.u - p1.u;
+    const dy = p2.v - p1.v;
+    const fx = p1.u - circle.cx;
+    const fy = p1.v - circle.cy;
+
+    const a = dx * dx + dy * dy;
+    if (a < 1e-8) return [];
+
+    const b = 2 * (fx * dx + fy * dy);
+    const c = fx * fx + fy * fy - circle.r * circle.r;
+    const discr = b * b - 4 * a * c;
+
+    if (discr < 1e-7) return [];
+
+    const sqrtD = Math.sqrt(Math.max(0, discr));
+    const t1 = (-b - sqrtD) / (2 * a);
+    const t2 = (-b + sqrtD) / (2 * a);
+
+    const pts = [];
+    for (const t of [t1, t2]) {
+      if (t > 1e-4 && t < 1 - 1e-4) {
+        const u = p1.u + t * dx;
+        const v = p1.v + t * dy;
+        const angle = this.normAngle(Math.atan2(v - circle.cy, u - circle.cx));
+        pts.push({ u, v, t, angle });
       }
-      return true;
-    });
+    }
+    return pts;
+  }
 
-    if (this.elements.length !== initialCount) {
+  intersectSegmentArc(p1, p2, arc) {
+    const raw = this.intersectSegmentCircle(p1, p2, { cx: arc.cx, cy: arc.cy, r: arc.r });
+    return raw.filter(pt => this.isAngleOnArc(pt.angle, arc.startAngle, arc.endAngle));
+  }
+
+  intersectCircleCircle(c1, c2) {
+    const dx = c2.cx - c1.cx;
+    const dy = c2.cy - c1.cy;
+    const d = Math.hypot(dx, dy);
+    if (d < 1e-7 || d > c1.r + c2.r - 1e-5 || d < Math.abs(c1.r - c2.r) + 1e-5) {
+      return [];
+    }
+
+    const a = (c1.r * c1.r - c2.r * c2.r + d * d) / (2 * d);
+    const h2 = c1.r * c1.r - a * a;
+    if (h2 < 0) return [];
+    const h = Math.sqrt(Math.max(0, h2));
+
+    const x2 = c1.cx + (dx * a) / d;
+    const y2 = c1.cy + (dy * a) / d;
+
+    const rx = -dy * (h / d);
+    const ry = dx * (h / d);
+
+    const pt1 = { u: x2 + rx, v: y2 + ry };
+    const pt2 = { u: x2 - rx, v: y2 - ry };
+
+    const res = [];
+    for (const pt of [pt1, pt2]) {
+      const angle1 = this.normAngle(Math.atan2(pt.v - c1.cy, pt.u - c1.cx));
+      const angle2 = this.normAngle(Math.atan2(pt.v - c2.cy, pt.u - c2.cx));
+      res.push({ u: pt.u, v: pt.v, angle1, angle2 });
+    }
+    return res;
+  }
+
+  intersectCircleArc(circle, arc) {
+    const raw = this.intersectCircleCircle(circle, { cx: arc.cx, cy: arc.cy, r: arc.r });
+    return raw
+      .filter(pt => this.isAngleOnArc(pt.angle2, arc.startAngle, arc.endAngle))
+      .map(pt => ({
+        u: pt.u,
+        v: pt.v,
+        angleCircle: pt.angle1,
+        angleArc: pt.angle2
+      }));
+  }
+
+  intersectArcArc(arc1, arc2) {
+    const raw = this.intersectCircleCircle(
+      { cx: arc1.cx, cy: arc1.cy, r: arc1.r },
+      { cx: arc2.cx, cy: arc2.cy, r: arc2.r }
+    );
+    return raw.filter(pt =>
+      this.isAngleOnArc(pt.angle1, arc1.startAngle, arc1.endAngle) &&
+      this.isAngleOnArc(pt.angle2, arc2.startAngle, arc2.endAngle)
+    );
+  }
+
+  // TỈA ĐOẠN NÉT BỊ CẮT HOẶC XÓA NÉT (AUTOCAD TRIM)
+  trimAtPoint(clickPoint) {
+    let bestElem = null;
+    let bestDist = Infinity;
+    let bestIndex = -1;
+
+    for (let i = 0; i < this.elements.length; i++) {
+      const elem = this.elements[i];
+      let d = Infinity;
+      if (elem.type === 'line') {
+        d = this.pointToSegmentDistance(clickPoint, elem.p1, elem.p2);
+      } else if (elem.type === 'circle') {
+        d = Math.abs(Math.hypot(clickPoint.u - elem.cx, clickPoint.v - elem.cy) - elem.r);
+      } else if (elem.type === 'arc') {
+        const distC = Math.hypot(clickPoint.u - elem.cx, clickPoint.v - elem.cy);
+        const angle = this.normAngle(Math.atan2(clickPoint.v - elem.cy, clickPoint.u - elem.cx));
+        if (this.isAngleOnArc(angle, elem.startAngle, elem.endAngle)) {
+          d = Math.abs(distC - elem.r);
+        } else {
+          const p1 = { u: elem.cx + elem.r * Math.cos(elem.startAngle), v: elem.cy + elem.r * Math.sin(elem.startAngle) };
+          const p2 = { u: elem.cx + elem.r * Math.cos(elem.endAngle), v: elem.cy + elem.r * Math.sin(elem.endAngle) };
+          d = Math.min(Math.hypot(clickPoint.u - p1.u, clickPoint.v - p1.v), Math.hypot(clickPoint.u - p2.u, clickPoint.v - p2.v));
+        }
+      } else if (elem.type === 'dim') {
+        d = this.pointToSegmentDistance(clickPoint, elem.p1, elem.p2);
+      }
+
+      if (d < bestDist) {
+        bestDist = d;
+        bestElem = elem;
+        bestIndex = i;
+      }
+    }
+
+    const clickThreshold = Math.max(0.45, 24 / this.scale);
+    if (!bestElem || bestDist > clickThreshold) return;
+
+    if (bestElem.type === 'dim') {
+      this.elements.splice(bestIndex, 1);
       this.saveHistory();
       this.render();
+      return;
+    }
+
+    const otherElements = this.elements.filter((_, idx) => idx !== bestIndex);
+
+    // 1. TỈA ĐOẠN THẲNG (LINE)
+    if (bestElem.type === 'line') {
+      let tList = [0, 1];
+      for (const other of otherElements) {
+        if (other.type === 'line') {
+          const inter = this.intersectSegmentSegment(bestElem.p1, bestElem.p2, other.p1, other.p2);
+          if (inter) tList.push(inter.tA);
+        } else if (other.type === 'circle') {
+          const inters = this.intersectSegmentCircle(bestElem.p1, bestElem.p2, other);
+          for (const p of inters) tList.push(p.t);
+        } else if (other.type === 'arc') {
+          const inters = this.intersectSegmentArc(bestElem.p1, bestElem.p2, other);
+          for (const p of inters) tList.push(p.t);
+        }
+      }
+
+      tList.sort((a, b) => a - b);
+      const cleanT = [tList[0]];
+      for (let i = 1; i < tList.length; i++) {
+        if (tList[i] - cleanT[cleanT.length - 1] > 1e-3) {
+          cleanT.push(tList[i]);
+        }
+      }
+
+      if (cleanT.length <= 2) {
+        this.elements.splice(bestIndex, 1);
+        this.saveHistory();
+        this.render();
+        return;
+      }
+
+      const dx = bestElem.p2.u - bestElem.p1.u;
+      const dy = bestElem.p2.v - bestElem.p1.v;
+      const len2 = dx * dx + dy * dy;
+      let tClick = 0.5;
+      if (len2 > 1e-6) {
+        tClick = ((clickPoint.u - bestElem.p1.u) * dx + (clickPoint.v - bestElem.p1.v) * dy) / len2;
+      }
+      tClick = Math.max(0, Math.min(1, tClick));
+
+      let clickedSegIndex = -1;
+      for (let k = 0; k < cleanT.length - 1; k++) {
+        if (tClick >= cleanT[k] - 1e-4 && tClick <= cleanT[k + 1] + 1e-4) {
+          clickedSegIndex = k;
+          break;
+        }
+      }
+      if (clickedSegIndex === -1) clickedSegIndex = 0;
+
+      const remaining = [];
+      for (let k = 0; k < cleanT.length - 1; k++) {
+        if (k !== clickedSegIndex && cleanT[k + 1] - cleanT[k] > 1e-3) {
+          const u1 = bestElem.p1.u + cleanT[k] * dx;
+          const v1 = bestElem.p1.v + cleanT[k] * dy;
+          const u2 = bestElem.p1.u + cleanT[k + 1] * dx;
+          const v2 = bestElem.p1.v + cleanT[k + 1] * dy;
+          remaining.push({
+            type: 'line',
+            style: bestElem.style,
+            p1: { u: Number(u1.toFixed(3)), v: Number(v1.toFixed(3)) },
+            p2: { u: Number(u2.toFixed(3)), v: Number(v2.toFixed(3)) }
+          });
+        }
+      }
+
+      this.elements.splice(bestIndex, 1, ...remaining);
+      this.saveHistory();
+      this.render();
+      return;
+    }
+
+    // 2. TỈA ĐƯỜNG TRÒN (CIRCLE -> ARCS)
+    if (bestElem.type === 'circle') {
+      let angleList = [];
+      for (const other of otherElements) {
+        if (other.type === 'line') {
+          const inters = this.intersectSegmentCircle(other.p1, other.p2, bestElem);
+          for (const p of inters) angleList.push(p.angle);
+        } else if (other.type === 'circle') {
+          const inters = this.intersectCircleCircle(bestElem, other);
+          for (const p of inters) angleList.push(p.angle1);
+        } else if (other.type === 'arc') {
+          const inters = this.intersectCircleArc(bestElem, other);
+          for (const p of inters) angleList.push(p.angleCircle);
+        }
+      }
+
+      angleList.sort((a, b) => a - b);
+      const cleanAngles = [];
+      for (const a of angleList) {
+        if (cleanAngles.length === 0 || a - cleanAngles[cleanAngles.length - 1] > 1e-3) {
+          cleanAngles.push(a);
+        }
+      }
+      if (cleanAngles.length >= 2 && (cleanAngles[0] + Math.PI * 2 - cleanAngles[cleanAngles.length - 1]) < 1e-3) {
+        cleanAngles.pop();
+      }
+
+      if (cleanAngles.length < 2) {
+        this.elements.splice(bestIndex, 1);
+        this.saveHistory();
+        this.render();
+        return;
+      }
+
+      const kCount = cleanAngles.length;
+      const clickAngle = this.normAngle(Math.atan2(clickPoint.v - bestElem.cy, clickPoint.u - bestElem.cx));
+
+      let clickedArcIdx = kCount - 1;
+      for (let j = 0; j < kCount - 1; j++) {
+        if (clickAngle >= cleanAngles[j] - 1e-4 && clickAngle <= cleanAngles[j + 1] + 1e-4) {
+          clickedArcIdx = j;
+          break;
+        }
+      }
+
+      const newArcs = [];
+      for (let j = 0; j < kCount; j++) {
+        if (j !== clickedArcIdx) {
+          const sAngle = cleanAngles[j];
+          const eAngle = (j === kCount - 1) ? cleanAngles[0] : cleanAngles[j + 1];
+          newArcs.push({
+            type: 'arc',
+            style: bestElem.style,
+            cx: bestElem.cx,
+            cy: bestElem.cy,
+            r: bestElem.r,
+            startAngle: sAngle,
+            endAngle: eAngle
+          });
+        }
+      }
+
+      this.elements.splice(bestIndex, 1, ...newArcs);
+      this.saveHistory();
+      this.render();
+      return;
+    }
+
+    // 3. TỈA CUNG CONG (ARC -> SUB-ARCS)
+    if (bestElem.type === 'arc') {
+      let angleList = [];
+      for (const other of otherElements) {
+        if (other.type === 'line') {
+          const inters = this.intersectSegmentArc(other.p1, other.p2, bestElem);
+          for (const p of inters) angleList.push(p.angle);
+        } else if (other.type === 'circle') {
+          const inters = this.intersectCircleArc(other, bestElem);
+          for (const p of inters) angleList.push(p.angleArc);
+        } else if (other.type === 'arc') {
+          const inters = this.intersectArcArc(bestElem, other);
+          for (const p of inters) angleList.push(p.angle1);
+        }
+      }
+
+      let arcSweep = this.normAngle(bestElem.endAngle - bestElem.startAngle);
+      if (arcSweep < 1e-5) arcSweep = Math.PI * 2;
+
+      let deltaList = [0, arcSweep];
+      for (const a of angleList) {
+        const d = this.normAngle(a - bestElem.startAngle);
+        if (d > 1e-3 && d < arcSweep - 1e-3) {
+          deltaList.push(d);
+        }
+      }
+
+      deltaList.sort((a, b) => a - b);
+      const cleanDeltas = [deltaList[0]];
+      for (let i = 1; i < deltaList.length; i++) {
+        if (deltaList[i] - cleanDeltas[cleanDeltas.length - 1] > 1e-3) {
+          cleanDeltas.push(deltaList[i]);
+        }
+      }
+
+      if (cleanDeltas.length <= 2) {
+        this.elements.splice(bestIndex, 1);
+        this.saveHistory();
+        this.render();
+        return;
+      }
+
+      const clickAngle = this.normAngle(Math.atan2(clickPoint.v - bestElem.cy, clickPoint.u - bestElem.cx));
+      let clickDelta = this.normAngle(clickAngle - bestElem.startAngle);
+      clickDelta = Math.max(0, Math.min(arcSweep, clickDelta));
+
+      let clickedSubIdx = -1;
+      for (let k = 0; k < cleanDeltas.length - 1; k++) {
+        if (clickDelta >= cleanDeltas[k] - 1e-4 && clickDelta <= cleanDeltas[k + 1] + 1e-4) {
+          clickedSubIdx = k;
+          break;
+        }
+      }
+      if (clickedSubIdx === -1) clickedSubIdx = 0;
+
+      const newSubArcs = [];
+      for (let k = 0; k < cleanDeltas.length - 1; k++) {
+        if (k !== clickedSubIdx && cleanDeltas[k + 1] - cleanDeltas[k] > 1e-3) {
+          const sAngle = this.normAngle(bestElem.startAngle + cleanDeltas[k]);
+          const eAngle = this.normAngle(bestElem.startAngle + cleanDeltas[k + 1]);
+          newSubArcs.push({
+            type: 'arc',
+            style: bestElem.style,
+            cx: bestElem.cx,
+            cy: bestElem.cy,
+            r: bestElem.r,
+            startAngle: sAngle,
+            endAngle: eAngle
+          });
+        }
+      }
+
+      this.elements.splice(bestIndex, 1, ...newSubArcs);
+      this.saveHistory();
+      this.render();
+      return;
+    }
+  }
+
+  makeCCWArc(cx, cy, r, A, B, C, style = 'visible') {
+    let aA = this.normAngle(Math.atan2(A.v - cy, A.u - cx));
+    let aB = this.normAngle(Math.atan2(B.v - cy, B.u - cx));
+    let aC = this.normAngle(Math.atan2(C.v - cy, C.u - cx));
+
+    let sweepB = this.normAngle(aB - aA);
+    let sweepC = this.normAngle(aC - aA);
+
+    if (sweepB < sweepC) {
+      return {
+        type: 'arc',
+        style,
+        cx: Number(cx.toFixed(3)),
+        cy: Number(cy.toFixed(3)),
+        r: Number(r.toFixed(3)),
+        startAngle: aA,
+        endAngle: aC
+      };
+    } else {
+      return {
+        type: 'arc',
+        style,
+        cx: Number(cx.toFixed(3)),
+        cy: Number(cy.toFixed(3)),
+        r: Number(r.toFixed(3)),
+        startAngle: aC,
+        endAngle: aA
+      };
     }
   }
 
@@ -463,9 +835,9 @@ export class CAD2DEditor {
     if (!hintEl) return;
 
     if (this.tool === 'line-visible') {
-      hintEl.innerHTML = `✏️ <b>Vẽ Nét Thấy:</b> Click Điểm 1 ➔ Click Điểm 2 để nối nét liền đậm | Tự động chia đoạn để xóa tỉa nhỏ`;
+      hintEl.innerHTML = `✏️ <b>Vẽ Nét Thấy:</b> Click Điểm 1 ➔ Click Điểm 2 để nối nét liền đậm`;
     } else if (this.tool === 'line-hidden') {
-      hintEl.innerHTML = `📏 <b>Vẽ Nét Khuất:</b> Click 2 điểm để vẽ nét đứt vàng`;
+      hintEl.innerHTML = `✏️ <b>Vẽ Nét Khuất:</b> Click 2 điểm để vẽ nét đứt vàng`;
     } else if (this.tool === 'arc') {
       const step = this.pendingPoints.length + 1;
       hintEl.innerHTML = `⌒ <b>Vẽ Cung Cong (3 Điểm):</b> Đang chờ Click <b>Điểm ${step}/3</b>`;
@@ -475,7 +847,7 @@ export class CAD2DEditor {
     } else if (this.tool === 'dim') {
       hintEl.innerHTML = `📐 <b>Đo Kích Thước:</b> Click 2 điểm để đo khoảng cách và tạo đường ghi kích thước`;
     } else if (this.tool === 'erase') {
-      hintEl.innerHTML = `✂️ <b>Tỉa Xóa Chi Tiết:</b> Click vào bất kỳ nét nhỏ nào để xóa từng phân đoạn`;
+      hintEl.innerHTML = `✂️ <b>Tỉa Nét Cắt (AutoCAD TRIM):</b> Click vào đoạn nét (trong hoặc ngoài các giao điểm) để cắt tỉa`;
     } else if (this.tool === 'pan') {
       hintEl.innerHTML = `✋ <b>Di Chuyển / Pan:</b> Kéo chuột trái để di chuyển mặt phẳng vẽ | Cuộn chuột để Phóng to/Thu nhỏ`;
     }
@@ -673,15 +1045,14 @@ export class CAD2DEditor {
         const cy = this.offsetY - elem.cy * s;
         const r = elem.r * s;
 
-        // Lưu ý Canvas trục Y đi xuống nên góc cần đảo dấu
-        const a1 = -elem.startAngle;
-        const a2 = -elem.endAngle;
-
+        // Cung chuẩn CCW: Trên Canvas (trục Y hướng xuống) đảo góc và dùng counterclockwise = true
         ctx.beginPath();
-        ctx.arc(cx, cy, r, a1, a2, false);
-        ctx.strokeStyle = '#f8fafc';
+        ctx.arc(cx, cy, r, -elem.startAngle, -elem.endAngle, true);
+        ctx.strokeStyle = (elem.style === 'hidden') ? '#facc15' : '#f8fafc';
         ctx.lineWidth = 2.8;
+        if (elem.style === 'hidden') ctx.setLineDash([7, 4]);
         ctx.stroke();
+        ctx.setLineDash([]);
 
       } else if (elem.type === 'dim') {
         // Vẽ kích thước (Dimension line)
@@ -765,11 +1136,12 @@ export class CAD2DEditor {
           const C = p2;
           const circleParams = this.calculateCircleFrom3Points(A, B, C);
           if (circleParams) {
-            const cx = this.offsetX + circleParams.cx * s;
-            const cy = this.offsetY - circleParams.cy * s;
-            const r = circleParams.r * s;
+            const arcObj = this.makeCCWArc(circleParams.cx, circleParams.cy, circleParams.r, A, B, C);
+            const cx = this.offsetX + arcObj.cx * s;
+            const cy = this.offsetY - arcObj.cy * s;
+            const r = arcObj.r * s;
             ctx.beginPath();
-            ctx.arc(cx, cy, r, -Math.atan2(A.v - circleParams.cy, A.u - circleParams.cx), -Math.atan2(C.v - circleParams.cy, C.u - circleParams.cx));
+            ctx.arc(cx, cy, r, -arcObj.startAngle, -arcObj.endAngle, true);
             ctx.strokeStyle = '#f43f5e';
             ctx.lineWidth = 2.4;
             ctx.stroke();
@@ -799,17 +1171,25 @@ export class CAD2DEditor {
   exportDXF() {
     const visibleLines = [];
     const hiddenLines = [];
+    const circles = [];
+    const arcs = [];
 
     for (const elem of this.elements) {
       if (elem.type === 'line') {
         if (elem.style === 'hidden') hiddenLines.push(elem);
         else visibleLines.push(elem);
+      } else if (elem.type === 'circle') {
+        circles.push(elem);
+      } else if (elem.type === 'arc') {
+        arcs.push(elem);
       }
     }
 
     DXFExporter.downloadPlaneDXF({
       visibleLines,
       hiddenLines,
+      circles,
+      arcs,
       planeName: 'MAT_DUNG_XY',
       bounds: this.bounds
     }, `ban_ve_2d_XY_${this.bounds.w}x${this.bounds.h}.dxf`);

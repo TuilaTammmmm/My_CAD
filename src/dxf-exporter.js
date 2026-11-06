@@ -10,7 +10,14 @@ export class DXFExporter {
    * @param {String} filename
    */
   static downloadPlaneDXF(planeData, filename = 'ban_ve_2d.dxf') {
-    const { visibleLines = [], hiddenLines = [], planeName = 'MAT_DUNG', bounds = { w: 6, h: 4, d: 4 } } = planeData;
+    const {
+      visibleLines = [],
+      hiddenLines = [],
+      circles = [],
+      arcs = [],
+      planeName = 'MAT_DUNG',
+      bounds = { w: 6, h: 4, d: 4 }
+    } = planeData;
     const { w, h, d } = bounds;
 
     // Tỉ lệ scale trong AutoCAD: 1 đơn vị grid = 10mm
@@ -55,6 +62,26 @@ export class DXFExporter {
       );
     };
 
+    const addCircle = (layer, cx, cy, r) => {
+      out.push(
+        '0', 'CIRCLE',
+        '8', layer,
+        '10', cx.toFixed(3), '20', cy.toFixed(3), '30', '0.0',
+        '40', r.toFixed(3)
+      );
+    };
+
+    const addArc = (layer, cx, cy, r, startAngleDeg, endAngleDeg) => {
+      out.push(
+        '0', 'ARC',
+        '8', layer,
+        '10', cx.toFixed(3), '20', cy.toFixed(3), '30', '0.0',
+        '40', r.toFixed(3),
+        '50', startAngleDeg.toFixed(2),
+        '51', endAngleDeg.toFixed(2)
+      );
+    };
+
     const addText = (layer, text, x, y, height = 3.5) => {
       out.push(
         '0', 'TEXT',
@@ -68,14 +95,30 @@ export class DXFExporter {
     // Tiêu đề mặt vẽ
     addText('KHUNG_TEN', `BAN VE 2D: ${planeName.toUpperCase()}`, originX, originY + (h + 1) * scale + 6, 4.5);
 
-    // Vẽ nét thấy
+    // Vẽ nét thấy (đoạn thẳng)
     for (const line of visibleLines) {
       addLine('NET_THAY', originX + line.p1.u * scale, originY + line.p1.v * scale, originX + line.p2.u * scale, originY + line.p2.v * scale);
     }
 
-    // Vẽ nét khuất
+    // Vẽ nét khuất (đoạn thẳng)
     for (const line of hiddenLines) {
       addLine('NET_KHUAT', originX + line.p1.u * scale, originY + line.p1.v * scale, originX + line.p2.u * scale, originY + line.p2.v * scale);
+    }
+
+    // Vẽ đường tròn
+    for (const c of circles) {
+      const layer = (c.style === 'hidden') ? 'NET_KHUAT' : 'NET_THAY';
+      addCircle(layer, originX + c.cx * scale, originY + c.cy * scale, c.r * scale);
+    }
+
+    // Vẽ cung cong (AutoCAD Arc góc CCW tính bằng độ)
+    for (const a of arcs) {
+      const layer = (a.style === 'hidden') ? 'NET_KHUAT' : 'NET_THAY';
+      let deg1 = (a.startAngle * 180 / Math.PI) % 360;
+      if (deg1 < 0) deg1 += 360;
+      let deg2 = (a.endAngle * 180 / Math.PI) % 360;
+      if (deg2 < 0) deg2 += 360;
+      addArc(layer, originX + a.cx * scale, originY + a.cy * scale, a.r * scale, deg1, deg2);
     }
 
     // Khung A4 tiêu chuẩn (297 x 210 mm)

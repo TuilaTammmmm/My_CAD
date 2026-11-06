@@ -503,6 +503,14 @@ document.querySelectorAll('.cad2d-tool-btn').forEach(btn => {
   });
 });
 
+// Nút Undo / Redo 2D
+document.getElementById('btn-2d-undo')?.addEventListener('click', () => {
+  cad2dEditor.undo();
+});
+document.getElementById('btn-2d-redo')?.addEventListener('click', () => {
+  cad2dEditor.redo();
+});
+
 // Nút lấy nét từ 3D
 document.getElementById('btn-2d-sync-3d')?.addEventListener('click', () => {
   cad2dEditor.syncFrom3D();

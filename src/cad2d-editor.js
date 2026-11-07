@@ -459,7 +459,7 @@ export class CAD2DEditor {
       const mouseY = e.clientY - rect.top;
 
       const factor = e.deltaY < 0 ? 1.15 : 0.87;
-      const newScale = Math.max(18, Math.min(160, this.scale * factor));
+      const newScale = Math.max(2.0, Math.min(300, this.scale * factor));
 
       this.offsetX = mouseX - (mouseX - this.offsetX) * (newScale / this.scale);
       this.offsetY = mouseY - (mouseY - this.offsetY) * (newScale / this.scale);
@@ -1504,76 +1504,127 @@ export class CAD2DEditor {
     ctx.fillStyle = '#080c15';
     ctx.fillRect(0, 0, rect.width, rect.height);
 
+    // 2. TÍNH TOÁN BƯỚC HIỂN THỊ THÍCH ỨNG (ADAPTIVE LOD & ZOOM OUT BỚT SỐ)
+    // Đảm bảo khoảng cách giữa các số hiển thị luôn từ 55px đến 120px, không bị dày đặc khi zoom out
+    const minPixelSpacing = 58;
+    const targetUnitStep = minPixelSpacing / s;
+    const power = Math.pow(10, Math.floor(Math.log10(Math.max(1e-4, targetUnitStep))));
+    const fraction = targetUnitStep / power;
+    let labelStep = 1;
+    if (fraction <= 1.5) labelStep = 1 * power;
+    else if (fraction <= 3.5) labelStep = 2 * power;
+    else if (fraction <= 7.5) labelStep = 5 * power;
+    else labelStep = 10 * power;
+    labelStep = Math.max(1, Math.round(labelStep));
+
+    // Bước lưới phụ (Subgrid step)
+    const gridStep = (s < 10) ? labelStep : (s < 24 ? Math.max(1, Math.round(labelStep / 2)) : 1);
+
     // Phạm vi lưới hiển thị trên màn hình hiện tại
-    const minU = Math.floor((-this.offsetX) / s) - 1;
-    const maxU = Math.ceil((rect.width - this.offsetX) / s) + 1;
-    const maxV = Math.ceil((this.offsetY) / s) + 1;
-    const minV = Math.floor((this.offsetY - rect.height) / s) - 1;
+    const minU = Math.floor((-this.offsetX) / s) - 2;
+    const maxU = Math.ceil((rect.width - this.offsetX) / s) + 2;
+    const maxV = Math.ceil((this.offsetY) / s) + 2;
+    const minV = Math.floor((this.offsetY - rect.height) / s) - 2;
 
-    // 2. Lưới ô phụ (Subgrid) trải rộng khắp màn hình
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
-    ctx.lineWidth = 1;
-    ctx.setLineDash([]);
+    const firstGridU = Math.floor(minU / gridStep) * gridStep;
+    const firstGridV = Math.floor(minV / gridStep) * gridStep;
 
-    for (let u = minU; u <= maxU; u++) {
+    // Vẽ lưới phụ và lưới chính
+    for (let u = firstGridU; u <= maxU; u += gridStep) {
+      const isMajor = (u % labelStep === 0);
+      ctx.strokeStyle = isMajor ? 'rgba(56, 189, 248, 0.12)' : 'rgba(255, 255, 255, 0.025)';
+      ctx.lineWidth = isMajor ? 1.2 : 0.8;
       ctx.beginPath();
       ctx.moveTo(this.offsetX + u * s, 0);
       ctx.lineTo(this.offsetX + u * s, rect.height);
       ctx.stroke();
     }
-    for (let v = minV; v <= maxV; v++) {
+    for (let v = firstGridV; v <= maxV; v += gridStep) {
+      const isMajor = (v % labelStep === 0);
+      ctx.strokeStyle = isMajor ? 'rgba(56, 189, 248, 0.12)' : 'rgba(255, 255, 255, 0.025)';
+      ctx.lineWidth = isMajor ? 1.2 : 0.8;
       ctx.beginPath();
       ctx.moveTo(0, this.offsetY - v * s);
       ctx.lineTo(rect.width, this.offsetY - v * s);
       ctx.stroke();
     }
 
-    // Chấm nút lưới bắt dính
-    ctx.fillStyle = 'rgba(56, 189, 248, 0.35)';
-    for (let u = minU; u <= maxU; u++) {
-      for (let v = minV; v <= maxV; v++) {
-        ctx.beginPath();
-        ctx.arc(this.offsetX + u * s, this.offsetY - v * s, 1.5, 0, Math.PI * 2);
-        ctx.fill();
+    // Chấm nút lưới bắt dính (chỉ vẽ khi zoom gần để tối ưu tốc độ và không làm mờ hình)
+    if (s >= 26) {
+      ctx.fillStyle = 'rgba(56, 189, 248, 0.32)';
+      for (let u = minU; u <= maxU; u++) {
+        for (let v = minV; v <= maxV; v++) {
+          ctx.beginPath();
+          ctx.arc(this.offsetX + u * s, this.offsetY - v * s, 1.2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    } else if (s >= 8) {
+      ctx.fillStyle = 'rgba(56, 189, 248, 0.4)';
+      for (let u = firstGridU; u <= maxU; u += labelStep) {
+        for (let v = firstGridV; v <= maxV; v += labelStep) {
+          ctx.beginPath();
+          ctx.arc(this.offsetX + u * s, this.offsetY - v * s, 1.6, 0, Math.PI * 2);
+          ctx.fill();
+        }
       }
     }
 
-    // 3. TRỤC TỌA ĐỘ X VÀ Y ĐẬM NÉT (ĐẬM HƠN TRỤC X, Y THEO YÊU CẦU)
-    // Trục X (Màu xanh cyan sáng, nét dày 3px)
+    // 3. KHUNG VẬT THỂ PHÔI 3D (BOUNDING BLOCK) TRÊN MẶT PHẲNG X-Y
+    const boxX = this.offsetX;
+    const boxY = this.offsetY - h * s;
+    const boxW = w * s;
+    const boxH = h * s;
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.35)';
+    ctx.lineWidth = 1.6;
+    ctx.setLineDash([6, 4]);
+    ctx.strokeRect(boxX, boxY, boxW, boxH);
+    ctx.setLineDash([]);
+
+    // Nhãn khung phôi
+    ctx.font = '10px monospace';
+    ctx.fillStyle = 'rgba(56, 189, 248, 0.6)';
+    ctx.textAlign = 'left';
+    ctx.fillText(`Phôi: ${w} × ${h}`, boxX + 6, boxY + 14);
+
+    // 4. TRỤC TỌA ĐỘ X VÀ Y KÉO DÀI VÔ TẬN VỚI MŨI TÊN CHỈ HƯỚNG
+    // Trục X (Màu xanh cyan sáng, nét dày 3.2px)
     ctx.strokeStyle = '#38bdf8';
-    ctx.lineWidth = 3.0;
+    ctx.lineWidth = 3.2;
     ctx.beginPath();
     ctx.moveTo(0, this.offsetY);
     ctx.lineTo(rect.width, this.offsetY);
     ctx.stroke();
 
-    // Mũi tên trục X
+    // Mũi tên trục X ở mép phải màn hình
     ctx.fillStyle = '#38bdf8';
     ctx.beginPath();
-    ctx.moveTo(rect.width - 25, this.offsetY - 6);
-    ctx.lineTo(rect.width - 10, this.offsetY);
-    ctx.lineTo(rect.width - 25, this.offsetY + 6);
+    ctx.moveTo(rect.width - 24, this.offsetY - 7);
+    ctx.lineTo(rect.width - 8, this.offsetY);
+    ctx.lineTo(rect.width - 24, this.offsetY + 7);
     ctx.fill();
-    ctx.font = 'bold 14px monospace';
-    ctx.fillText('X', rect.width - 20, this.offsetY - 12);
+    ctx.font = 'bold 15px monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText('+X', rect.width - 28, this.offsetY - 10);
 
-    // Trục Y (Màu xanh cyan sáng, nét dày 3px)
+    // Trục Y (Màu xanh cyan sáng, nét dày 3.2px)
     ctx.beginPath();
     ctx.moveTo(this.offsetX, 0);
     ctx.lineTo(this.offsetX, rect.height);
     ctx.stroke();
 
-    // Mũi tên trục Y
+    // Mũi tên trục Y ở mép trên màn hình
     ctx.beginPath();
-    ctx.moveTo(this.offsetX - 6, 25);
-    ctx.lineTo(this.offsetX, 10);
-    ctx.lineTo(this.offsetX + 6, 25);
+    ctx.moveTo(this.offsetX - 7, 24);
+    ctx.lineTo(this.offsetX, 8);
+    ctx.lineTo(this.offsetX + 7, 24);
     ctx.fill();
-    ctx.fillText('Y', this.offsetX + 12, 20);
+    ctx.textAlign = 'left';
+    ctx.fillText('+Y', this.offsetX + 12, 22);
 
     // Điểm gốc tọa độ O(0, 0)
     ctx.beginPath();
-    ctx.arc(this.offsetX, this.offsetY, 5, 0, Math.PI * 2);
+    ctx.arc(this.offsetX, this.offsetY, 5.5, 0, Math.PI * 2);
     ctx.fillStyle = '#f43f5e';
     ctx.fill();
     ctx.strokeStyle = '#fff';
@@ -1583,40 +1634,55 @@ export class CAD2DEditor {
     ctx.fillStyle = '#f43f5e';
     ctx.textAlign = 'right';
     ctx.textBaseline = 'top';
-    ctx.fillText('O(0,0)', this.offsetX - 8, this.offsetY + 8);
+    ctx.fillText('O(0,0)', this.offsetX - 9, this.offsetY + 9);
 
-    // Các vạch số trên trục X
-    ctx.font = '11px monospace';
+    // 5. CÁC VẠCH CHIA & SỐ ĐO TRỤC TỌA ĐỘ (TỰ ĐỘNG ẨN BỚT KHI ZOOM OUT THEO labelStep)
+    // Vạch và số trên trục X
+    ctx.font = 'bold 11px monospace';
     ctx.fillStyle = '#94a3b8';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
 
-    for (let u = minU; u <= maxU; u++) {
+    // Vị trí hiển thị số trục X (nếu trục X nằm ngoài màn hình thì số bám mép màn hình)
+    const textYForXAxis = Math.max(18, Math.min(rect.height - 24, this.offsetY + 8));
+
+    const firstLabelU = Math.floor(minU / labelStep) * labelStep;
+    for (let u = firstLabelU; u <= maxU; u += labelStep) {
       if (u === 0) continue;
-      // Vạch chia
+      const x = this.offsetX + u * s;
+
+      // Vạch chia chính (Major Tick)
       ctx.strokeStyle = '#38bdf8';
-      ctx.lineWidth = 1.5;
+      ctx.lineWidth = 2.0;
       ctx.beginPath();
-      ctx.moveTo(this.offsetX + u * s, this.offsetY - 4);
-      ctx.lineTo(this.offsetX + u * s, this.offsetY + 4);
+      ctx.moveTo(x, this.offsetY - 6);
+      ctx.lineTo(x, this.offsetY + 6);
       ctx.stroke();
 
-      ctx.fillText(u, this.offsetX + u * s, this.offsetY + 8);
+      // Số hiển thị
+      ctx.fillText(u, x, textYForXAxis);
     }
 
-    // Các vạch số trên trục Y
+    // Vạch và số trên trục Y
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
-    for (let v = minV; v <= maxV; v++) {
+    const textXForYAxis = Math.max(38, Math.min(rect.width - 15, this.offsetX - 10));
+
+    const firstLabelV = Math.floor(minV / labelStep) * labelStep;
+    for (let v = firstLabelV; v <= maxV; v += labelStep) {
       if (v === 0) continue;
+      const y = this.offsetY - v * s;
+
+      // Vạch chia chính (Major Tick)
       ctx.strokeStyle = '#38bdf8';
-      ctx.lineWidth = 1.5;
+      ctx.lineWidth = 2.0;
       ctx.beginPath();
-      ctx.moveTo(this.offsetX - 4, this.offsetY - v * s);
-      ctx.lineTo(this.offsetX + 4, this.offsetY - v * s);
+      ctx.moveTo(this.offsetX - 6, y);
+      ctx.lineTo(this.offsetX + 6, y);
       ctx.stroke();
 
-      ctx.fillText(v, this.offsetX - 10, this.offsetY - v * s);
+      // Số hiển thị
+      ctx.fillText(v, textXForYAxis, y);
     }
 
     // 5. VẼ CÁC ĐỐI TƯỢNG HÌNH HỌC (LINES, ARCS, CIRCLES, DIMS)

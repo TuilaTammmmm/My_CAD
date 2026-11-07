@@ -948,7 +948,31 @@ export class CAD2DEditor {
     const dx = c2.cx - c1.cx;
     const dy = c2.cy - c1.cy;
     const d = Math.hypot(dx, dy);
-    if (d < 1e-7 || d > c1.r + c2.r - 1e-5 || d < Math.abs(c1.r - c2.r) + 1e-5) {
+    if (d < 1e-7) return [];
+
+    const sumR = c1.r + c2.r;
+    const diffR = Math.abs(c1.r - c2.r);
+
+    // Bắt điểm tiếp xúc ngoài (External tangency)
+    if (Math.abs(d - sumR) < 0.05) {
+      const u = c1.cx + c1.r * (dx / d);
+      const v = c1.cy + c1.r * (dy / d);
+      const angle1 = this.normAngle(Math.atan2(v - c1.cy, u - c1.cx));
+      const angle2 = this.normAngle(Math.atan2(v - c2.cy, u - c2.cx));
+      return [{ u, v, angle1, angle2 }];
+    }
+
+    // Bắt điểm tiếp xúc trong (Internal tangency)
+    if (Math.abs(d - diffR) < 0.05 && diffR > 1e-4) {
+      const sign = (c1.r > c2.r) ? 1 : -1;
+      const u = c1.cx + c1.r * (dx / d) * sign;
+      const v = c1.cy + c1.r * (dy / d) * sign;
+      const angle1 = this.normAngle(Math.atan2(v - c1.cy, u - c1.cx));
+      const angle2 = this.normAngle(Math.atan2(v - c2.cy, u - c2.cx));
+      return [{ u, v, angle1, angle2 }];
+    }
+
+    if (d > sumR || d < diffR) {
       return [];
     }
 
@@ -1047,6 +1071,10 @@ export class CAD2DEditor {
     // 1. TỈA ĐOẠN THẲNG (LINE)
     if (bestElem.type === 'line') {
       let tList = [0, 1];
+      const dx = bestElem.p2.u - bestElem.p1.u;
+      const dy = bestElem.p2.v - bestElem.p1.v;
+      const len2 = dx * dx + dy * dy;
+
       for (const other of otherElements) {
         if (other.type === 'line') {
           const inter = this.intersectSegmentSegment(bestElem.p1, bestElem.p2, other.p1, other.p2);
@@ -1057,6 +1085,25 @@ export class CAD2DEditor {
         } else if (other.type === 'arc') {
           const inters = this.intersectSegmentArc(bestElem.p1, bestElem.p2, other);
           for (const p of inters) tList.push(p.t);
+        }
+
+        // Bắt thêm các đầu mút nét khác chạm/tiếp xúc vào đoạn thẳng (như cung bo góc)
+        const otherPts = [];
+        if (other.type === 'line') otherPts.push(other.p1, other.p2);
+        else if (other.type === 'arc') {
+          otherPts.push(
+            { u: other.cx + other.r * Math.cos(other.startAngle), v: other.cy + other.r * Math.sin(other.startAngle) },
+            { u: other.cx + other.r * Math.cos(other.endAngle), v: other.cy + other.r * Math.sin(other.endAngle) }
+          );
+        }
+        for (const pt of otherPts) {
+          const dToSeg = this.pointToSegmentDistance(pt, bestElem.p1, bestElem.p2);
+          if (dToSeg < 0.08 && len2 > 1e-6) {
+            const t = ((pt.u - bestElem.p1.u) * dx + (pt.v - bestElem.p1.v) * dy) / len2;
+            if (t > 1e-3 && t < 1 - 1e-3) {
+              tList.push(t);
+            }
+          }
         }
       }
 
@@ -1075,9 +1122,6 @@ export class CAD2DEditor {
         return;
       }
 
-      const dx = bestElem.p2.u - bestElem.p1.u;
-      const dy = bestElem.p2.v - bestElem.p1.v;
-      const len2 = dx * dx + dy * dy;
       let tClick = 0.5;
       if (len2 > 1e-6) {
         tClick = ((clickPoint.u - bestElem.p1.u) * dx + (clickPoint.v - bestElem.p1.v) * dy) / len2;
@@ -1196,6 +1240,25 @@ export class CAD2DEditor {
         } else if (other.type === 'arc') {
           const inters = this.intersectArcArc(bestElem, other);
           for (const p of inters) angleList.push(p.angle1);
+        }
+
+        // Bắt thêm các đầu mút nét khác chạm/tiếp xúc vào cung tròn (như tiếp điểm bo góc fillet)
+        const otherPts = [];
+        if (other.type === 'line') otherPts.push(other.p1, other.p2);
+        else if (other.type === 'arc') {
+          otherPts.push(
+            { u: other.cx + other.r * Math.cos(other.startAngle), v: other.cy + other.r * Math.sin(other.startAngle) },
+            { u: other.cx + other.r * Math.cos(other.endAngle), v: other.cy + other.r * Math.sin(other.endAngle) }
+          );
+        }
+        for (const pt of otherPts) {
+          const distToCenter = Math.hypot(pt.u - bestElem.cx, pt.v - bestElem.cy);
+          if (Math.abs(distToCenter - bestElem.r) < 0.08) {
+            const angle = this.normAngle(Math.atan2(pt.v - bestElem.cy, pt.u - bestElem.cx));
+            if (this.isAngleOnArc(angle, bestElem.startAngle, bestElem.endAngle)) {
+              angleList.push(angle);
+            }
+          }
         }
       }
 
@@ -1554,6 +1617,27 @@ export class CAD2DEditor {
       const dP2 = Math.hypot(p2.u - TLine.u, p2.v - TLine.v);
       if (dP1 < dP2) lineElem.p1 = TLine; else lineElem.p2 = TLine;
 
+      // Tự động cắt bỏ phần sừng thừa của Cung tròn (Trim excess horn of arc)
+      if (curveElem.type === 'arc') {
+        const aT = this.normAngle(Math.atan2(TCurve.v - curveElem.cy, TCurve.u - curveElem.cx));
+        const pStart = {
+          u: curveElem.cx + curveElem.r * Math.cos(curveElem.startAngle),
+          v: curveElem.cy + curveElem.r * Math.sin(curveElem.startAngle)
+        };
+        const pEnd = {
+          u: curveElem.cx + curveElem.r * Math.cos(curveElem.endAngle),
+          v: curveElem.cy + curveElem.r * Math.sin(curveElem.endAngle)
+        };
+        const dStart = Math.hypot(pStart.u - TLine.u, pStart.v - TLine.v);
+        const dEnd = Math.hypot(pEnd.u - TLine.u, pEnd.v - TLine.v);
+
+        if (dStart < dEnd) {
+          curveElem.startAngle = aT;
+        } else {
+          curveElem.endAngle = aT;
+        }
+      }
+
       return true;
     }
 
@@ -1601,6 +1685,29 @@ export class CAD2DEditor {
 
       const arcObj = this.makeCCWArc(Cf.u, Cf.v, R, TA, TB, 'visible');
       this.elements.push(arcObj);
+
+      // Tự động cắt phần sừng thừa của cả 2 cung nếu là arc
+      if (elemA.type === 'arc') {
+        const aTA = this.normAngle(Math.atan2(TA.v - elemA.cy, TA.u - elemA.cx));
+        const pStartA = { u: elemA.cx + elemA.r * Math.cos(elemA.startAngle), v: elemA.cy + elemA.r * Math.sin(elemA.startAngle) };
+        const pEndA = { u: elemA.cx + elemA.r * Math.cos(elemA.endAngle), v: elemA.cy + elemA.r * Math.sin(elemA.endAngle) };
+        if (Math.hypot(pStartA.u - TB.u, pStartA.v - TB.v) < Math.hypot(pEndA.u - TB.u, pEndA.v - TB.v)) {
+          elemA.startAngle = aTA;
+        } else {
+          elemA.endAngle = aTA;
+        }
+      }
+      if (elemB.type === 'arc') {
+        const aTB = this.normAngle(Math.atan2(TB.v - elemB.cy, TB.u - elemB.cx));
+        const pStartB = { u: elemB.cx + elemB.r * Math.cos(elemB.startAngle), v: elemB.cy + elemB.r * Math.sin(elemB.startAngle) };
+        const pEndB = { u: elemB.cx + elemB.r * Math.cos(elemB.endAngle), v: elemB.cy + elemB.r * Math.sin(elemB.endAngle) };
+        if (Math.hypot(pStartB.u - TA.u, pStartB.v - TA.v) < Math.hypot(pEndB.u - TA.u, pEndB.v - TA.v)) {
+          elemB.startAngle = aTB;
+        } else {
+          elemB.endAngle = aTB;
+        }
+      }
+
       return true;
     }
 

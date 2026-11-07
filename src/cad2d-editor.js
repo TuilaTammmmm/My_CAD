@@ -31,11 +31,17 @@ export class CAD2DEditor {
     this.historyIndex = -1;
 
     // Công cụ hiện tại:
-    // 'line-visible', 'line-hidden', 'arc', 'circle', 'dim', 'erase', 'pan'
+    // 'line-visible', 'line-hidden', 'rect', 'arc', 'tangent-arc', 'circle', 'fillet', 'dim', 'dim-radial', 'erase', 'pan'
     this.tool = 'line-visible';
 
-    // Bắt dính nửa ô (0.5 grid step)
+    // Bắt dính nửa ô (0.5 grid step) hoặc Tự do (free)
     this.snapStep = 0.5;
+    this.snapMode = 'grid'; // 'grid' | 'free'
+
+    // Bán kính cho bo cung (Fillet) & tạo nhanh
+    this.filletRadius = 1.0;
+    this.filletFirst = null; // { elem, clickPoint }
+    this.tangentStartVec = null; // hướng tiếp tuyến cho tangent-arc
 
     // Viewport transform (Pan & Zoom)
     this.scale = 52; // pixels per unit
@@ -49,6 +55,41 @@ export class CAD2DEditor {
     this.hoverSnap = null;
 
     this.bindCanvasEvents();
+  }
+
+  setFilletRadius(r) {
+    this.filletRadius = Math.max(0.1, Number(r));
+    const inp = document.getElementById('input-2d-radius');
+    if (inp && parseFloat(inp.value) !== this.filletRadius) {
+      inp.value = this.filletRadius;
+    }
+    this.updateHUDHint();
+  }
+
+  toggleSnapMode() {
+    this.snapMode = (this.snapMode === 'grid') ? 'free' : 'grid';
+    this.updateSnapButton();
+    this.updateHUDHint();
+    this.render();
+  }
+
+  updateSnapButton() {
+    const lbl = document.getElementById('lbl-snap-mode');
+    const btn = document.getElementById('btn-2d-toggle-snap');
+    if (lbl) {
+      lbl.innerText = (this.snapMode === 'grid') ? 'Bắt Dính: Lưới (0.5)' : 'Bắt Dính: Tự Do (Free)';
+    }
+    if (btn) {
+      if (this.snapMode === 'free') {
+        btn.classList.add('active');
+        btn.style.borderColor = '#f59e0b';
+        btn.style.color = '#fbbf24';
+      } else {
+        btn.classList.remove('active');
+        btn.style.borderColor = '';
+        btn.style.color = '';
+      }
+    }
   }
 
   saveHistory() {
@@ -258,7 +299,94 @@ export class CAD2DEditor {
       return bestCand;
     }
 
-    // 2. Bắt dính ô lưới bước 0.5 unit (Grid Snap)
+    // 2. Bắt dính trên đường cong / cung tròn / đoạn thẳng (Nearest OSNAP)
+    let bestNearest = null;
+    let minNearestPix = 14;
+
+    for (const elem of this.elements) {
+      if (elem.type === 'arc') {
+        const dCenter = Math.hypot(uRaw - elem.cx, vRaw - elem.cy);
+        const angle = this.normAngle(Math.atan2(vRaw - elem.cy, uRaw - elem.cx));
+        if (this.isAngleOnArc(angle, elem.startAngle, elem.endAngle)) {
+          const uProj = elem.cx + elem.r * Math.cos(angle);
+          const vProj = elem.cy + elem.r * Math.sin(angle);
+          const cX = this.offsetX + uProj * s;
+          const cY = this.offsetY - vProj * s;
+          const pixDist = Math.hypot(screenX - cX, screenY - cY);
+          if (pixDist < minNearestPix) {
+            minNearestPix = pixDist;
+            bestNearest = {
+              u: Number(uProj.toFixed(2)),
+              v: Number(vProj.toFixed(2)),
+              canvasX: cX,
+              canvasY: cY,
+              snapType: 'nearest',
+              label: 'Điểm trên cung'
+            };
+          }
+        }
+      } else if (elem.type === 'circle') {
+        const angle = Math.atan2(vRaw - elem.cy, uRaw - elem.cx);
+        const uProj = elem.cx + elem.r * Math.cos(angle);
+        const vProj = elem.cy + elem.r * Math.sin(angle);
+        const cX = this.offsetX + uProj * s;
+        const cY = this.offsetY - vProj * s;
+        const pixDist = Math.hypot(screenX - cX, screenY - cY);
+        if (pixDist < minNearestPix) {
+          minNearestPix = pixDist;
+          bestNearest = {
+            u: Number(uProj.toFixed(2)),
+            v: Number(vProj.toFixed(2)),
+            canvasX: cX,
+            canvasY: cY,
+            snapType: 'nearest',
+            label: 'Điểm trên đường tròn'
+          };
+        }
+      } else if (elem.type === 'line') {
+        const ab = { u: elem.p2.u - elem.p1.u, v: elem.p2.v - elem.p1.v };
+        const ap = { u: uRaw - elem.p1.u, v: vRaw - elem.p1.v };
+        const l2 = ab.u * ab.u + ab.v * ab.v;
+        if (l2 > 1e-6) {
+          const t = Math.max(0, Math.min(1, (ap.u * ab.u + ap.v * ab.v) / l2));
+          const uProj = elem.p1.u + t * ab.u;
+          const vProj = elem.p1.v + t * ab.v;
+          const cX = this.offsetX + uProj * s;
+          const cY = this.offsetY - vProj * s;
+          const pixDist = Math.hypot(screenX - cX, screenY - cY);
+          if (pixDist < minNearestPix) {
+            minNearestPix = pixDist;
+            bestNearest = {
+              u: Number(uProj.toFixed(2)),
+              v: Number(vProj.toFixed(2)),
+              canvasX: cX,
+              canvasY: cY,
+              snapType: 'nearest',
+              label: 'Điểm trên nét'
+            };
+          }
+        }
+      }
+    }
+
+    if (bestNearest) {
+      return bestNearest;
+    }
+
+    // 3. Chế độ Tự Do (Freeform) - không bị ép cố định vào lưới
+    const isFree = isAltOrFree || (this.snapMode === 'free');
+    if (isFree) {
+      return {
+        u: Number(uRaw.toFixed(2)),
+        v: Number(vRaw.toFixed(2)),
+        canvasX: screenX,
+        canvasY: screenY,
+        snapType: 'free',
+        label: 'Tự do'
+      };
+    }
+
+    // 4. Bắt dính ô lưới bước 0.5 unit (Grid Snap)
     const step = this.snapStep;
     const uSnap = Math.round(uRaw / step) * step;
     const vSnap = Math.round(vRaw / step) * step;
@@ -291,7 +419,7 @@ export class CAD2DEditor {
         const rawU = Number(((mouseX - this.offsetX) / this.scale).toFixed(3));
         const rawV = Number((-(mouseY - this.offsetY) / this.scale).toFixed(3));
         const rawPoint = { u: rawU, v: rawV };
-        const snap = this.getSnapPoint(mouseX, mouseY);
+        const snap = this.getSnapPoint(mouseX, mouseY, e.altKey);
         if (!snap) return;
 
         this.handleToolClick(snap, rawPoint);
@@ -313,7 +441,7 @@ export class CAD2DEditor {
         return;
       }
 
-      this.hoverSnap = this.getSnapPoint(mouseX, mouseY);
+      this.hoverSnap = this.getSnapPoint(mouseX, mouseY, e.altKey);
       this.render();
     });
 
@@ -352,8 +480,13 @@ export class CAD2DEditor {
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
         e.preventDefault();
         this.redo();
+      } else if (e.key.toLowerCase() === 'g') {
+        e.preventDefault();
+        this.toggleSnapMode();
       } else if (e.key === 'Escape') {
         this.pendingPoints = [];
+        this.filletFirst = null;
+        this.tangentStartVec = null;
         this.render();
       }
     });
@@ -384,7 +517,31 @@ export class CAD2DEditor {
       return;
     }
 
-    // 2. Vẽ cung tròn 3 điểm (3-Point Arc)
+    // 2. Vẽ hình chữ nhật (Rectangle)
+    if (this.tool === 'rect') {
+      if (this.pendingPoints.length === 0) {
+        this.pendingPoints.push(snap);
+      } else {
+        const p1 = this.pendingPoints[0];
+        const p2 = snap;
+        if (Math.abs(p2.u - p1.u) > 0.05 && Math.abs(p2.v - p1.v) > 0.05) {
+          const u1 = p1.u, v1 = p1.v;
+          const u2 = p2.u, v2 = p2.v;
+          this.elements.push(
+            { type: 'line', style: 'visible', p1: { u: u1, v: v1 }, p2: { u: u2, v: v1 } },
+            { type: 'line', style: 'visible', p1: { u: u2, v: v1 }, p2: { u: u2, v: v2 } },
+            { type: 'line', style: 'visible', p1: { u: u2, v: v2 }, p2: { u: u1, v: v2 } },
+            { type: 'line', style: 'visible', p1: { u: u1, v: v2 }, p2: { u: u1, v: v1 } }
+          );
+          this.saveHistory();
+        }
+        this.pendingPoints = [];
+      }
+      this.render();
+      return;
+    }
+
+    // 3. Vẽ cung tròn 3 điểm (3-Point Arc)
     if (this.tool === 'arc') {
       this.pendingPoints.push(snap);
       if (this.pendingPoints.length === 3) {
@@ -401,7 +558,80 @@ export class CAD2DEditor {
       return;
     }
 
-    // 3. Vẽ đường tròn qua Tâm và Bán kính (Center + Radius)
+    // 4. Vẽ cung nối tiếp tuyến (Tangent Arc)
+    if (this.tool === 'tangent-arc') {
+      if (this.pendingPoints.length === 0) {
+        let bestDist = 0.6;
+        let startPoint = snap;
+        let tangentVec = null;
+
+        for (const elem of this.elements) {
+          if (elem.type === 'line') {
+            const d1 = Math.hypot(snap.u - elem.p1.u, snap.v - elem.p1.v);
+            const d2 = Math.hypot(snap.u - elem.p2.u, snap.v - elem.p2.v);
+            if (d1 < bestDist) {
+              bestDist = d1;
+              startPoint = { u: elem.p1.u, v: elem.p1.v };
+              const L = Math.hypot(elem.p1.u - elem.p2.u, elem.p1.v - elem.p2.v);
+              tangentVec = { u: (elem.p1.u - elem.p2.u) / L, v: (elem.p1.v - elem.p2.v) / L };
+            } else if (d2 < bestDist) {
+              bestDist = d2;
+              startPoint = { u: elem.p2.u, v: elem.p2.v };
+              const L = Math.hypot(elem.p2.u - elem.p1.u, elem.p2.v - elem.p1.v);
+              tangentVec = { u: (elem.p2.u - elem.p1.u) / L, v: (elem.p2.v - elem.p1.v) / L };
+            }
+          } else if (elem.type === 'arc') {
+            const p1 = { u: elem.cx + elem.r * Math.cos(elem.startAngle), v: elem.cy + elem.r * Math.sin(elem.startAngle) };
+            const p2 = { u: elem.cx + elem.r * Math.cos(elem.endAngle), v: elem.cy + elem.r * Math.sin(elem.endAngle) };
+            const d1 = Math.hypot(snap.u - p1.u, snap.v - p1.v);
+            const d2 = Math.hypot(snap.u - p2.u, snap.v - p2.v);
+            if (d1 < bestDist) {
+              bestDist = d1;
+              startPoint = p1;
+              tangentVec = { u: Math.sin(elem.startAngle), v: -Math.cos(elem.startAngle) };
+            } else if (d2 < bestDist) {
+              bestDist = d2;
+              startPoint = p2;
+              tangentVec = { u: -Math.sin(elem.endAngle), v: Math.cos(elem.endAngle) };
+            }
+          }
+        }
+
+        if (!tangentVec) {
+          tangentVec = { u: 1, v: 0 };
+        }
+
+        this.pendingPoints = [startPoint];
+        this.tangentStartVec = tangentVec;
+      } else {
+        const P0 = this.pendingPoints[0];
+        const P1 = snap;
+        const T0 = this.tangentStartVec;
+
+        const dx = P1.u - P0.u;
+        const dy = P1.v - P0.v;
+        const dist2 = dx * dx + dy * dy;
+        const N0 = { u: -T0.v, v: T0.u };
+        const dot = dx * N0.u + dy * N0.v;
+
+        if (Math.abs(dot) > 1e-4 && dist2 > 0.05) {
+          const R = dist2 / (2 * dot);
+          const cx = P0.u + R * N0.u;
+          const cy = P0.v + R * N0.v;
+          const r = Math.abs(R);
+
+          const arcObj = this.makeCCWArc(cx, cy, r, P0, P1, 'visible');
+          this.elements.push(arcObj);
+          this.saveHistory();
+        }
+        this.pendingPoints = [];
+        this.tangentStartVec = null;
+      }
+      this.render();
+      return;
+    }
+
+    // 5. Vẽ đường tròn qua Tâm và Bán kính (Center + Radius)
     if (this.tool === 'circle') {
       if (this.pendingPoints.length === 0) {
         this.pendingPoints.push(snap);
@@ -424,15 +654,104 @@ export class CAD2DEditor {
       return;
     }
 
-    // 4. Đo kích thước 2D (Dimension)
-    if (this.tool === 'dim') {
+    // 6. Bo cung tiếp tuyến (FILLET)
+    if (this.tool === 'fillet') {
+      const clickPoint = rawPoint || snap;
+      const target = this.findNearestEntity(clickPoint);
+
+      if (!target) {
+        return;
+      }
+
+      if (!this.filletFirst) {
+        this.filletFirst = { elem: target.elem, clickPoint };
+        this.updateHUDHint();
+        this.render();
+        return;
+      }
+
+      const elemA = this.filletFirst.elem;
+      const ptA = this.filletFirst.clickPoint;
+      const elemB = target.elem;
+      const ptB = clickPoint;
+
+      if (elemA === elemB) {
+        this.filletFirst = null;
+        this.updateHUDHint();
+        this.render();
+        return;
+      }
+
+      const R = this.filletRadius;
+      const success = this.applyFillet(elemA, ptA, elemB, ptB, R);
+      this.filletFirst = null;
+      if (success) {
+        this.saveHistory();
+      }
+      this.updateHUDHint();
+      this.render();
+      return;
+    }
+
+    // 7. Đo kích thước 2D (DIM: Tuyến tính & DIM-RADIAL: Bán kính R / Đường kính Ø)
+    if (this.tool === 'dim' || this.tool === 'dim-radial') {
+      const clickPoint = rawPoint || snap;
+
+      // Kiểm tra nếu click vào Cung Tròn hoặc Đường Tròn
+      let targetCurve = null;
+      let minCurveDist = Math.max(0.4, 20 / this.scale);
+
+      for (const elem of this.elements) {
+        if (elem.type === 'arc') {
+          const dCenter = Math.hypot(clickPoint.u - elem.cx, clickPoint.v - elem.cy);
+          const angle = this.normAngle(Math.atan2(clickPoint.v - elem.cy, clickPoint.u - elem.cx));
+          if (this.isAngleOnArc(angle, elem.startAngle, elem.endAngle)) {
+            const dist = Math.abs(dCenter - elem.r);
+            if (dist < minCurveDist) {
+              minCurveDist = dist;
+              targetCurve = { elem, angle };
+            }
+          }
+        } else if (elem.type === 'circle') {
+          const dCenter = Math.hypot(clickPoint.u - elem.cx, clickPoint.v - elem.cy);
+          const dist = Math.abs(dCenter - elem.r);
+          if (dist < minCurveDist) {
+            const angle = this.normAngle(Math.atan2(clickPoint.v - elem.cy, clickPoint.u - elem.cx));
+            minCurveDist = dist;
+            targetCurve = { elem, angle };
+          }
+        }
+      }
+
+      if (this.tool === 'dim-radial' || (this.tool === 'dim' && this.pendingPoints.length === 0 && targetCurve)) {
+        if (targetCurve) {
+          const { elem, angle } = targetCurve;
+          const isCircle = (elem.type === 'circle');
+          this.elements.push({
+            type: 'dim-radial',
+            targetType: elem.type,
+            cx: elem.cx,
+            cy: elem.cy,
+            r: elem.r,
+            angle: Number(angle.toFixed(3)),
+            isDiameter: isCircle,
+            dist: isCircle ? Number((elem.r * 2).toFixed(2)) : Number(elem.r.toFixed(2))
+          });
+          this.pendingPoints = [];
+          this.saveHistory();
+          this.render();
+          return;
+        }
+      }
+
+      // Đo kích thước thẳng giữa 2 điểm (Linear Dimension)
       if (this.pendingPoints.length === 0) {
         this.pendingPoints.push(snap);
       } else {
         const p1 = this.pendingPoints[0];
         const p2 = snap;
         const dist = Math.hypot(p2.u - p1.u, p2.v - p1.v);
-        if (dist > 0.1) {
+        if (dist > 0.05) {
           this.elements.push({
             type: 'dim',
             p1, p2,
@@ -942,29 +1261,233 @@ export class CAD2DEditor {
     return { cx, cy, r };
   }
 
+  findNearestEntity(clickPoint) {
+    let bestElem = null;
+    let bestDist = Infinity;
+    let bestIndex = -1;
+
+    for (let i = 0; i < this.elements.length; i++) {
+      const elem = this.elements[i];
+      let d = Infinity;
+      if (elem.type === 'line') {
+        d = this.pointToSegmentDistance(clickPoint, elem.p1, elem.p2);
+      } else if (elem.type === 'circle') {
+        d = Math.abs(Math.hypot(clickPoint.u - elem.cx, clickPoint.v - elem.cy) - elem.r);
+      } else if (elem.type === 'arc') {
+        const distC = Math.hypot(clickPoint.u - elem.cx, clickPoint.v - elem.cy);
+        const angle = this.normAngle(Math.atan2(clickPoint.v - elem.cy, clickPoint.u - elem.cx));
+        if (this.isAngleOnArc(angle, elem.startAngle, elem.endAngle)) {
+          d = Math.abs(distC - elem.r);
+        } else {
+          const p1 = { u: elem.cx + elem.r * Math.cos(elem.startAngle), v: elem.cy + elem.r * Math.sin(elem.startAngle) };
+          const p2 = { u: elem.cx + elem.r * Math.cos(elem.endAngle), v: elem.cy + elem.r * Math.sin(elem.endAngle) };
+          d = Math.min(Math.hypot(clickPoint.u - p1.u, clickPoint.v - p1.v), Math.hypot(clickPoint.u - p2.u, clickPoint.v - p2.v));
+        }
+      }
+      if (d < bestDist) {
+        bestDist = d;
+        bestElem = elem;
+        bestIndex = i;
+      }
+    }
+
+    const clickThreshold = Math.max(0.6, 28 / this.scale);
+    if (!bestElem || bestDist > clickThreshold) return null;
+    return { elem: bestElem, index: bestIndex, dist: bestDist };
+  }
+
+  applyFillet(elemA, ptA, elemB, ptB, R) {
+    if (R <= 0.05) return false;
+
+    const projectPointOnLine = (P, p1, p2) => {
+      const dx = p2.u - p1.u, dy = p2.v - p1.v;
+      const l2 = dx * dx + dy * dy;
+      if (l2 < 1e-6) return { ...p1 };
+      const t = ((P.u - p1.u) * dx + (P.v - p1.v) * dy) / l2;
+      return { u: p1.u + t * dx, v: p1.v + t * dy };
+    };
+
+    // CASE 1: Line and Line
+    if (elemA.type === 'line' && elemB.type === 'line') {
+      const dAx = elemA.p2.u - elemA.p1.u, dAy = elemA.p2.v - elemA.p1.v;
+      const dBx = elemB.p2.u - elemB.p1.u, dBy = elemB.p2.v - elemB.p1.v;
+      const cross = dAx * dBy - dAy * dBx;
+      if (Math.abs(cross) < 1e-5) return false;
+
+      const dx = elemB.p1.u - elemA.p1.u;
+      const dy = elemB.p1.v - elemA.p1.v;
+      const t = (dx * dBy - dy * dBx) / cross;
+      const V = { u: elemA.p1.u + t * dAx, v: elemA.p1.v + t * dAy };
+
+      let vAx = ptA.u - V.u, vAy = ptA.v - V.v;
+      let lenA = Math.hypot(vAx, vAy);
+      if (lenA < 1e-4) { vAx = dAx; vAy = dAy; lenA = Math.hypot(vAx, vAy); }
+      vAx /= lenA; vAy /= lenA;
+
+      let vBx = ptB.u - V.u, vBy = ptB.v - V.v;
+      let lenB = Math.hypot(vBx, vBy);
+      if (lenB < 1e-4) { vBx = dBx; vBy = dBy; lenB = Math.hypot(vBx, vBy); }
+      vBx /= lenB; vBy /= lenB;
+
+      const dot = Math.max(-0.999, Math.min(0.999, vAx * vBx + vAy * vBy));
+      const theta = Math.acos(dot);
+      if (theta < 0.05 || theta > Math.PI - 0.05) return false;
+
+      const dT = R / Math.tan(theta / 2);
+      const dC = R / Math.sin(theta / 2);
+
+      let bX = vAx + vBx, bY = vAy + vBy;
+      const bLen = Math.hypot(bX, bY);
+      if (bLen < 1e-4) return false;
+      bX /= bLen; bY /= bLen;
+
+      const Cf = { u: V.u + dC * bX, v: V.v + dC * bY };
+      const TA = { u: V.u + dT * vAx, v: V.v + dT * vAy };
+      const TB = { u: V.u + dT * vBx, v: V.v + dT * vBy };
+
+      const arcObj = this.makeCCWArc(Cf.u, Cf.v, R, TA, TB, 'visible');
+      this.elements.push(arcObj);
+
+      const distA1 = Math.hypot(elemA.p1.u - V.u, elemA.p1.v - V.v);
+      const distA2 = Math.hypot(elemA.p2.u - V.u, elemA.p2.v - V.v);
+      if (distA1 < distA2) elemA.p1 = TA; else elemA.p2 = TA;
+
+      const distB1 = Math.hypot(elemB.p1.u - V.u, elemB.p1.v - V.v);
+      const distB2 = Math.hypot(elemB.p2.u - V.u, elemB.p2.v - V.v);
+      if (distB1 < distB2) elemB.p1 = TB; else elemB.p2 = TB;
+
+      return true;
+    }
+
+    // CASE 2: Line and Arc/Circle
+    let lineElem = (elemA.type === 'line') ? elemA : (elemB.type === 'line' ? elemB : null);
+    let curveElem = (lineElem === elemA) ? elemB : elemA;
+    let ptLine = (lineElem === elemA) ? ptA : ptB;
+    let ptCurve = (lineElem === elemA) ? ptB : ptA;
+
+    if (lineElem && (curveElem.type === 'circle' || curveElem.type === 'arc')) {
+      const p1 = lineElem.p1, p2 = lineElem.p2;
+      const ldx = p2.u - p1.u, ldy = p2.v - p1.v;
+      const lLen = Math.hypot(ldx, ldy);
+      if (lLen < 1e-4) return false;
+      const uX = ldx / lLen, uY = ldy / lLen;
+      const nX = -uY, nY = uX;
+
+      const side = ((ptLine.u - p1.u) * nX + (ptLine.v - p1.v) * nY) >= 0 ? 1 : -1;
+      const offP1 = { u: p1.u + side * R * nX, v: p1.v + side * R * nY };
+
+      const Rc = curveElem.r;
+      const dCenterClick = Math.hypot(ptCurve.u - curveElem.cx, ptCurve.v - curveElem.cy);
+      const Roff = (dCenterClick > Rc) ? (Rc + R) : Math.abs(Rc - R);
+
+      const proj = projectPointOnLine({ u: curveElem.cx, v: curveElem.cy }, offP1, { u: offP1.u + uX, v: offP1.v + uY });
+      const hDist = Math.hypot(curveElem.cx - proj.u, curveElem.cy - proj.v);
+      if (hDist > Roff) return false;
+
+      const dChord = Math.sqrt(Math.max(0, Roff * Roff - hDist * hDist));
+      const C1 = { u: proj.u + dChord * uX, v: proj.v + dChord * uY };
+      const C2 = { u: proj.u - dChord * uX, v: proj.v - dChord * uY };
+
+      const midClick = { u: (ptLine.u + ptCurve.u) / 2, v: (ptLine.v + ptCurve.v) / 2 };
+      const distC1 = Math.hypot(C1.u - midClick.u, C1.v - midClick.v);
+      const distC2 = Math.hypot(C2.u - midClick.u, C2.v - midClick.v);
+      const Cf = (distC1 < distC2) ? C1 : C2;
+
+      const TLine = projectPointOnLine(Cf, p1, p2);
+      const dToC = Math.hypot(Cf.u - curveElem.cx, Cf.v - curveElem.cy);
+      const TCurve = {
+        u: curveElem.cx + Rc * (Cf.u - curveElem.cx) / dToC,
+        v: curveElem.cy + Rc * (Cf.v - curveElem.cy) / dToC
+      };
+
+      const arcObj = this.makeCCWArc(Cf.u, Cf.v, R, TLine, TCurve, 'visible');
+      this.elements.push(arcObj);
+
+      const dP1 = Math.hypot(p1.u - TLine.u, p1.v - TLine.v);
+      const dP2 = Math.hypot(p2.u - TLine.u, p2.v - TLine.v);
+      if (dP1 < dP2) lineElem.p1 = TLine; else lineElem.p2 = TLine;
+
+      return true;
+    }
+
+    // CASE 3: Arc/Circle and Arc/Circle
+    if ((elemA.type === 'circle' || elemA.type === 'arc') && (elemB.type === 'circle' || elemB.type === 'arc')) {
+      const R1 = elemA.r, R2 = elemB.r;
+      const R1o = R1 + R;
+      const R2o = R2 + R;
+
+      const inters = this.intersectCircleCircle(
+        { cx: elemA.cx, cy: elemA.cy, r: R1o },
+        { cx: elemB.cx, cy: elemB.cy, r: R2o }
+      );
+      if (!inters || inters.length === 0) return false;
+
+      const midClick = { u: (ptA.u + ptB.u) / 2, v: (ptA.v + ptB.v) / 2 };
+      let bestCenter = null;
+      let minD = Infinity;
+      for (const p of inters) {
+        const d = Math.hypot(p.u - midClick.u, p.v - midClick.v);
+        if (d < minD) { minD = d; bestCenter = p; }
+      }
+      if (!bestCenter) return false;
+
+      const Cf = bestCenter;
+      const d1 = Math.hypot(Cf.u - elemA.cx, Cf.v - elemA.cy);
+      const d2 = Math.hypot(Cf.u - elemB.cx, Cf.v - elemB.cy);
+
+      const TA = { u: elemA.cx + R1 * (Cf.u - elemA.cx) / d1, v: elemA.cy + R1 * (Cf.v - elemA.cy) / d1 };
+      const TB = { u: elemB.cx + R2 * (Cf.u - elemB.cx) / d2, v: elemB.cy + R2 * (Cf.v - elemB.cy) / d2 };
+
+      const arcObj = this.makeCCWArc(Cf.u, Cf.v, R, TA, TB, 'visible');
+      this.elements.push(arcObj);
+      return true;
+    }
+
+    return false;
+  }
+
   updateHUDHint() {
     const hintEl = document.querySelector('.cad2d-hint');
     if (!hintEl) return;
 
+    const snapModeText = (this.snapMode === 'free') 
+      ? '<span style="color:#fbbf24; font-weight:bold;">Tự Do (Free)</span>' 
+      : '<span style="color:#38bdf8; font-weight:bold;">Lưới (0.5)</span>';
+    let toolHint = '';
+
     if (this.tool === 'line-visible') {
-      hintEl.innerHTML = `✏️ <b>Vẽ Nét Thấy:</b> Click Điểm 1 ➔ Click Điểm 2 để nối nét liền đậm`;
+      toolHint = `✏️ <b>Vẽ Nét Thấy:</b> Click Điểm 1 ➔ Click Điểm 2 để nối nét liền đậm`;
     } else if (this.tool === 'line-hidden') {
-      hintEl.innerHTML = `✏️ <b>Vẽ Nét Khuất:</b> Click 2 điểm để vẽ nét đứt vàng`;
+      toolHint = `✏️ <b>Vẽ Nét Khuất:</b> Click 2 điểm để vẽ nét đứt vàng`;
+    } else if (this.tool === 'rect') {
+      toolHint = `🔲 <b>Hình Chữ Nhật:</b> Click Góc 1 ➔ Click Góc đối diện để tạo khung nhanh`;
     } else if (this.tool === 'arc') {
       const step = this.pendingPoints.length + 1;
-      hintEl.innerHTML = `⌒ <b>Vẽ Cung Cong (3 Điểm):</b> Đang chờ Click <b>Điểm ${step}/3</b>`;
+      toolHint = `⌒ <b>Vẽ Cung Cong (3 Điểm):</b> Đang chờ Click <b>Điểm ${step}/3</b>`;
+    } else if (this.tool === 'tangent-arc') {
+      toolHint = (this.pendingPoints.length === 0)
+        ? `⌒ <b>Cung Tiếp Tuyến:</b> Click chọn đầu mút nét để bắt đầu tiếp xúc mượt mà`
+        : `⌒ <b>Cung Tiếp Tuyến:</b> Kéo chuột và click điểm kết thúc cung`;
     } else if (this.tool === 'circle') {
       const step = this.pendingPoints.length + 1;
-      hintEl.innerHTML = `⭕ <b>Đường Tròn:</b> ${step === 1 ? 'Click chọn TÂM' : 'Click chọn BÁN KÍNH'}`;
+      toolHint = `⭕ <b>Đường Tròn:</b> ${step === 1 ? 'Click chọn TÂM' : 'Click chọn BÁN KÍNH'}`;
+    } else if (this.tool === 'fillet') {
+      toolHint = !this.filletFirst
+        ? `🔄 <b>Bo Cung (Fillet R = ${this.filletRadius}):</b> Click chọn Nét thứ 1`
+        : `🔄 <b>Bo Cung (Fillet R = ${this.filletRadius}):</b> Click chọn Nét thứ 2 để bo tròn tiếp xúc góc`;
     } else if (this.tool === 'dim') {
-      hintEl.innerHTML = `📐 <b>Đo Kích Thước:</b> Click 2 điểm để đo khoảng cách và tạo đường ghi kích thước`;
+      toolHint = `📐 <b>Đo Kích Thước:</b> Click 2 điểm để đo khoảng cách, hoặc click thẳng vào cung/tròn để đo bán kính R`;
+    } else if (this.tool === 'dim-radial') {
+      toolHint = `⭕ <b>Đo Bán Kính (R) / Đường Kính (Ø):</b> Click vào Cung Tròn hoặc Đường Tròn bất kỳ`;
     } else if (this.tool === 'erase') {
-      hintEl.innerHTML = `✂️ <b>Tỉa Nét Cắt (AutoCAD TRIM):</b> Click vào đoạn nét (trong hoặc ngoài các giao điểm) để cắt tỉa`;
+      toolHint = `✂️ <b>Tỉa Nét Cắt (AutoCAD TRIM):</b> Click vào đoạn nét (trong hoặc ngoài các giao điểm) để cắt tỉa`;
     } else if (this.tool === 'toggle-style') {
-      hintEl.innerHTML = `🔄 <b>Đổi Nét (Thấy ⇄ Khuất):</b> Click vào nét bất kỳ để chuyển đổi giữa nét liền trắng (thấy) và nét đứt vàng (khuất)`;
+      toolHint = `🔄 <b>Đổi Nét (Thấy ⇄ Khuất):</b> Click vào nét bất kỳ để chuyển đổi giữa nét liền trắng (thấy) và nét đứt vàng (khuất)`;
     } else if (this.tool === 'pan') {
-      hintEl.innerHTML = `✋ <b>Di Chuyển / Pan:</b> Kéo chuột trái để di chuyển mặt phẳng vẽ | Cuộn chuột để Phóng to/Thu nhỏ`;
+      toolHint = `✋ <b>Di Chuyển / Pan:</b> Kéo chuột trái để di chuyển mặt phẳng vẽ | Cuộn chuột để Phóng to/Thu nhỏ`;
     }
+
+    hintEl.innerHTML = `${toolHint} &nbsp;|&nbsp; Bắt dính: ${snapModeText} (Phím <b>G</b>/giữ <b>Alt</b>)`;
   }
 
   // --- RENDER BẢN VẼ 2D MẶT PHẲNG X-Y RỘNG VÔ CỰC ---
@@ -1205,7 +1728,80 @@ export class CAD2DEditor {
         ctx.font = 'bold 12px monospace';
         ctx.textAlign = 'center';
         ctx.fillText(`${elem.dist}`, midX, midY - 6);
+
+      } else if (elem.type === 'dim-radial') {
+        const cx = this.offsetX + elem.cx * s;
+        const cy = this.offsetY - elem.cy * s;
+        const angle = elem.angle;
+        const cosA = Math.cos(angle);
+        const sinA = Math.sin(angle);
+        const px = cx + elem.r * cosA * s;
+        const py = cy - elem.r * sinA * s;
+
+        const leaderLen = 30;
+        const lx = px + leaderLen * cosA;
+        const ly = py - leaderLen * sinA;
+        const doglegX = lx + (cosA >= 0 ? 25 : -25);
+        const doglegY = ly;
+
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(lx, ly);
+        ctx.lineTo(doglegX, doglegY);
+        ctx.stroke();
+
+        const arrLen = 8;
+        const backAngle = Math.atan2(cy - py, cx - px);
+        ctx.fillStyle = '#38bdf8';
+        ctx.beginPath();
+        ctx.moveTo(px, py);
+        ctx.lineTo(px + arrLen * Math.cos(backAngle - 0.35), py + arrLen * Math.sin(backAngle - 0.35));
+        ctx.lineTo(px + arrLen * Math.cos(backAngle + 0.35), py + arrLen * Math.sin(backAngle + 0.35));
+        ctx.fill();
+
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 1.0;
+        ctx.beginPath();
+        ctx.moveTo(cx - 5, cy);
+        ctx.lineTo(cx + 5, cy);
+        ctx.moveTo(cx, cy - 5);
+        ctx.lineTo(cx, cy + 5);
+        ctx.stroke();
+
+        const labelText = elem.isDiameter ? `Ø ${elem.dist}` : `R ${elem.dist}`;
+        ctx.fillStyle = '#38bdf8';
+        ctx.font = 'bold 12px monospace';
+        ctx.textAlign = (cosA >= 0) ? 'left' : 'right';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(labelText, doglegX + (cosA >= 0 ? 4 : -4), doglegY - 2);
       }
+    }
+
+    // Highlight nét thứ nhất đang chọn bo góc (Fillet)
+    if (this.filletFirst && this.filletFirst.elem) {
+      const fElem = this.filletFirst.elem;
+      ctx.save();
+      ctx.strokeStyle = '#f59e0b';
+      ctx.lineWidth = 4.5;
+      ctx.shadowColor = 'rgba(245, 158, 11, 0.8)';
+      ctx.shadowBlur = 12;
+      if (fElem.type === 'line') {
+        ctx.beginPath();
+        ctx.moveTo(this.offsetX + fElem.p1.u * s, this.offsetY - fElem.p1.v * s);
+        ctx.lineTo(this.offsetX + fElem.p2.u * s, this.offsetY - fElem.p2.v * s);
+        ctx.stroke();
+      } else if (fElem.type === 'circle') {
+        ctx.beginPath();
+        ctx.arc(this.offsetX + fElem.cx * s, this.offsetY - fElem.cy * s, fElem.r * s, 0, Math.PI * 2);
+        ctx.stroke();
+      } else if (fElem.type === 'arc') {
+        ctx.beginPath();
+        ctx.arc(this.offsetX + fElem.cx * s, this.offsetY - fElem.cy * s, fElem.r * s, -fElem.startAngle, -fElem.endAngle, true);
+        ctx.stroke();
+      }
+      ctx.restore();
     }
 
     // 6. XEM TRƯỚC NÉT VẼ ĐANG CHỜ (LIVE PREVIEW THEO CHUỘT)
@@ -1308,6 +1904,49 @@ export class CAD2DEditor {
             ctx.stroke();
           }
         }
+      } else if (this.tool === 'rect') {
+        const xMin = Math.min(x1, x2);
+        const yMin = Math.min(y1, y2);
+        const wPix = Math.abs(x2 - x1);
+        const hPix = Math.abs(y2 - y1);
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 2.0;
+        ctx.setLineDash([5, 5]);
+        ctx.strokeRect(xMin, yMin, wPix, hPix);
+        ctx.setLineDash([]);
+
+        const wUnit = Math.abs(p2.u - p1.u).toFixed(2);
+        const hUnit = Math.abs(p2.v - p1.v).toFixed(2);
+        const text = `${wUnit} × ${hUnit}`;
+        ctx.save();
+        ctx.font = 'bold 11px monospace';
+        ctx.fillStyle = '#38bdf8';
+        ctx.textAlign = 'center';
+        ctx.fillText(text, (x1 + x2) / 2, Math.min(y1, y2) - 8);
+        ctx.restore();
+
+      } else if (this.tool === 'tangent-arc' && this.tangentStartVec) {
+        const P0 = p1;
+        const P1 = p2;
+        const T0 = this.tangentStartVec;
+        const dx = P1.u - P0.u;
+        const dy = P1.v - P0.v;
+        const dist2 = dx * dx + dy * dy;
+        const N0 = { u: -T0.v, v: T0.u };
+        const dot = dx * N0.u + dy * N0.v;
+        if (Math.abs(dot) > 1e-4 && dist2 > 0.05) {
+          const R = dist2 / (2 * dot);
+          const cx = this.offsetX + (P0.u + R * N0.u) * s;
+          const cy = this.offsetY - (P0.v + R * N0.v) * s;
+          const r = Math.abs(R) * s;
+          const a0 = Math.atan2(P0.v - (P0.v + R * N0.v), P0.u - (P0.u + R * N0.u));
+          const a1 = Math.atan2(P1.v - (P0.v + R * N0.v), P1.u - (P0.u + R * N0.u));
+          ctx.beginPath();
+          ctx.arc(cx, cy, r, -a0, -a1, (R > 0));
+          ctx.strokeStyle = '#f43f5e';
+          ctx.lineWidth = 2.4;
+          ctx.stroke();
+        }
       }
     }
 
@@ -1356,6 +1995,24 @@ export class CAD2DEditor {
         ctx.lineTo(hx - 5, hy);
         ctx.closePath();
         ctx.stroke();
+      } else if (snap.snapType === 'nearest') {
+        // Biểu tượng đồng hồ cát Nearest AutoCAD (⧗ Trên Cung / Nét)
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 2.0;
+        ctx.beginPath();
+        ctx.moveTo(hx - 5, hy - 5);
+        ctx.lineTo(hx + 5, hy + 5);
+        ctx.lineTo(hx - 5, hy + 5);
+        ctx.lineTo(hx + 5, hy - 5);
+        ctx.closePath();
+        ctx.stroke();
+      } else if (snap.snapType === 'free') {
+        // Vòng tròn vàng tự do (Freeform)
+        ctx.strokeStyle = '#fbbf24';
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.arc(hx, hy, 4, 0, Math.PI * 2);
+        ctx.stroke();
       } else {
         // Chấm tròn bắt dính ô lưới mặc định
         ctx.beginPath();
@@ -1400,6 +2057,16 @@ export class CAD2DEditor {
         circles.push(elem);
       } else if (elem.type === 'arc') {
         arcs.push(elem);
+      } else if (elem.type === 'dim-radial') {
+        const cosA = Math.cos(elem.angle);
+        const sinA = Math.sin(elem.angle);
+        const px = elem.cx + elem.r * cosA;
+        const py = elem.cy + elem.r * sinA;
+        const lx = px + 0.8 * cosA;
+        const ly = py + 0.8 * sinA;
+        visibleLines.push({ p1: { u: elem.cx, v: elem.cy }, p2: { u: lx, v: ly } });
+      } else if (elem.type === 'dim') {
+        visibleLines.push({ p1: elem.p1, p2: elem.p2 });
       }
     }
 
@@ -1736,6 +2403,57 @@ export class CAD2DEditor {
         ctx.font = 'bold 20px monospace';
         ctx.textAlign = 'center';
         ctx.fillText(`${elem.dist}`, midX, midY - 10);
+
+      } else if (elem.type === 'dim-radial') {
+        const cx = toCanvasX(elem.cx);
+        const cy = toCanvasY(elem.cy);
+        const angle = elem.angle;
+        const cosA = Math.cos(angle);
+        const sinA = Math.sin(angle);
+        const px = cx + elem.r * cosA * scaleExport;
+        const py = cy - elem.r * sinA * scaleExport;
+
+        const leaderLen = 50;
+        const lx = px + leaderLen * cosA;
+        const ly = py - leaderLen * sinA;
+        const doglegX = lx + (cosA >= 0 ? 40 : -40);
+        const doglegY = ly;
+
+        ctx.strokeStyle = '#0284c7';
+        ctx.lineWidth = 2.4;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(lx, ly);
+        ctx.lineTo(doglegX, doglegY);
+        ctx.stroke();
+
+        // Mũi tên
+        const arrLen = 12;
+        const backAngle = Math.atan2(cy - py, cx - px);
+        ctx.fillStyle = '#0284c7';
+        ctx.beginPath();
+        ctx.moveTo(px, py);
+        ctx.lineTo(px + arrLen * Math.cos(backAngle - 0.35), py + arrLen * Math.sin(backAngle - 0.35));
+        ctx.lineTo(px + arrLen * Math.cos(backAngle + 0.35), py + arrLen * Math.sin(backAngle + 0.35));
+        ctx.fill();
+
+        // Dấu tâm nhỏ
+        ctx.strokeStyle = '#dc2626';
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.moveTo(cx - 8, cy);
+        ctx.lineTo(cx + 8, cy);
+        ctx.moveTo(cx, cy - 8);
+        ctx.lineTo(cx, cy + 8);
+        ctx.stroke();
+
+        // Chữ R hoặc Ø
+        const labelText = elem.isDiameter ? `Ø ${elem.dist}` : `R ${elem.dist}`;
+        ctx.fillStyle = '#0284c7';
+        ctx.font = 'bold 22px monospace';
+        ctx.textAlign = (cosA >= 0) ? 'left' : 'right';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(labelText, doglegX + (cosA >= 0 ? 6 : -6), doglegY - 4);
       }
     }
 

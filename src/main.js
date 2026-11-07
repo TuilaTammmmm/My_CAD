@@ -518,6 +518,19 @@ document.getElementById('btn-2d-redo')?.addEventListener('click', () => {
   cad2dEditor.redo();
 });
 
+// Cài đặt bán kính bo cung / đường tròn
+document.getElementById('input-2d-radius')?.addEventListener('input', (e) => {
+  const r = parseFloat(e.target.value);
+  if (!isNaN(r) && r > 0) {
+    cad2dEditor.setFilletRadius(r);
+  }
+});
+
+// Nút chuyển đổi bắt dính Lưới 0.5 <-> Tự do Freeform
+document.getElementById('btn-2d-toggle-snap')?.addEventListener('click', () => {
+  cad2dEditor.toggleSnapMode();
+});
+
 // Nút lấy nét từ 3D
 document.getElementById('btn-2d-sync-3d')?.addEventListener('click', () => {
   cad2dEditor.syncFrom3D();

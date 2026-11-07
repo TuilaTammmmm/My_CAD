@@ -174,11 +174,25 @@
               <span class="tool-text">Nét Khuất (Đứt)</span>
             </button>
 
+            <button class="tool-btn cad2d-tool-btn" data-tool="rect" title="Vẽ hình chữ nhật: Click Góc 1 ➔ Góc 2">
+              <span class="tool-icon">
+                <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="1" fill="none" stroke-width="2.2"/></svg>
+              </span>
+              <span class="tool-text">Hình Chữ Nhật</span>
+            </button>
+
             <button class="tool-btn cad2d-tool-btn" data-tool="arc" title="Vẽ cung cong qua 3 điểm (Click Điểm 1, 2, 3)">
               <span class="tool-icon">
                 <svg viewBox="0 0 24 24"><path d="M4 18A12 12 0 0 1 20 18"/></svg>
               </span>
               <span class="tool-text">Cung Cong (3 Điểm)</span>
+            </button>
+
+            <button class="tool-btn cad2d-tool-btn" data-tool="tangent-arc" title="Vẽ cung tiếp tuyến: Bắt đầu từ đầu mút của nét thẳng hoặc cung khác">
+              <span class="tool-icon">
+                <svg viewBox="0 0 24 24"><path d="M3 20h6a11 11 0 0 0 11-11V3"/></svg>
+              </span>
+              <span class="tool-text">Cung Tiếp Tuyến</span>
             </button>
 
             <button class="tool-btn cad2d-tool-btn" data-tool="circle" title="Vẽ đường tròn (Click Tâm ➔ Bán kính)">
@@ -188,11 +202,25 @@
               <span class="tool-text">Đường Tròn</span>
             </button>
 
-            <button class="tool-btn cad2d-tool-btn" data-tool="dim" title="Đo khoảng cách kích thước 2 điểm">
+            <button class="tool-btn cad2d-tool-btn" data-tool="fillet" title="Bo cung tiếp tuyến (FILLET): Click Nét 1 ➔ Click Nét 2 để bo tròn góc với bán kính R">
+              <span class="tool-icon">
+                <svg viewBox="0 0 24 24"><path d="M4 20h8a8 8 0 0 0 8-8V4" fill="none" stroke-width="2.5"/><line x1="4" y1="20" x2="12" y2="20" stroke-width="2.5"/></svg>
+              </span>
+              <span class="tool-text">Bo Cung (Fillet)</span>
+            </button>
+
+            <button class="tool-btn cad2d-tool-btn" data-tool="dim" title="Đo kích thước: Click 2 điểm (hoặc click cung/đường tròn để đo bán kính)">
               <span class="tool-icon">
                 <svg viewBox="0 0 24 24"><path d="M2 12h20M6 8l-4 4 4 4M18 8l4 4-4 4"/></svg>
               </span>
-              <span class="tool-text">Đo Kích Thước</span>
+              <span class="tool-text">Đo Đoạn Thẳng</span>
+            </button>
+
+            <button class="tool-btn cad2d-tool-btn" data-tool="dim-radial" title="Đo bán kính R / đường kính Ø của cung tròn hoặc đường tròn">
+              <span class="tool-icon">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><line x1="12" y1="12" x2="19" y2="7"/><polyline points="15 7 19 7 19 11"/></svg>
+              </span>
+              <span class="tool-text">Đo Bán Kính (R)</span>
             </button>
 
             <button class="tool-btn cad2d-tool-btn" data-tool="erase" title="Tỉa nét cắt chuẩn AutoCAD TRIM (Click vào đoạn nét trong/ngoài để cắt)">
@@ -234,6 +262,18 @@
           </div>
 
           <div class="tool-list">
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 12px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 8px; margin-bottom: 2px;">
+              <span style="font-size: 0.8rem; font-weight: 600; color: #94a3b8;">Bán kính R:</span>
+              <input type="number" id="input-2d-radius" value="1.0" min="0.1" step="0.5" style="width: 70px; background: #0f172a; border: 1px solid #38bdf8; border-radius: 5px; color: #38bdf8; font-weight: bold; text-align: center; padding: 4px; font-size: 0.85rem;" title="Bán kính bo cung (Fillet) và đường tròn">
+            </div>
+
+            <button class="tool-btn" id="btn-2d-toggle-snap" title="Chuyển đổi bắt dính: Lưới (0.5) ↔ Tự do Freeform (Phím tắt: G hoặc giữ Alt)">
+              <span class="tool-icon">
+                <svg viewBox="0 0 24 24"><path d="M4 4h4v4H4zM16 4h4v4h-4zM4 16h4v4H4zM16 16h4v4h-4z"/></svg>
+              </span>
+              <span class="tool-text" id="lbl-snap-mode">Bắt Dính: Lưới (0.5)</span>
+            </button>
+
             <button class="tool-btn" id="btn-2d-sync-3d" title="Lấy hình chiếu đứng của khối 3D đưa vào mặt phẳng X-Y">
               <span class="tool-icon">
                 <svg viewBox="0 0 24 24"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.19"/></svg>

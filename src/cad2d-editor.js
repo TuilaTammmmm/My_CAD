@@ -271,7 +271,7 @@ export class CAD2DEditor {
   }
 
   // --- TỌA ĐỘ VÀ BẮT DÍNH THÔNG MINH (SMART OSNAP & GRID SNAP) ---
-  getSnapPoint(screenX, screenY) {
+  getSnapPoint(screenX, screenY, isAltOrFree = false) {
     const s = this.scale;
     const uRaw = (screenX - this.offsetX) / s;
     const vRaw = -(screenY - this.offsetY) / s; // Y toán học hướng lên
@@ -2001,10 +2001,10 @@ export class CAD2DEditor {
       const p1 = this.pendingPoints[0];
       const p2 = this.hoverSnap;
 
-      const x1 = p1.canvasX;
-      const y1 = p1.canvasY;
-      const x2 = p2.canvasX;
-      const y2 = p2.canvasY;
+      const x1 = this.offsetX + p1.u * s;
+      const y1 = this.offsetY - p1.v * s;
+      const x2 = this.offsetX + p2.u * s;
+      const y2 = this.offsetY - p2.v * s;
 
       // Điểm mốc đã click
       ctx.beginPath();

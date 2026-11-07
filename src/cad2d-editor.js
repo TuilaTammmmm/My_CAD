@@ -88,7 +88,13 @@ export class CAD2DEditor {
   setTool(toolName) {
     this.tool = toolName;
     this.pendingPoints = [];
-    this.canvas.style.cursor = (this.tool === 'pan') ? 'grab' : 'crosshair';
+    if (this.tool === 'pan') {
+      this.canvas.style.cursor = 'grab';
+    } else if (this.tool === 'toggle-style') {
+      this.canvas.style.cursor = 'pointer';
+    } else {
+      this.canvas.style.cursor = 'crosshair';
+    }
     this.updateHUDHint();
     this.render();
   }
@@ -177,13 +183,82 @@ export class CAD2DEditor {
     this.render();
   }
 
-  // --- TỌA ĐỘ VÀ BẮT DÍNH Ô LƯỚI ---
+  // --- TỌA ĐỘ VÀ BẮT DÍNH THÔNG MINH (SMART OSNAP & GRID SNAP) ---
   getSnapPoint(screenX, screenY) {
     const s = this.scale;
     const uRaw = (screenX - this.offsetX) / s;
     const vRaw = -(screenY - this.offsetY) / s; // Y toán học hướng lên
 
-    // Bắt dính bước 0.5 unit
+    // 1. Kiểm tra các điểm mốc hình học (Smart OSNAP: Đầu mút, Tâm, Trung điểm, Góc phôi)
+    const candidates = [];
+    const { w, h } = this.bounds;
+    candidates.push(
+      { u: 0, v: 0, type: 'corner', label: 'Gốc O(0,0)' },
+      { u: w, v: 0, type: 'corner', label: 'Góc phôi' },
+      { u: w, v: h, type: 'corner', label: 'Góc phôi' },
+      { u: 0, v: h, type: 'corner', label: 'Góc phôi' }
+    );
+
+    for (const elem of this.elements) {
+      if (elem.type === 'line') {
+        candidates.push(
+          { u: elem.p1.u, v: elem.p1.v, type: 'endpoint', label: 'Đầu mút' },
+          { u: elem.p2.u, v: elem.p2.v, type: 'endpoint', label: 'Đầu mút' },
+          { u: (elem.p1.u + elem.p2.u) / 2, v: (elem.p1.v + elem.p2.v) / 2, type: 'midpoint', label: 'Trung điểm' }
+        );
+      } else if (elem.type === 'circle') {
+        candidates.push(
+          { u: elem.cx, v: elem.cy, type: 'center', label: 'Tâm tròn' },
+          { u: elem.cx + elem.r, v: elem.cy, type: 'quadrant', label: 'Góc 1/4' },
+          { u: elem.cx - elem.r, v: elem.cy, type: 'quadrant', label: 'Góc 1/4' },
+          { u: elem.cx, v: elem.cy + elem.r, type: 'quadrant', label: 'Góc 1/4' },
+          { u: elem.cx, v: elem.cy - elem.r, type: 'quadrant', label: 'Góc 1/4' }
+        );
+      } else if (elem.type === 'arc') {
+        const p1u = elem.cx + elem.r * Math.cos(elem.startAngle);
+        const p1v = elem.cy + elem.r * Math.sin(elem.startAngle);
+        const p2u = elem.cx + elem.r * Math.cos(elem.endAngle);
+        const p2v = elem.cy + elem.r * Math.sin(elem.endAngle);
+        let sweep = elem.endAngle - elem.startAngle;
+        if (sweep < 0) sweep += Math.PI * 2;
+        const midA = elem.startAngle + sweep / 2;
+        const pMu = elem.cx + elem.r * Math.cos(midA);
+        const pMv = elem.cy + elem.r * Math.sin(midA);
+
+        candidates.push(
+          { u: elem.cx, v: elem.cy, type: 'center', label: 'Tâm cung' },
+          { u: p1u, v: p1v, type: 'endpoint', label: 'Mút cung' },
+          { u: p2u, v: p2v, type: 'endpoint', label: 'Mút cung' },
+          { u: pMu, v: pMv, type: 'midpoint', label: 'Điểm giữa cung' }
+        );
+      }
+    }
+
+    let bestCand = null;
+    let minPixDist = 14; // Ngưỡng bắt dính hình học (14 pixels)
+
+    for (const cand of candidates) {
+      const cX = this.offsetX + cand.u * s;
+      const cY = this.offsetY - cand.v * s;
+      const dist = Math.hypot(screenX - cX, screenY - cY);
+      if (dist < minPixDist) {
+        minPixDist = dist;
+        bestCand = {
+          u: Number(cand.u.toFixed(2)),
+          v: Number(cand.v.toFixed(2)),
+          canvasX: cX,
+          canvasY: cY,
+          snapType: cand.type,
+          label: cand.label
+        };
+      }
+    }
+
+    if (bestCand) {
+      return bestCand;
+    }
+
+    // 2. Bắt dính ô lưới bước 0.5 unit (Grid Snap)
     const step = this.snapStep;
     const uSnap = Math.round(uRaw / step) * step;
     const vSnap = Math.round(vRaw / step) * step;
@@ -192,7 +267,9 @@ export class CAD2DEditor {
       u: Number(uSnap.toFixed(2)),
       v: Number(vSnap.toFixed(2)),
       canvasX: this.offsetX + uSnap * s,
-      canvasY: this.offsetY - vSnap * s
+      canvasY: this.offsetY - vSnap * s,
+      snapType: 'grid',
+      label: null
     };
   }
 
@@ -372,6 +449,42 @@ export class CAD2DEditor {
     // 5. TỈA NÉT CẮT AUTOCAD (TRIM TOOL)
     if (this.tool === 'erase') {
       this.trimAtPoint(rawPoint || snap);
+      return;
+    }
+
+    // 6. ĐỔI NHANH NÉT THẤY / NÉT KHUẤT
+    if (this.tool === 'toggle-style') {
+      const clickPoint = rawPoint || snap;
+      let bestElem = null;
+      let bestDist = Infinity;
+
+      for (let i = 0; i < this.elements.length; i++) {
+        const elem = this.elements[i];
+        let d = Infinity;
+        if (elem.type === 'line') {
+          d = this.pointToSegmentDistance(clickPoint, elem.p1, elem.p2);
+        } else if (elem.type === 'circle') {
+          d = Math.abs(Math.hypot(clickPoint.u - elem.cx, clickPoint.v - elem.cy) - elem.r);
+        } else if (elem.type === 'arc') {
+          const distC = Math.hypot(clickPoint.u - elem.cx, clickPoint.v - elem.cy);
+          const angle = this.normAngle(Math.atan2(clickPoint.v - elem.cy, clickPoint.u - elem.cx));
+          if (this.isAngleOnArc(angle, elem.startAngle, elem.endAngle)) {
+            d = Math.abs(distC - elem.r);
+          }
+        }
+
+        if (d < bestDist) {
+          bestDist = d;
+          bestElem = elem;
+        }
+      }
+
+      const threshold = Math.max(0.4, 20 / this.scale);
+      if (bestElem && bestDist <= threshold && bestElem.type !== 'dim') {
+        bestElem.style = (bestElem.style === 'hidden') ? 'visible' : 'hidden';
+        this.saveHistory();
+        this.render();
+      }
       return;
     }
   }
@@ -847,6 +960,8 @@ export class CAD2DEditor {
       hintEl.innerHTML = `📐 <b>Đo Kích Thước:</b> Click 2 điểm để đo khoảng cách và tạo đường ghi kích thước`;
     } else if (this.tool === 'erase') {
       hintEl.innerHTML = `✂️ <b>Tỉa Nét Cắt (AutoCAD TRIM):</b> Click vào đoạn nét (trong hoặc ngoài các giao điểm) để cắt tỉa`;
+    } else if (this.tool === 'toggle-style') {
+      hintEl.innerHTML = `🔄 <b>Đổi Nét (Thấy ⇄ Khuất):</b> Click vào nét bất kỳ để chuyển đổi giữa nét liền trắng (thấy) và nét đứt vàng (khuất)`;
     } else if (this.tool === 'pan') {
       hintEl.innerHTML = `✋ <b>Di Chuyển / Pan:</b> Kéo chuột trái để di chuyển mặt phẳng vẽ | Cuộn chuột để Phóng to/Thu nhỏ`;
     }
@@ -1010,22 +1125,47 @@ export class CAD2DEditor {
         const cy = this.offsetY - elem.cy * s;
         const r = elem.r * s;
 
+        // Dấu cộng tâm kỹ thuật (Center Mark)
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.45)';
+        ctx.lineWidth = 1.2;
+        ctx.setLineDash([6, 3, 2, 3]);
+        ctx.beginPath();
+        ctx.moveTo(cx - r - 8, cy);
+        ctx.lineTo(cx + r + 8, cy);
+        ctx.moveTo(cx, cy - r - 8);
+        ctx.lineTo(cx, cy + r + 8);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Đường tròn
         ctx.beginPath();
         ctx.arc(cx, cy, r, 0, Math.PI * 2);
-        ctx.strokeStyle = '#f8fafc';
+        ctx.strokeStyle = (elem.style === 'hidden') ? '#facc15' : '#f8fafc';
         ctx.lineWidth = 2.8;
+        if (elem.style === 'hidden') ctx.setLineDash([7, 4]);
         ctx.stroke();
+        ctx.setLineDash([]);
 
         // Chấm tâm
-        ctx.fillStyle = 'rgba(56, 189, 248, 0.7)';
+        ctx.fillStyle = '#38bdf8';
         ctx.beginPath();
-        ctx.arc(cx, cy, 3, 0, Math.PI * 2);
+        ctx.arc(cx, cy, 2.5, 0, Math.PI * 2);
         ctx.fill();
 
       } else if (elem.type === 'arc') {
         const cx = this.offsetX + elem.cx * s;
         const cy = this.offsetY - elem.cy * s;
         const r = elem.r * s;
+
+        // Dấu cộng tâm nhỏ cho cung
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(cx - 6, cy);
+        ctx.lineTo(cx + 6, cy);
+        ctx.moveTo(cx, cy - 6);
+        ctx.lineTo(cx, cy + 6);
+        ctx.stroke();
 
         // Cung chuẩn CCW: Trên Canvas (trục Y hướng xuống) đảo góc và dùng counterclockwise = true
         ctx.beginPath();
@@ -1094,15 +1234,54 @@ export class CAD2DEditor {
         ctx.stroke();
         ctx.setLineDash([]);
 
+        // Live đo kích thước độ dài L và gia số tọa độ
+        const dx = Math.abs(p2.u - p1.u);
+        const dy = Math.abs(p2.v - p1.v);
+        const len = Math.hypot(p2.u - p1.u, p2.v - p1.v);
+        const badgeX = (x1 + x2) / 2;
+        const badgeY = (y1 + y2) / 2 - 12;
+
+        ctx.save();
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 1;
+        const liveText = `L: ${len.toFixed(2)} | ΔX: ${dx.toFixed(2)}, ΔY: ${dy.toFixed(2)}`;
+        ctx.font = 'bold 11px monospace';
+        const textW = ctx.measureText(liveText).width;
+        ctx.fillRect(badgeX - textW / 2 - 6, badgeY - 14, textW + 12, 20);
+        ctx.strokeRect(badgeX - textW / 2 - 6, badgeY - 14, textW + 12, 20);
+        ctx.fillStyle = '#38bdf8';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(liveText, badgeX, badgeY - 4);
+        ctx.restore();
+
       } else if (this.tool === 'circle') {
-        const r = Math.hypot(p2.u - p1.u, p2.v - p1.v) * s;
+        const rVal = Math.hypot(p2.u - p1.u, p2.v - p1.v);
+        const rPix = rVal * s;
         ctx.beginPath();
-        ctx.arc(x1, y1, r, 0, Math.PI * 2);
+        ctx.arc(x1, y1, rPix, 0, Math.PI * 2);
         ctx.strokeStyle = '#f43f5e';
         ctx.lineWidth = 2.0;
         ctx.setLineDash([4, 4]);
         ctx.stroke();
         ctx.setLineDash([]);
+
+        // Live đo bán kính và đường kính
+        ctx.save();
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 1;
+        const liveText = `R: ${rVal.toFixed(2)} | Ø: ${(rVal * 2).toFixed(2)}`;
+        ctx.font = 'bold 11px monospace';
+        const textW = ctx.measureText(liveText).width;
+        ctx.fillRect(x2 + 10, y2 - 25, textW + 12, 20);
+        ctx.strokeRect(x2 + 10, y2 - 25, textW + 12, 20);
+        ctx.fillStyle = '#38bdf8';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(liveText, x2 + 16, y2 - 15);
+        ctx.restore();
 
       } else if (this.tool === 'arc') {
         if (this.pendingPoints.length === 1) {
@@ -1132,20 +1311,77 @@ export class CAD2DEditor {
       }
     }
 
-    // 7. CON TRỎ BẮT DÍNH HOVER (SNAP MARKER & COORDINATES)
+    // 7. CON TRỎ BẮT DÍNH THÔNG MINH (SMART OSNAP GLYPHS & COORDINATES)
     if (this.hoverSnap) {
-      ctx.beginPath();
-      ctx.arc(this.hoverSnap.canvasX, this.hoverSnap.canvasY, 5, 0, Math.PI * 2);
-      ctx.fillStyle = '#38bdf8';
-      ctx.fill();
-      ctx.strokeStyle = '#fff';
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
+      const snap = this.hoverSnap;
+      const hx = snap.canvasX;
+      const hy = snap.canvasY;
 
-      ctx.font = '11px sans-serif';
-      ctx.fillStyle = '#38bdf8';
+      ctx.save();
+      if (snap.snapType === 'endpoint' || snap.snapType === 'corner') {
+        // Hình vuông xanh lá (□ Endpoint)
+        ctx.strokeStyle = '#22c55e';
+        ctx.lineWidth = 2.0;
+        ctx.strokeRect(hx - 5, hy - 5, 10, 10);
+      } else if (snap.snapType === 'midpoint') {
+        // Hình quả trám cyan (◇ Midpoint)
+        ctx.strokeStyle = '#06b6d4';
+        ctx.lineWidth = 2.0;
+        ctx.beginPath();
+        ctx.moveTo(hx, hy - 6);
+        ctx.lineTo(hx + 6, hy);
+        ctx.lineTo(hx, hy + 6);
+        ctx.lineTo(hx - 6, hy);
+        ctx.closePath();
+        ctx.stroke();
+      } else if (snap.snapType === 'center') {
+        // Hình tròn vàng có tâm (○ Center)
+        ctx.strokeStyle = '#eab308';
+        ctx.lineWidth = 2.0;
+        ctx.beginPath();
+        ctx.arc(hx, hy, 6, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fillStyle = '#eab308';
+        ctx.beginPath();
+        ctx.arc(hx, hy, 2, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (snap.snapType === 'quadrant') {
+        // Hình thoi cam (◇ Quadrant)
+        ctx.strokeStyle = '#f97316';
+        ctx.lineWidth = 2.0;
+        ctx.beginPath();
+        ctx.moveTo(hx, hy - 5);
+        ctx.lineTo(hx + 5, hy);
+        ctx.lineTo(hx, hy + 5);
+        ctx.lineTo(hx - 5, hy);
+        ctx.closePath();
+        ctx.stroke();
+      } else {
+        // Chấm tròn bắt dính ô lưới mặc định
+        ctx.beginPath();
+        ctx.arc(hx, hy, 4.5, 0, Math.PI * 2);
+        ctx.fillStyle = '#38bdf8';
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+
+      // Tooltip tọa độ & loại bắt dính OSNAP
+      const snapText = snap.label ? `${snap.label} (X: ${snap.u}, Y: ${snap.v})` : `(X: ${snap.u}, Y: ${snap.v})`;
+      ctx.font = 'bold 11px sans-serif';
+      const snapTW = ctx.measureText(snapText).width;
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+      ctx.fillRect(hx + 10, hy - 22, snapTW + 10, 18);
+      ctx.strokeStyle = (snap.snapType && snap.snapType !== 'grid') ? '#22c55e' : 'rgba(56, 189, 248, 0.5)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(hx + 10, hy - 22, snapTW + 10, 18);
+
+      ctx.fillStyle = (snap.snapType && snap.snapType !== 'grid') ? '#4ade80' : '#38bdf8';
       ctx.textAlign = 'left';
-      ctx.fillText(`(X: ${this.hoverSnap.u}, Y: ${this.hoverSnap.v})`, this.hoverSnap.canvasX + 10, this.hoverSnap.canvasY - 10);
+      ctx.textBaseline = 'middle';
+      ctx.fillText(snapText, hx + 15, hy - 13);
+      ctx.restore();
     }
   }
 
@@ -1175,5 +1411,338 @@ export class CAD2DEditor {
       planeName: 'MAT_DUNG_XY',
       bounds: this.bounds
     }, `ban_ve_2d_XY_${this.bounds.w}x${this.bounds.h}.dxf`);
+  }
+
+  // Xuất bản vẽ X-Y sang file ảnh kỹ thuật cao (.PNG) chuẩn A4
+  exportPNG() {
+    const exportCanvas = document.createElement('canvas');
+    const width = 2480;
+    const height = 1754; // A4 Landscape @ 300 DPI
+    exportCanvas.width = width;
+    exportCanvas.height = height;
+    const ctx = exportCanvas.getContext('2d');
+
+    // 1. Nền giấy trắng bản vẽ kỹ thuật
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, width, height);
+
+    // 2. Khung viền bản vẽ kỹ thuật tiêu chuẩn (Border Frame)
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(40, 40, width - 80, height - 80);
+    // Khung trong có lề đóng gáy 25mm (gáy trái 90px)
+    ctx.lineWidth = 6;
+    ctx.strokeRect(90, 55, width - 145, height - 110);
+
+    // 3. Khung tên bản vẽ kỹ thuật (Title Block) góc dưới bên phải
+    const tbW = 620;
+    const tbH = 160;
+    const tbX = width - 55 - tbW;
+    const tbY = height - 55 - tbH;
+
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(tbX, tbY, tbW, tbH);
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(tbX, tbY, tbW, tbH);
+
+    // Phân dòng khung tên
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(tbX, tbY + 50);
+    ctx.lineTo(tbX + tbW, tbY + 50);
+    ctx.moveTo(tbX, tbY + 105);
+    ctx.lineTo(tbX + tbW, tbY + 105);
+    ctx.moveTo(tbX + 380, tbY + 50);
+    ctx.lineTo(tbX + 380, tbY + tbH);
+    ctx.moveTo(tbX + 490, tbY + 50);
+    ctx.lineTo(tbX + 490, tbY + tbH);
+    ctx.stroke();
+
+    // Chữ trong khung tên
+    ctx.fillStyle = '#0f172a';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.font = 'bold 24px "Segoe UI", sans-serif';
+    ctx.fillText('BẢN VẼ CHI TIẾT 2D (MẶT ĐỨNG X-Y)', tbX + 20, tbY + 26);
+
+    ctx.font = '16px "Segoe UI", sans-serif';
+    ctx.fillStyle = '#475569';
+    ctx.fillText('Vật liệu:', tbX + 20, tbY + 72);
+    ctx.font = 'bold 17px "Segoe UI", sans-serif';
+    ctx.fillStyle = '#0f172a';
+    ctx.fillText('Thép Kỹ Thuật (Block)', tbX + 90, tbY + 72);
+
+    ctx.font = '16px "Segoe UI", sans-serif';
+    ctx.fillStyle = '#475569';
+    ctx.fillText('Kích thước:', tbX + 20, tbY + 130);
+    ctx.font = 'bold 17px "Segoe UI", sans-serif';
+    ctx.fillStyle = '#0f172a';
+    ctx.fillText(`${this.bounds.w} x ${this.bounds.h} x ${this.bounds.d} cm`, tbX + 110, tbY + 130);
+
+    ctx.font = '15px "Segoe UI", sans-serif';
+    ctx.fillStyle = '#475569';
+    ctx.fillText('Tỉ lệ:', tbX + 395, tbY + 72);
+    ctx.font = 'bold 18px monospace';
+    ctx.fillStyle = '#0f172a';
+    ctx.fillText('1:1', tbX + 438, tbY + 72);
+
+    ctx.font = '15px "Segoe UI", sans-serif';
+    ctx.fillStyle = '#475569';
+    ctx.fillText('Ngày xuất:', tbX + 395, tbY + 130);
+    ctx.font = '14px monospace';
+    ctx.fillStyle = '#0f172a';
+    ctx.fillText(new Date().toLocaleDateString('vi-VN'), tbX + 400, tbY + 148);
+
+    ctx.font = 'bold 18px "Segoe UI", sans-serif';
+    ctx.fillStyle = '#0284c7';
+    ctx.textAlign = 'center';
+    ctx.fillText('CAD 2.0', tbX + 555, tbY + 95);
+
+    // 4. Tính toán vùng vẽ và hệ số tỉ lệ (Scale & Center)
+    const drawMinX = 140;
+    const drawMaxX = width - 100;
+    const drawMinY = 90;
+    const drawMaxY = height - 190;
+    const drawW = drawMaxX - drawMinX;
+    const drawH = drawMaxY - drawMinY;
+
+    // Tìm bounding box của vật thể và các nét vẽ
+    let minU = 0, maxU = this.bounds.w;
+    let minV = 0, maxV = this.bounds.h;
+
+    for (const elem of this.elements) {
+      if (elem.type === 'line' || elem.type === 'dim') {
+        minU = Math.min(minU, elem.p1.u, elem.p2.u);
+        maxU = Math.max(maxU, elem.p1.u, elem.p2.u);
+        minV = Math.min(minV, elem.p1.v, elem.p2.v);
+        maxV = Math.max(maxV, elem.p1.v, elem.p2.v);
+      } else if (elem.type === 'circle') {
+        minU = Math.min(minU, elem.cx - elem.r);
+        maxU = Math.max(maxU, elem.cx + elem.r);
+        minV = Math.min(minV, elem.cy - elem.r);
+        maxV = Math.max(maxV, elem.cy + elem.r);
+      } else if (elem.type === 'arc') {
+        minU = Math.min(minU, elem.cx - elem.r);
+        maxU = Math.max(maxU, elem.cx + elem.r);
+        minV = Math.min(minV, elem.cy - elem.r);
+        maxV = Math.max(maxV, elem.cy + elem.r);
+      }
+    }
+
+    const marginUnits = 1.5;
+    minU -= marginUnits;
+    maxU += marginUnits;
+    minV -= marginUnits;
+    maxV += marginUnits;
+
+    const spanU = Math.max(2, maxU - minU);
+    const spanV = Math.max(2, maxV - minV);
+
+    const scaleExport = Math.min(drawW / spanU, drawH / spanV) * 0.88;
+    const centerDrawX = (drawMinX + drawMaxX) / 2;
+    const centerDrawY = (drawMinY + drawMaxY) / 2;
+    const centerU = (minU + maxU) / 2;
+    const centerV = (minV + maxV) / 2;
+
+    const toCanvasX = (u) => centerDrawX + (u - centerU) * scaleExport;
+    const toCanvasY = (v) => centerDrawY - (v - centerV) * scaleExport;
+
+    // 5. Lưới kỹ thuật nhạt
+    const gridMinU = Math.floor(minU);
+    const gridMaxU = Math.ceil(maxU);
+    const gridMinV = Math.floor(minV);
+    const gridMaxV = Math.ceil(maxV);
+
+    ctx.strokeStyle = '#f1f5f9';
+    ctx.lineWidth = 1.5;
+    for (let u = gridMinU; u <= gridMaxU; u++) {
+      ctx.beginPath();
+      ctx.moveTo(toCanvasX(u), toCanvasY(gridMinV));
+      ctx.lineTo(toCanvasX(u), toCanvasY(gridMaxV));
+      ctx.stroke();
+    }
+    for (let v = gridMinV; v <= gridMaxV; v++) {
+      ctx.beginPath();
+      ctx.moveTo(toCanvasX(gridMinU), toCanvasY(v));
+      ctx.lineTo(toCanvasX(gridMaxU), toCanvasY(v));
+      ctx.stroke();
+    }
+
+    // 6. Khung bao vật thể phôi (Bounding block) nét mảnh
+    const boxX1 = toCanvasX(0);
+    const boxY1 = toCanvasY(this.bounds.h);
+    const boxW = this.bounds.w * scaleExport;
+    const boxH = this.bounds.h * scaleExport;
+    ctx.strokeStyle = '#94a3b8';
+    ctx.lineWidth = 2.0;
+    ctx.setLineDash([8, 6]);
+    ctx.strokeRect(boxX1, boxY1, boxW, boxH);
+    ctx.setLineDash([]);
+
+    // 7. Hệ trục tọa độ kỹ thuật X-Y
+    const originX = toCanvasX(0);
+    const originY = toCanvasY(0);
+
+    // Trục X
+    ctx.strokeStyle = '#0284c7';
+    ctx.lineWidth = 3.5;
+    ctx.beginPath();
+    ctx.moveTo(toCanvasX(minU), originY);
+    ctx.lineTo(toCanvasX(maxU) + 20, originY);
+    ctx.stroke();
+
+    // Mũi tên X
+    ctx.fillStyle = '#0284c7';
+    ctx.beginPath();
+    const arrX = toCanvasX(maxU) + 20;
+    ctx.moveTo(arrX, originY);
+    ctx.lineTo(arrX - 16, originY - 7);
+    ctx.lineTo(arrX - 16, originY + 7);
+    ctx.fill();
+    ctx.font = 'bold 22px monospace';
+    ctx.fillText('X', arrX + 6, originY - 12);
+
+    // Trục Y
+    ctx.beginPath();
+    ctx.moveTo(originX, toCanvasY(minV));
+    ctx.lineTo(originX, toCanvasY(maxV) - 20);
+    ctx.stroke();
+
+    // Mũi tên Y
+    const arrY = toCanvasY(maxV) - 20;
+    ctx.beginPath();
+    ctx.moveTo(originX, arrY);
+    ctx.lineTo(originX - 7, arrY + 16);
+    ctx.lineTo(originX + 7, arrY + 16);
+    ctx.fill();
+    ctx.fillText('Y', originX + 14, arrY + 6);
+
+    // Gốc O(0,0)
+    ctx.font = 'bold 18px monospace';
+    ctx.fillStyle = '#e11d48';
+    ctx.fillText('O(0,0)', originX - 35, originY + 28);
+
+    // 8. Vẽ các đối tượng nét vẽ 2D
+    for (const elem of this.elements) {
+      if (elem.type === 'line') {
+        const x1 = toCanvasX(elem.p1.u);
+        const y1 = toCanvasY(elem.p1.v);
+        const x2 = toCanvasX(elem.p2.u);
+        const y2 = toCanvasY(elem.p2.v);
+
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        if (elem.style === 'hidden') {
+          ctx.strokeStyle = '#334155';
+          ctx.lineWidth = 3.0;
+          ctx.setLineDash([14, 8]);
+        } else {
+          ctx.strokeStyle = '#000000';
+          ctx.lineWidth = 4.8;
+          ctx.setLineDash([]);
+        }
+        ctx.lineCap = 'round';
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+      } else if (elem.type === 'circle') {
+        const cx = toCanvasX(elem.cx);
+        const cy = toCanvasY(elem.cy);
+        const r = elem.r * scaleExport;
+
+        // Dấu tâm đỏ nét đứt kỹ thuật (Center Mark)
+        ctx.strokeStyle = '#dc2626';
+        ctx.lineWidth = 2.0;
+        ctx.setLineDash([18, 5, 4, 5]);
+        ctx.beginPath();
+        ctx.moveTo(cx - r - 25, cy);
+        ctx.lineTo(cx + r + 25, cy);
+        ctx.moveTo(cx, cy - r - 25);
+        ctx.lineTo(cx, cy + r + 25);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Đường tròn
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        if (elem.style === 'hidden') {
+          ctx.strokeStyle = '#334155';
+          ctx.lineWidth = 3.0;
+          ctx.setLineDash([14, 8]);
+        } else {
+          ctx.strokeStyle = '#000000';
+          ctx.lineWidth = 4.8;
+          ctx.setLineDash([]);
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+      } else if (elem.type === 'arc') {
+        const cx = toCanvasX(elem.cx);
+        const cy = toCanvasY(elem.cy);
+        const r = elem.r * scaleExport;
+
+        // Dấu tâm đỏ cho cung
+        ctx.strokeStyle = '#dc2626';
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        ctx.moveTo(cx - 12, cy);
+        ctx.lineTo(cx + 12, cy);
+        ctx.moveTo(cx, cy - 12);
+        ctx.lineTo(cx, cy + 12);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, -elem.startAngle, -elem.endAngle, true);
+        if (elem.style === 'hidden') {
+          ctx.strokeStyle = '#334155';
+          ctx.lineWidth = 3.0;
+          ctx.setLineDash([14, 8]);
+        } else {
+          ctx.strokeStyle = '#000000';
+          ctx.lineWidth = 4.8;
+          ctx.setLineDash([]);
+        }
+        ctx.lineCap = 'round';
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+      } else if (elem.type === 'dim') {
+        const x1 = toCanvasX(elem.p1.u);
+        const y1 = toCanvasY(elem.p1.v);
+        const x2 = toCanvasX(elem.p2.u);
+        const y2 = toCanvasY(elem.p2.v);
+
+        ctx.strokeStyle = '#0284c7';
+        ctx.lineWidth = 2.4;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+
+        // Mũi tên 2 đầu
+        ctx.beginPath();
+        ctx.arc(x1, y1, 5, 0, Math.PI * 2);
+        ctx.arc(x2, y2, 5, 0, Math.PI * 2);
+        ctx.fillStyle = '#0284c7';
+        ctx.fill();
+
+        // Chữ số đo
+        const midX = (x1 + x2) / 2;
+        const midY = (y1 + y2) / 2;
+        ctx.fillStyle = '#0284c7';
+        ctx.font = 'bold 20px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(`${elem.dist}`, midX, midY - 10);
+      }
+    }
+
+    // Tải file PNG về máy người dùng
+    const link = document.createElement('a');
+    link.download = `ban_ve_ky_thuat_2d_XY_${this.bounds.w}x${this.bounds.h}.png`;
+    link.href = exportCanvas.toDataURL('image/png');
+    link.click();
   }
 }

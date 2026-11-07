@@ -41,17 +41,25 @@ controls.mouseButtons = {
   RIGHT: THREE.MOUSE.PAN
 };
 
-// Lights
-const ambLight = new THREE.AmbientLight(0xffffff, 0.8);
+// Lights - Đổ bóng phân 3 tầng kỹ thuật (Technical 3-Tier Isometric Shading)
+// Mặt Trên (Top: ~93% sáng) - Mặt Đứng (Front: ~77% sáng vừa) - Mặt Cạnh (Side: ~52% bóng đổ)
+const ambLight = new THREE.AmbientLight(0xffffff, 0.35);
 scene.add(ambLight);
 
-const dirLight = new THREE.DirectionalLight(0xffffff, 0.7);
-dirLight.position.set(30, 45, 30);
-scene.add(dirLight);
+// Nguồn sáng từ đỉnh: Rọi sáng Mặt Trên
+const topLight = new THREE.DirectionalLight(0xffffff, 0.60);
+topLight.position.set(0, 60, 15);
+scene.add(topLight);
 
-const dirLight2 = new THREE.DirectionalLight(0x94a3b8, 0.4);
-dirLight2.position.set(-20, -10, -20);
-scene.add(dirLight2);
+// Nguồn sáng phía trước: Rọi sáng Mặt Đứng
+const frontLight = new THREE.DirectionalLight(0xe2e8f0, 0.38);
+frontLight.position.set(-10, 15, 55);
+scene.add(frontLight);
+
+// Nguồn sáng phụ bên cạnh: Đổ bóng kỹ thuật Mặt Cạnh
+const sideLight = new THREE.DirectionalLight(0x94a3b8, 0.18);
+sideLight.position.set(50, 10, -5);
+scene.add(sideLight);
 
 // --- MODULES & STATE ---
 const cad = new CadEngine();
@@ -520,6 +528,11 @@ document.getElementById('btn-2d-clear')?.addEventListener('click', () => {
   if (confirm('Bạn có chắc chắn muốn xóa toàn bộ nét trên mặt phẳng này không?')) {
     cad2dEditor.clearPlane();
   }
+});
+
+// Nút xuất file ảnh kỹ thuật (.PNG)
+document.getElementById('btn-2d-export-png')?.addEventListener('click', () => {
+  cad2dEditor.exportPNG();
 });
 
 // Nút xuất file AutoCAD (.DXF)

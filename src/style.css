@@ -257,6 +257,19 @@ body {
   box-shadow: 0 0 15px rgba(16, 185, 129, 0.35) !important;
 }
 
+.btn-export-png {
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.15), rgba(14, 165, 233, 0.25)) !important;
+  border: 1px solid rgba(56, 189, 248, 0.45) !important;
+  color: #38bdf8 !important;
+}
+
+.btn-export-png:hover {
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.28), rgba(14, 165, 233, 0.45)) !important;
+  border-color: #38bdf8 !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 15px rgba(56, 189, 248, 0.35) !important;
+}
+
 /* ===================================================
    POPOVER CÀI ĐẶT KÍCH THƯỚC KHỐI
    =================================================== */

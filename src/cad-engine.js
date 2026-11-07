@@ -10,7 +10,7 @@ export class CadEngine {
     this.evaluator.attributes = ['position', 'normal'];
 
     this.material = new THREE.MeshLambertMaterial({
-      color: 0xf8fafc,
+      color: 0xffffff,
       polygonOffset: true,
       polygonOffsetFactor: 1,
       polygonOffsetUnits: 1

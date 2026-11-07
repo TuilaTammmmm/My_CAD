@@ -735,8 +735,16 @@ export class CAD2DEditor {
       this.filletFirst = null;
       if (success) {
         this.saveHistory();
+        const hintEl = document.querySelector('.cad2d-hint');
+        if (hintEl) {
+          hintEl.innerHTML = `✅ <b>Bo Cung (Fillet):</b> Đã bo tròn góc thành công với bán kính R = ${R}!`;
+        }
+      } else {
+        const hintEl = document.querySelector('.cad2d-hint');
+        if (hintEl) {
+          hintEl.innerHTML = `⚠️ <b>Bo Cung (Fillet):</b> Không thể bo góc với R = ${R}. Hãy thử giảm bán kính R (ô nhập Bán kính R) hoặc chọn 2 nét cắt nhau!`;
+        }
       }
-      this.updateHUDHint();
       this.render();
       return;
     }
@@ -1255,6 +1263,40 @@ export class CAD2DEditor {
   }
 
   makeCCWArc(cx, cy, r, A, B, C, style = 'visible') {
+    // Nếu chỉ truyền 2 điểm A, B (cho Fillet, Tangent-Arc)
+    const is3Point = (typeof C === 'object' && C !== null && ('u' in C || 'v' in C));
+    const arcStyle = is3Point ? (style || 'visible') : (typeof C === 'string' ? C : 'visible');
+
+    if (!is3Point) {
+      const a1 = this.normAngle(Math.atan2(A.v - cy, A.u - cx));
+      const a2 = this.normAngle(Math.atan2(B.v - cy, B.u - cx));
+      let sweep = this.normAngle(a2 - a1);
+
+      // Luôn lấy cung nhỏ (minor arc <= PI) kết nối 2 tiếp điểm mượt mà
+      if (sweep <= Math.PI) {
+        return {
+          type: 'arc',
+          style: arcStyle,
+          cx: Number(cx.toFixed(3)),
+          cy: Number(cy.toFixed(3)),
+          r: Number(r.toFixed(3)),
+          startAngle: a1,
+          endAngle: a2
+        };
+      } else {
+        return {
+          type: 'arc',
+          style: arcStyle,
+          cx: Number(cx.toFixed(3)),
+          cy: Number(cy.toFixed(3)),
+          r: Number(r.toFixed(3)),
+          startAngle: a2,
+          endAngle: a1
+        };
+      }
+    }
+
+    // Trường hợp 3 điểm: A (đầu), B (điểm đi qua), C (cuối)
     let aA = this.normAngle(Math.atan2(A.v - cy, A.u - cx));
     let aB = this.normAngle(Math.atan2(B.v - cy, B.u - cx));
     let aC = this.normAngle(Math.atan2(C.v - cy, C.u - cx));
@@ -1265,7 +1307,7 @@ export class CAD2DEditor {
     if (sweepB < sweepC) {
       return {
         type: 'arc',
-        style,
+        style: arcStyle,
         cx: Number(cx.toFixed(3)),
         cy: Number(cy.toFixed(3)),
         r: Number(r.toFixed(3)),
@@ -1275,7 +1317,7 @@ export class CAD2DEditor {
     } else {
       return {
         type: 'arc',
-        style,
+        style: arcStyle,
         cx: Number(cx.toFixed(3)),
         cy: Number(cy.toFixed(3)),
         r: Number(r.toFixed(3)),
@@ -1339,7 +1381,7 @@ export class CAD2DEditor {
       }
     }
 
-    const clickThreshold = Math.max(0.6, 28 / this.scale);
+    const clickThreshold = Math.max(0.8, 35 / this.scale);
     if (!bestElem || bestDist > clickThreshold) return null;
     return { elem: bestElem, index: bestIndex, dist: bestDist };
   }
@@ -1362,47 +1404,93 @@ export class CAD2DEditor {
       const cross = dAx * dBy - dAy * dBx;
       if (Math.abs(cross) < 1e-5) return false;
 
+      const lenA = Math.hypot(dAx, dAy);
+      const lenB = Math.hypot(dBx, dBy);
+      if (lenA < 1e-4 || lenB < 1e-4) return false;
+
+      const uAx = dAx / lenA, uAy = dAy / lenA;
+      const uBx = dBx / lenB, uBy = dBy / lenB;
+
+      // Điểm giao nhau thực tế hoặc kéo dài của 2 đường thẳng
       const dx = elemB.p1.u - elemA.p1.u;
       const dy = elemB.p1.v - elemA.p1.v;
       const t = (dx * dBy - dy * dBx) / cross;
       const V = { u: elemA.p1.u + t * dAx, v: elemA.p1.v + t * dAy };
 
-      let vAx = ptA.u - V.u, vAy = ptA.v - V.v;
-      let lenA = Math.hypot(vAx, vAy);
-      if (lenA < 1e-4) { vAx = dAx; vAy = dAy; lenA = Math.hypot(vAx, vAy); }
-      vAx /= lenA; vAy /= lenA;
+      // Hướng tia dọc theo đường thẳng A về phía click (đảm bảo song song 100% với nét ban đầu, không bị nghiêng nét)
+      const sA = (ptA.u - V.u) * uAx + (ptA.v - V.v) * uAy;
+      let vAx, vAy;
+      if (Math.abs(sA) > 1e-4) {
+        const sign = sA > 0 ? 1 : -1;
+        vAx = sign * uAx;
+        vAy = sign * uAy;
+      } else {
+        const dist1 = Math.hypot(elemA.p1.u - V.u, elemA.p1.v - V.v);
+        const dist2 = Math.hypot(elemA.p2.u - V.u, elemA.p2.v - V.v);
+        const farA = (dist1 > dist2) ? elemA.p1 : elemA.p2;
+        const dF = Math.hypot(farA.u - V.u, farA.v - V.v);
+        if (dF < 1e-4) return false;
+        vAx = (farA.u - V.u) / dF;
+        vAy = (farA.v - V.v) / dF;
+      }
 
-      let vBx = ptB.u - V.u, vBy = ptB.v - V.v;
-      let lenB = Math.hypot(vBx, vBy);
-      if (lenB < 1e-4) { vBx = dBx; vBy = dBy; lenB = Math.hypot(vBx, vBy); }
-      vBx /= lenB; vBy /= lenB;
+      // Hướng tia dọc theo đường thẳng B về phía click
+      const sB = (ptB.u - V.u) * uBx + (ptB.v - V.v) * uBy;
+      let vBx, vBy;
+      if (Math.abs(sB) > 1e-4) {
+        const sign = sB > 0 ? 1 : -1;
+        vBx = sign * uBx;
+        vBy = sign * uBy;
+      } else {
+        const dist1 = Math.hypot(elemB.p1.u - V.u, elemB.p1.v - V.v);
+        const dist2 = Math.hypot(elemB.p2.u - V.u, elemB.p2.v - V.v);
+        const farB = (dist1 > dist2) ? elemB.p1 : elemB.p2;
+        const dF = Math.hypot(farB.u - V.u, farB.v - V.v);
+        if (dF < 1e-4) return false;
+        vBx = (farB.u - V.u) / dF;
+        vBy = (farB.v - V.v) / dF;
+      }
 
-      const dot = Math.max(-0.999, Math.min(0.999, vAx * vBx + vAy * vBy));
+      const dot = Math.max(-0.9999, Math.min(0.9999, vAx * vBx + vAy * vBy));
       const theta = Math.acos(dot);
       if (theta < 0.05 || theta > Math.PI - 0.05) return false;
 
-      const dT = R / Math.tan(theta / 2);
-      const dC = R / Math.sin(theta / 2);
+      const halfTheta = theta / 2;
+      const dT = R / Math.tan(halfTheta);
+      const dC = R / Math.sin(halfTheta);
 
+      // Phân giác góc
       let bX = vAx + vBx, bY = vAy + vBy;
       const bLen = Math.hypot(bX, bY);
       if (bLen < 1e-4) return false;
       bX /= bLen; bY /= bLen;
 
+      // Tâm cung tròn và các tiếp điểm
       const Cf = { u: V.u + dC * bX, v: V.v + dC * bY };
       const TA = { u: V.u + dT * vAx, v: V.v + dT * vAy };
       const TB = { u: V.u + dT * vBx, v: V.v + dT * vBy };
 
+      // Tạo cung bo góc (2 điểm tiếp xúc, minor arc)
       const arcObj = this.makeCCWArc(Cf.u, Cf.v, R, TA, TB, 'visible');
       this.elements.push(arcObj);
 
-      const distA1 = Math.hypot(elemA.p1.u - V.u, elemA.p1.v - V.v);
-      const distA2 = Math.hypot(elemA.p2.u - V.u, elemA.p2.v - V.v);
-      if (distA1 < distA2) elemA.p1 = TA; else elemA.p2 = TA;
+      // Cắt ngắn (Trim) đoạn A từ đỉnh V lùi về tiếp điểm TA
+      const projA1 = (elemA.p1.u - V.u) * vAx + (elemA.p1.v - V.v) * vAy;
+      const projA2 = (elemA.p2.u - V.u) * vAx + (elemA.p2.v - V.v) * vAy;
+      if (projA1 < projA2) {
+        elemA.p1 = TA;
+      } else {
+        elemA.p2 = TA;
+      }
 
-      const distB1 = Math.hypot(elemB.p1.u - V.u, elemB.p1.v - V.v);
-      const distB2 = Math.hypot(elemB.p2.u - V.u, elemB.p2.v - V.v);
-      if (distB1 < distB2) elemB.p1 = TB; else elemB.p2 = TB;
+      // Cắt ngắn (Trim) đoạn B từ đỉnh V lùi về tiếp điểm TB
+      const projB1 = (elemB.p1.u - V.u) * vBx + (elemB.p1.v - V.v) * vBy;
+      const projB2 = (elemB.p2.u - V.u) * vBx + (elemB.p2.v - V.v) * vBy;
+      if (projB1 < projB2) {
+        elemB.p1 = TB;
+      } else {
+        elemB.p2 = TB;
+      }
 
       return true;
     }
@@ -1425,24 +1513,35 @@ export class CAD2DEditor {
       const offP1 = { u: p1.u + side * R * nX, v: p1.v + side * R * nY };
 
       const Rc = curveElem.r;
-      const dCenterClick = Math.hypot(ptCurve.u - curveElem.cx, ptCurve.v - curveElem.cy);
-      const Roff = (dCenterClick > Rc) ? (Rc + R) : Math.abs(Rc - R);
-
       const proj = projectPointOnLine({ u: curveElem.cx, v: curveElem.cy }, offP1, { u: offP1.u + uX, v: offP1.v + uY });
       const hDist = Math.hypot(curveElem.cx - proj.u, curveElem.cy - proj.v);
-      if (hDist > Roff) return false;
 
-      const dChord = Math.sqrt(Math.max(0, Roff * Roff - hDist * hDist));
-      const C1 = { u: proj.u + dChord * uX, v: proj.v + dChord * uY };
-      const C2 = { u: proj.u - dChord * uX, v: proj.v - dChord * uY };
+      const candidateCenters = [];
+      for (const Roff of [Rc + R, Math.abs(Rc - R)]) {
+        if (Roff >= hDist && Roff > 1e-4) {
+          const dChord = Math.sqrt(Math.max(0, Roff * Roff - hDist * hDist));
+          candidateCenters.push({ u: proj.u + dChord * uX, v: proj.v + dChord * uY });
+          if (dChord > 1e-4) {
+            candidateCenters.push({ u: proj.u - dChord * uX, v: proj.v - dChord * uY });
+          }
+        }
+      }
+
+      if (candidateCenters.length === 0) return false;
 
       const midClick = { u: (ptLine.u + ptCurve.u) / 2, v: (ptLine.v + ptCurve.v) / 2 };
-      const distC1 = Math.hypot(C1.u - midClick.u, C1.v - midClick.v);
-      const distC2 = Math.hypot(C2.u - midClick.u, C2.v - midClick.v);
-      const Cf = (distC1 < distC2) ? C1 : C2;
+      let bestCenter = null;
+      let minD = Infinity;
+      for (const C of candidateCenters) {
+        const d = Math.hypot(C.u - midClick.u, C.v - midClick.v);
+        if (d < minD) { minD = d; bestCenter = C; }
+      }
+      if (!bestCenter) return false;
+      const Cf = bestCenter;
 
       const TLine = projectPointOnLine(Cf, p1, p2);
       const dToC = Math.hypot(Cf.u - curveElem.cx, Cf.v - curveElem.cy);
+      if (dToC < 1e-4) return false;
       const TCurve = {
         u: curveElem.cx + Rc * (Cf.u - curveElem.cx) / dToC,
         v: curveElem.cy + Rc * (Cf.v - curveElem.cy) / dToC
@@ -1461,19 +1560,32 @@ export class CAD2DEditor {
     // CASE 3: Arc/Circle and Arc/Circle
     if ((elemA.type === 'circle' || elemA.type === 'arc') && (elemB.type === 'circle' || elemB.type === 'arc')) {
       const R1 = elemA.r, R2 = elemB.r;
-      const R1o = R1 + R;
-      const R2o = R2 + R;
+      const candidateCenters = [];
+      const combos = [
+        [R1 + R, R2 + R],
+        [Math.abs(R1 - R), R2 + R],
+        [R1 + R, Math.abs(R2 - R)],
+        [Math.abs(R1 - R), Math.abs(R2 - R)]
+      ];
 
-      const inters = this.intersectCircleCircle(
-        { cx: elemA.cx, cy: elemA.cy, r: R1o },
-        { cx: elemB.cx, cy: elemB.cy, r: R2o }
-      );
-      if (!inters || inters.length === 0) return false;
+      for (const [r1o, r2o] of combos) {
+        if (r1o > 1e-4 && r2o > 1e-4) {
+          const inters = this.intersectCircleCircle(
+            { cx: elemA.cx, cy: elemA.cy, r: r1o },
+            { cx: elemB.cx, cy: elemB.cy, r: r2o }
+          );
+          if (inters && inters.length > 0) {
+            candidateCenters.push(...inters);
+          }
+        }
+      }
+
+      if (candidateCenters.length === 0) return false;
 
       const midClick = { u: (ptA.u + ptB.u) / 2, v: (ptA.v + ptB.v) / 2 };
       let bestCenter = null;
       let minD = Infinity;
-      for (const p of inters) {
+      for (const p of candidateCenters) {
         const d = Math.hypot(p.u - midClick.u, p.v - midClick.v);
         if (d < minD) { minD = d; bestCenter = p; }
       }
@@ -1482,6 +1594,7 @@ export class CAD2DEditor {
       const Cf = bestCenter;
       const d1 = Math.hypot(Cf.u - elemA.cx, Cf.v - elemA.cy);
       const d2 = Math.hypot(Cf.u - elemB.cx, Cf.v - elemB.cy);
+      if (d1 < 1e-4 || d2 < 1e-4) return false;
 
       const TA = { u: elemA.cx + R1 * (Cf.u - elemA.cx) / d1, v: elemA.cy + R1 * (Cf.v - elemA.cy) / d1 };
       const TB = { u: elemB.cx + R2 * (Cf.u - elemB.cx) / d2, v: elemB.cy + R2 * (Cf.v - elemB.cy) / d2 };

@@ -38,6 +38,9 @@ export class CAD2DEditor {
     this.snapStep = 0.5;
     this.snapMode = 'grid'; // 'grid' | 'free'
 
+    // Chế độ hiển thị khung bản vẽ CAD: 'none' (Tự do không khung) | 'block' (Khung phôi 3D) | 'a4' (Khung A4 ISO)
+    this.frameMode = 'none';
+
     // Bán kính cho bo cung (Fillet) & tạo nhanh
     this.filletRadius = 1.0;
     this.filletFirst = null; // { elem, clickPoint }
@@ -70,6 +73,7 @@ export class CAD2DEditor {
     this.snapMode = (this.snapMode === 'grid') ? 'free' : 'grid';
     this.updateSnapButton();
     this.updateHUDHint();
+    this.updateFrameButton();
     this.render();
   }
 
@@ -88,6 +92,46 @@ export class CAD2DEditor {
         btn.classList.remove('active');
         btn.style.borderColor = '';
         btn.style.color = '';
+      }
+    }
+  }
+
+  cycleFrameMode() {
+    if (this.frameMode === 'none') {
+      this.frameMode = 'block';
+    } else if (this.frameMode === 'block') {
+      this.frameMode = 'a4';
+    } else {
+      this.frameMode = 'none';
+    }
+    this.updateFrameButton();
+    this.render();
+  }
+
+  updateFrameButton() {
+    const lbl = document.getElementById('lbl-frame-mode');
+    const btn = document.getElementById('btn-2d-toggle-frame');
+    if (!lbl) return;
+    if (this.frameMode === 'none') {
+      lbl.innerText = 'Khung CAD: Tắt (Tự Do)';
+      if (btn) {
+        btn.classList.remove('active');
+        btn.style.borderColor = '';
+        btn.style.color = '';
+      }
+    } else if (this.frameMode === 'block') {
+      lbl.innerText = `Khung CAD: Phôi (${this.bounds.w}×${this.bounds.h})`;
+      if (btn) {
+        btn.classList.add('active');
+        btn.style.borderColor = '#38bdf8';
+        btn.style.color = '#38bdf8';
+      }
+    } else if (this.frameMode === 'a4') {
+      lbl.innerText = 'Khung CAD: Khung A4 (ISO)';
+      if (btn) {
+        btn.classList.add('active');
+        btn.style.borderColor = '#10b981';
+        btn.style.color = '#34d399';
       }
     }
   }
@@ -137,6 +181,7 @@ export class CAD2DEditor {
       this.canvas.style.cursor = 'crosshair';
     }
     this.updateHUDHint();
+    this.updateFrameButton();
     this.render();
   }
 
@@ -150,6 +195,7 @@ export class CAD2DEditor {
       this.centerView();
     }
     this.updateHUDHint();
+    this.updateFrameButton();
     this.render();
   }
 
@@ -233,12 +279,14 @@ export class CAD2DEditor {
     // 1. Kiểm tra các điểm mốc hình học (Smart OSNAP: Đầu mút, Tâm, Trung điểm, Góc phôi)
     const candidates = [];
     const { w, h } = this.bounds;
-    candidates.push(
-      { u: 0, v: 0, type: 'corner', label: 'Gốc O(0,0)' },
-      { u: w, v: 0, type: 'corner', label: 'Góc phôi' },
-      { u: w, v: h, type: 'corner', label: 'Góc phôi' },
-      { u: 0, v: h, type: 'corner', label: 'Góc phôi' }
-    );
+    candidates.push({ u: 0, v: 0, type: 'corner', label: 'Gốc O(0,0)' });
+    if (this.frameMode === 'block') {
+      candidates.push(
+        { u: w, v: 0, type: 'corner', label: 'Góc phôi' },
+        { u: w, v: h, type: 'corner', label: 'Góc phôi' },
+        { u: 0, v: h, type: 'corner', label: 'Góc phôi' }
+      );
+    }
 
     for (const elem of this.elements) {
       if (elem.type === 'line') {
@@ -1505,15 +1553,15 @@ export class CAD2DEditor {
     ctx.fillRect(0, 0, rect.width, rect.height);
 
     // 2. TÍNH TOÁN BƯỚC HIỂN THỊ THÍCH ỨNG (ADAPTIVE LOD & ZOOM OUT BỚT SỐ)
-    // Đảm bảo khoảng cách giữa các số hiển thị luôn từ 55px đến 120px, không bị dày đặc khi zoom out
-    const minPixelSpacing = 58;
+    // Đảm bảo khoảng cách giữa các số hiển thị luôn từ 85px đến 160px, không bị dày đặc khi zoom out
+    const minPixelSpacing = 85;
     const targetUnitStep = minPixelSpacing / s;
     const power = Math.pow(10, Math.floor(Math.log10(Math.max(1e-4, targetUnitStep))));
     const fraction = targetUnitStep / power;
     let labelStep = 1;
-    if (fraction <= 1.5) labelStep = 1 * power;
-    else if (fraction <= 3.5) labelStep = 2 * power;
-    else if (fraction <= 7.5) labelStep = 5 * power;
+    if (fraction <= 1.4) labelStep = 1 * power;
+    else if (fraction <= 3.2) labelStep = 2 * power;
+    else if (fraction <= 7.0) labelStep = 5 * power;
     else labelStep = 10 * power;
     labelStep = Math.max(1, Math.round(labelStep));
 
@@ -1570,22 +1618,75 @@ export class CAD2DEditor {
       }
     }
 
-    // 3. KHUNG VẬT THỂ PHÔI 3D (BOUNDING BLOCK) TRÊN MẶT PHẲNG X-Y
-    const boxX = this.offsetX;
-    const boxY = this.offsetY - h * s;
-    const boxW = w * s;
-    const boxH = h * s;
-    ctx.strokeStyle = 'rgba(56, 189, 248, 0.35)';
-    ctx.lineWidth = 1.6;
-    ctx.setLineDash([6, 4]);
-    ctx.strokeRect(boxX, boxY, boxW, boxH);
-    ctx.setLineDash([]);
+    // 3. KHUNG BẢN VẼ / KHUNG PHÔI (THEO CHẾ ĐỘ FRAME MODE: TẮT / PHÔI 3D / KHUNG A4 ISO)
+    if (this.frameMode === 'block') {
+      const boxX = this.offsetX;
+      const boxY = this.offsetY - h * s;
+      const boxW = w * s;
+      const boxH = h * s;
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
+      ctx.lineWidth = 1.6;
+      ctx.setLineDash([6, 4]);
+      ctx.strokeRect(boxX, boxY, boxW, boxH);
+      ctx.setLineDash([]);
 
-    // Nhãn khung phôi
-    ctx.font = '10px monospace';
-    ctx.fillStyle = 'rgba(56, 189, 248, 0.6)';
-    ctx.textAlign = 'left';
-    ctx.fillText(`Phôi: ${w} × ${h}`, boxX + 6, boxY + 14);
+      // Nhãn khung phôi
+      ctx.font = '10px monospace';
+      ctx.fillStyle = 'rgba(56, 189, 248, 0.7)';
+      ctx.textAlign = 'left';
+      ctx.fillText(`Phôi 3D: ${w} × ${h}`, boxX + 6, boxY + 14);
+    } else if (this.frameMode === 'a4') {
+      // Khung khổ giấy kỹ thuật A4 tiêu chuẩn (Khổ ngang 297 x 210 mm)
+      const a4W = 297;
+      const a4H = 210;
+      const x0 = this.offsetX;
+      const y0 = this.offsetY - a4H * s;
+      const wPx = a4W * s;
+      const hPx = a4H * s;
+
+      // Nét viền mép giấy A4
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+      ctx.lineWidth = 1.0;
+      ctx.strokeRect(x0, y0, wPx, hPx);
+
+      // Khung bản vẽ kỹ thuật (Khung trong: Trái 20mm, Phải/Trên/Dưới 10mm)
+      const mLeft = 20 * s;
+      const mOther = 10 * s;
+      const borderX = x0 + mLeft;
+      const borderY = y0 + mOther;
+      const borderW = wPx - mLeft - mOther;
+      const borderH = hPx - mOther * 2;
+
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 2.0;
+      ctx.strokeRect(borderX, borderY, borderW, borderH);
+
+      // Khung tên góc dưới bên phải (Title block: 140mm x 32mm)
+      const tbW = 140 * s;
+      const tbH = 32 * s;
+      const tbX = borderX + borderW - tbW;
+      const tbY = borderY + borderH - tbH;
+
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(tbX, tbY, tbW, tbH);
+
+      if (s >= 0.7) {
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+        ctx.fillRect(tbX, tbY, tbW, tbH);
+        ctx.strokeRect(tbX, tbY, tbW, tbH);
+
+        ctx.fillStyle = '#38bdf8';
+        ctx.font = `bold ${Math.max(10, Math.round(3.5 * s))}px sans-serif`;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        ctx.fillText('BẢN VẼ KỸ THUẬT (ISO 129)', tbX + 8 * s, tbY + 6 * s);
+
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = `${Math.max(9, Math.round(2.8 * s))}px sans-serif`;
+        ctx.fillText('Khổ A4: 297 × 210 mm  |  Tỉ lệ: 1:1', tbX + 8 * s, tbY + 18 * s);
+      }
+    }
 
     // 4. TRỤC TỌA ĐỘ X VÀ Y KÉO DÀI VÔ TẬN VỚI MŨI TÊN CHỈ HƯỚNG
     // Trục X (Màu xanh cyan sáng, nét dày 3.2px)
@@ -1624,17 +1725,34 @@ export class CAD2DEditor {
 
     // Điểm gốc tọa độ O(0, 0)
     ctx.beginPath();
-    ctx.arc(this.offsetX, this.offsetY, 5.5, 0, Math.PI * 2);
+    ctx.arc(this.offsetX, this.offsetY, 5, 0, Math.PI * 2);
     ctx.fillStyle = '#f43f5e';
     ctx.fill();
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1.8;
     ctx.stroke();
-    ctx.font = 'bold 12px monospace';
+
+    // Nhãn O(0, 0) dạng badge bo góc với nền tối mờ chống đè chữ
+    const oLabel = 'O (0, 0)';
+    ctx.font = 'bold 11px monospace';
+    const oMetrics = ctx.measureText(oLabel);
+    const badgeW = oMetrics.width + 12;
+    const badgeH = 20;
+    const badgeX = this.offsetX - badgeW - 8;
+    const badgeY = this.offsetY + 8;
+
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+    ctx.strokeStyle = 'rgba(244, 63, 94, 0.6)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 4);
+    ctx.fill();
+    ctx.stroke();
+
     ctx.fillStyle = '#f43f5e';
-    ctx.textAlign = 'right';
-    ctx.textBaseline = 'top';
-    ctx.fillText('O(0,0)', this.offsetX - 9, this.offsetY + 9);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(oLabel, badgeX + badgeW / 2, badgeY + badgeH / 2);
 
     // 5. CÁC VẠCH CHIA & SỐ ĐO TRỤC TỌA ĐỘ (TỰ ĐỘNG ẨN BỚT KHI ZOOM OUT THEO labelStep)
     // Vạch và số trên trục X
@@ -1659,6 +1777,10 @@ export class CAD2DEditor {
       ctx.lineTo(x, this.offsetY + 6);
       ctx.stroke();
 
+      // Bỏ qua hiển thị số nếu vị trí quá gần gốc tọa độ O để tránh đè chữ badge O(0,0)
+      const safeOriginDistX = (x < this.offsetX) ? 80 : 48;
+      if (Math.abs(x - this.offsetX) < safeOriginDistX) continue;
+
       // Số hiển thị
       ctx.fillText(u, x, textYForXAxis);
     }
@@ -1680,6 +1802,10 @@ export class CAD2DEditor {
       ctx.moveTo(this.offsetX - 6, y);
       ctx.lineTo(this.offsetX + 6, y);
       ctx.stroke();
+
+      // Bỏ qua hiển thị số nếu vị trí quá gần gốc tọa độ O để tránh đè chữ
+      const safeOriginDistY = (y > this.offsetY) ? 55 : 36;
+      if (Math.abs(y - this.offsetY) < safeOriginDistY) continue;
 
       // Số hiển thị
       ctx.fillText(v, textXForYAxis, y);
@@ -2302,16 +2428,18 @@ export class CAD2DEditor {
       ctx.stroke();
     }
 
-    // 6. Khung bao vật thể phôi (Bounding block) nét mảnh
-    const boxX1 = toCanvasX(0);
-    const boxY1 = toCanvasY(this.bounds.h);
-    const boxW = this.bounds.w * scaleExport;
-    const boxH = this.bounds.h * scaleExport;
-    ctx.strokeStyle = '#94a3b8';
-    ctx.lineWidth = 2.0;
-    ctx.setLineDash([8, 6]);
-    ctx.strokeRect(boxX1, boxY1, boxW, boxH);
-    ctx.setLineDash([]);
+    // 6. Khung bao vật thể phôi (Bounding block) nét mảnh (chỉ vẽ khi bật chế độ khung phôi)
+    if (this.frameMode === 'block') {
+      const boxX1 = toCanvasX(0);
+      const boxY1 = toCanvasY(this.bounds.h);
+      const boxW = this.bounds.w * scaleExport;
+      const boxH = this.bounds.h * scaleExport;
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = 2.0;
+      ctx.setLineDash([8, 6]);
+      ctx.strokeRect(boxX1, boxY1, boxW, boxH);
+      ctx.setLineDash([]);
+    }
 
     // 7. Hệ trục tọa độ kỹ thuật X-Y
     const originX = toCanvasX(0);

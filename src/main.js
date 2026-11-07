@@ -531,6 +531,11 @@ document.getElementById('btn-2d-toggle-snap')?.addEventListener('click', () => {
   cad2dEditor.toggleSnapMode();
 });
 
+// Nút chuyển đổi Khung CAD: Tắt (Tự Do) <-> Khung Phôi 3D <-> Khung A4 ISO
+document.getElementById('btn-2d-toggle-frame')?.addEventListener('click', () => {
+  cad2dEditor.cycleFrameMode();
+});
+
 // Nút lấy nét từ 3D
 document.getElementById('btn-2d-sync-3d')?.addEventListener('click', () => {
   cad2dEditor.syncFrom3D();

@@ -572,7 +572,7 @@ export class CadEngine {
     return result;
   }
 
-    // TẠO ĐƯỜNG VIỀN KỸ THUẬT SẠCH SẼ (LỌC NÉT CHÉO RÁC NỘI BỘ, GIỮ TRỌN VẸN 100% CÁC CẠNH CẮT GỌT)
+      // TẠO ĐƯỜNG VIỀN KỸ THUẬT SẠCH SẼ (LỌC NÉT CHÉO NỘI BỘ & NÉT DƯ APEX RÃNH V)
   createEdges(mesh) {
     const nonIndexedGeom = mesh.geometry.index ? mesh.geometry.toNonIndexed() : mesh.geometry;
     const cleanGeom = mergeVertices(nonIndexedGeom, 0.001);
@@ -596,7 +596,6 @@ export class CadEngine {
       }
     }
 
-    // Kiểm tra điểm P có thuộc tam giác t bằng kiểm tra nửa mặt phẳng 3D (Half-plane test)
     function isPointInTriangle(P, t) {
       const dist = Math.abs(t.norm.dot(P.clone().sub(t.p0)));
       if (dist > 0.005) return false;
@@ -616,7 +615,6 @@ export class CadEngine {
       return (d0 <= 1e-4 && d1 <= 1e-4 && d2 <= 1e-4) || (d0 >= -1e-4 && d1 >= -1e-4 && d2 >= -1e-4);
     }
 
-    // Kiểm tra điểm P có thuộc bất kỳ tam giác nào trên mặt phẳng có pháp tuyến cùng hướng N
     function isPointInFace(P, N) {
       for (const t of triangles) {
         if (t.norm.dot(N) > 0.98) {
@@ -624,6 +622,18 @@ export class CadEngine {
         }
       }
       return false;
+    }
+
+    function getAdjacentFaceNormals(A, B) {
+      const distinctNorms = [];
+      for (const t of triangles) {
+        if (Math.abs(t.norm.dot(A.clone().sub(t.p0))) < 0.005 && Math.abs(t.norm.dot(B.clone().sub(t.p0))) < 0.005) {
+          if (!distinctNorms.some(n => n.dot(t.norm) > 0.95)) {
+            distinctNorms.push(t.norm);
+          }
+        }
+      }
+      return distinctNorms;
     }
 
     const filteredPositions = [];
@@ -636,19 +646,31 @@ export class CadEngine {
       if (len < 0.0001) continue;
       dir.normalize();
 
+      // 1. Lọc nét dư apex rãnh chữ V (nét sống lưng bên trong hầm chữ V)
+      const adjNorms = getAdjacentFaceNormals(A, B);
+      if (adjNorms.length === 2) {
+        const n1 = adjNorms[0], n2 = adjNorms[1];
+        const dot = n1.dot(n2);
+        const oppX = n1.x * n2.x < -0.2;
+        const oppY = n1.y * n2.y < -0.2;
+        const oppZ = n1.z * n2.z < -0.2;
+        if ((oppX || oppY || oppZ) && Math.abs(dot) < 0.3) {
+          // Đây là nét đỉnh rãnh chữ V bên trong hầm, bỏ để không bị nét dư
+          continue;
+        }
+      }
+
+      // 2. Lọc các nét rác chéo nội bộ trên cùng một mặt phẳng phẳng
       let isCoplanarInternal = false;
       const mid = new THREE.Vector3().addVectors(A, B).multiplyScalar(0.5);
 
       for (const t of triangles) {
-        // Nếu đoạn thẳng AB cùng nằm trên mặt phẳng tam giác t
         if (Math.abs(t.norm.dot(A.clone().sub(t.p0))) < 0.005 && Math.abs(t.norm.dot(B.clone().sub(t.p0))) < 0.005) {
           const perp = new THREE.Vector3().crossVectors(t.norm, dir).normalize();
           const offset = 0.02;
           const pLeft = mid.clone().addScaledVector(perp, offset);
           const pRight = mid.clone().addScaledVector(perp, -offset);
 
-          // Nếu cả 2 phía vuông góc của đoạn thẳng đều thuộc cùng một mặt phẳng của khối:
-          // Đây 100% là nét rác phân mảnh nội bộ (tessellation split), cần loại bỏ!
           if (isPointInFace(pLeft, t.norm) && isPointInFace(pRight, t.norm)) {
             isCoplanarInternal = true;
             break;

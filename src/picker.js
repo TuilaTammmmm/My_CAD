@@ -97,7 +97,7 @@ export class InteractivePicker {
     this.rebuildSurfaceGridNodes();
   }
 
-    // TẠO CÁC NÚT LƯỚI BỀ MẶT BÁM SÁT 100% VÀO HÌNH DÁNG KHỐI THỰC TẾ
+      // TẠO CÁC NÚT LƯỚI BỀ MẶT BÁM SÁT MẶT CẮT (KỂ CẢ CẮT CHÉO, THEO CHIỀU NGANG TỪNG Ô VUÔNG)
   rebuildSurfaceGridNodes() {
     while (this.gridNodesGroup.children.length > 0) {
       const obj = this.gridNodesGroup.children[0];
@@ -106,16 +106,18 @@ export class InteractivePicker {
     }
 
     const { w, h, d } = this.bounds;
-    const nodeGeom = new THREE.SphereGeometry(0.08, 10, 10);
+    // Tăng kích thước và độ đậm của nút tròn bắt dính theo yêu cầu người dùng
+    const nodeGeom = new THREE.SphereGeometry(0.09, 12, 12);
     const nodeMat = new THREE.MeshBasicMaterial({
       color: 0x38bdf8,
       transparent: true,
-      opacity: 0.55
+      opacity: 0.85
     });
 
+    this.surfaceNodesList = [];
     const pts = new Map();
     const addPt = (x, y, z, normal) => {
-      const k = `${x},${y},${z}`;
+      const k = `${x.toFixed(3)},${y.toFixed(3)},${z.toFixed(3)}`;
       if (!pts.has(k)) {
         pts.set(k, { pos: new THREE.Vector3(x, y, z), normals: [] });
       }
@@ -136,56 +138,76 @@ export class InteractivePicker {
         if (len > 1e-6) triangles.push({ p0, p1, p2, norm: norm.normalize() });
       }
 
-      function getPointNormalsOnSurface(P) {
-        const normals = [];
-        for (const t of triangles) {
-          const distToPlane = Math.abs(t.norm.dot(P.clone().sub(t.p0)));
-          if (distToPlane < 0.02) {
-            const edge0 = new THREE.Vector3().subVectors(t.p1, t.p0);
-            const edge1 = new THREE.Vector3().subVectors(t.p2, t.p1);
-            const edge2 = new THREE.Vector3().subVectors(t.p0, t.p2);
-            const c0 = new THREE.Vector3().subVectors(P, t.p0).cross(edge0);
-            const c1 = new THREE.Vector3().subVectors(P, t.p1).cross(edge1);
-            const c2 = new THREE.Vector3().subVectors(P, t.p2).cross(edge2);
-            const d0 = c0.dot(t.norm), d1 = c1.dot(t.norm), d2 = c2.dot(t.norm);
-            if ((d0 <= 0.02 && d1 <= 0.02 && d2 <= 0.02) || (d0 >= -0.02 && d1 >= -0.02 && d2 >= -0.02)) {
-              normals.push(t.norm);
-            }
-          }
-        }
-        return normals.length > 0 ? normals : null;
+      function isPointInTriangle(P, t) {
+        const dist = Math.abs(t.norm.dot(P.clone().sub(t.p0)));
+        if (dist > 0.02) return false;
+        const edge0 = new THREE.Vector3().subVectors(t.p1, t.p0);
+        const edge1 = new THREE.Vector3().subVectors(t.p2, t.p1);
+        const edge2 = new THREE.Vector3().subVectors(t.p0, t.p2);
+        const c0 = new THREE.Vector3().subVectors(P, t.p0).cross(edge0);
+        const c1 = new THREE.Vector3().subVectors(P, t.p1).cross(edge1);
+        const c2 = new THREE.Vector3().subVectors(P, t.p2).cross(edge2);
+        const d0 = c0.dot(t.norm), d1 = c1.dot(t.norm), d2 = c2.dot(t.norm);
+        return (d0 <= 0.02 && d1 <= 0.02 && d2 <= 0.02) || (d0 >= -0.02 && d1 >= -0.02 && d2 >= -0.02);
       }
 
-      for (let x = 0; x <= w; x++) {
-        for (let y = 0; y <= h; y++) {
+      // Nhóm tam giác thành các mặt phẳng (kể cả mặt nghiêng/chéo)
+      const faces = [];
+      for (const t of triangles) {
+        let f = faces.find(item => item.norm.dot(t.norm) > 0.99 && Math.abs(item.norm.dot(t.p0.clone().sub(item.p0))) < 0.01);
+        if (f) f.triangles.push(t);
+        else faces.push({ norm: t.norm, p0: t.p0, triangles: [t] });
+      }
+
+      for (const face of faces) {
+        const N = face.norm;
+        const absX = Math.abs(N.x), absY = Math.abs(N.y), absZ = Math.abs(N.z);
+
+        // Sinh các nút bám sát bề mặt theo chiều ngang từng ô vuông
+        if (absZ >= 0.3) {
+          for (let x = 0; x <= w; x++) {
+            for (let y = 0; y <= h; y++) {
+              const z = face.p0.z - (N.x * (x - face.p0.x) + N.y * (y - face.p0.y)) / N.z;
+              if (z >= -0.01 && z <= d + 0.01) {
+                const pt = new THREE.Vector3(x, y, z);
+                if (face.triangles.some(t => isPointInTriangle(pt, t))) {
+                  addPt(pt.x, pt.y, pt.z, N);
+                }
+              }
+            }
+          }
+        } else if (absX >= 0.3) {
           for (let z = 0; z <= d; z++) {
-            const P = new THREE.Vector3(x, y, z);
-            const norms = getPointNormalsOnSurface(P);
-            if (norms) {
-              for (const n of norms) {
-                addPt(x, y, z, n);
+            for (let y = 0; y <= h; y++) {
+              const x = face.p0.x - (N.y * (y - face.p0.y) + N.z * (z - face.p0.z)) / N.x;
+              if (x >= -0.01 && x <= w + 0.01) {
+                const pt = new THREE.Vector3(x, y, z);
+                if (face.triangles.some(t => isPointInTriangle(pt, t))) {
+                  addPt(pt.x, pt.y, pt.z, N);
+                }
+              }
+            }
+          }
+        } else if (absY >= 0.3) {
+          for (let x = 0; x <= w; x++) {
+            for (let z = 0; z <= d; z++) {
+              const y = face.p0.y - (N.x * (x - face.p0.x) + N.z * (z - face.p0.z)) / N.y;
+              if (y >= -0.01 && y <= h + 0.01) {
+                const pt = new THREE.Vector3(x, y, z);
+                if (face.triangles.some(t => isPointInTriangle(pt, t))) {
+                  addPt(pt.x, pt.y, pt.z, N);
+                }
               }
             }
           }
         }
       }
     } else {
+      // Fallback
       for (let x = 0; x <= w; x++) {
         for (let y = 0; y <= h; y++) {
           addPt(x, y, d, new THREE.Vector3(0, 0, 1));
           addPt(x, y, 0, new THREE.Vector3(0, 0, -1));
-        }
-      }
-      for (let x = 0; x <= w; x++) {
-        for (let z = 0; z <= d; z++) {
-          addPt(x, h, z, new THREE.Vector3(0, 1, 0));
-          addPt(x, 0, z, new THREE.Vector3(0, -1, 0));
-        }
-      }
-      for (let z = 0; z <= d; z++) {
-        for (let y = 0; y <= h; y++) {
-          addPt(w, y, z, new THREE.Vector3(1, 0, 0));
-          addPt(0, y, z, new THREE.Vector3(-1, 0, 0));
         }
       }
     }
@@ -195,6 +217,7 @@ export class InteractivePicker {
       mesh.position.copy(item.pos);
       mesh.userData = { normals: item.normals };
       this.gridNodesGroup.add(mesh);
+      this.surfaceNodesList.push({ pos: item.pos, normals: item.normals });
     });
 
     this.gridNodesGroup.visible = (this.mode !== 'view');

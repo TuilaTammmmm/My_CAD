@@ -6,7 +6,7 @@ export class GridOverlay {
     this.gridGroup = new THREE.Group();
     this.scene.add(this.gridGroup);
 
-    // Nhóm riêng cho mũi tên FRONT để không bao giờ bị ẩn khi ở chế độ Chỉ Xem
+    // Mũi tên FRONT hiển thị độc lập
     this.arrowGroup = new THREE.Group();
     this.scene.add(this.arrowGroup);
 
@@ -18,7 +18,6 @@ export class GridOverlay {
 
   setVisible(visible) {
     this.gridGroup.visible = visible;
-    // Mũi tên FRONT luôn hiển thị ở chế độ 3D (kể cả Chỉ Xem)
     this.arrowGroup.visible = true;
   }
 
@@ -45,18 +44,13 @@ export class GridOverlay {
       if (obj.geometry) obj.geometry.dispose();
     }
 
-    // 1. Khung hộp giới hạn (Bounding box phôi ban đầu dạng mờ tham chiếu)
-    const boxGeom = new THREE.BoxGeometry(w, h, d);
-    boxGeom.translate(w / 2, h / 2, d / 2);
-    const boxEdges = new THREE.EdgesGeometry(boxGeom);
-    const boxLines = new THREE.LineSegments(
-      boxEdges,
-      new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.15 })
-    );
-    this.gridGroup.add(boxLines);
-
-    // 2. CÁC ĐƯỜNG LƯỚI Ô KỸ THUẬT BÁM SÁT TRỰC TIẾP LÊN BỀ MẶT KHỐI
-    const lineMat = new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.28 });
+    // KHÔNG VẼ KHUNG HỘP PHÔI LƠ LỬNG NGOÀI KHÔNG KHÍ (Bỏ nét ngoài theo yêu cầu)
+    // Thay vào đó: VẼ ĐƯỜNG LƯỚI BÁM SÁT 100% VÀO BỀ MẶT THỰC CỦA KHỐI VỚI MÀU ĐẬM RÕ NÉT
+    const lineMat = new THREE.LineBasicMaterial({
+      color: 0x38bdf8,
+      transparent: true,
+      opacity: 0.55 // Màu đậm rõ nét
+    });
     const linePoints = [];
 
     if (brush && brush.geometry) {
@@ -92,47 +86,102 @@ export class GridOverlay {
         return false;
       }
 
-      const surfacePoints = new Set();
-      for (let x = 0; x <= w; x++) {
-        for (let y = 0; y <= h; y++) {
+      // Nhóm tam giác thành các mặt phẳng
+      const faces = [];
+      for (const t of triangles) {
+        let f = faces.find(item => item.norm.dot(t.norm) > 0.99 && Math.abs(item.norm.dot(t.p0.clone().sub(item.p0))) < 0.01);
+        if (f) f.triangles.push(t);
+        else faces.push({ norm: t.norm, p0: t.p0, triangles: [t] });
+      }
+
+      for (const face of faces) {
+        const N = face.norm;
+        const absX = Math.abs(N.x), absY = Math.abs(N.y), absZ = Math.abs(N.z);
+
+        // Kẻ các đường lưới ngang và dọc trên từng mặt (kể cả mặt nghiêng)
+        if (absZ >= 0.3) {
+          // Mặt chiếu Z: Kẻ các đường ngang Y = const và đường đứng X = const
+          for (let y = 0; y <= h; y++) {
+            const rowPts = [];
+            for (let x = 0; x <= w; x++) {
+              const z = face.p0.z - (N.x * (x - face.p0.x) + N.y * (y - face.p0.y)) / N.z;
+              const pt = new THREE.Vector3(x, y, z);
+              if (face.triangles.some(t => isPointInTriangle(pt, t))) {
+                rowPts.push(pt);
+              }
+            }
+            for (let i = 0; i < rowPts.length - 1; i++) {
+              if (Math.abs(rowPts[i+1].x - rowPts[i].x) < 1.05) {
+                linePoints.push(rowPts[i].x, rowPts[i].y, rowPts[i].z, rowPts[i+1].x, rowPts[i+1].y, rowPts[i+1].z);
+              }
+            }
+          }
+          for (let x = 0; x <= w; x++) {
+            const colPts = [];
+            for (let y = 0; y <= h; y++) {
+              const z = face.p0.z - (N.x * (x - face.p0.x) + N.y * (y - face.p0.y)) / N.z;
+              const pt = new THREE.Vector3(x, y, z);
+              if (face.triangles.some(t => isPointInTriangle(pt, t))) {
+                colPts.push(pt);
+              }
+            }
+            for (let i = 0; i < colPts.length - 1; i++) {
+              if (Math.abs(colPts[i+1].y - colPts[i].y) < 1.05) {
+                linePoints.push(colPts[i].x, colPts[i].y, colPts[i].z, colPts[i+1].x, colPts[i+1].y, colPts[i+1].z);
+              }
+            }
+          }
+        } else if (absX >= 0.3) {
+          // Mặt chiếu X
+          for (let y = 0; y <= h; y++) {
+            const rowPts = [];
+            for (let z = 0; z <= d; z++) {
+              const x = face.p0.x - (N.y * (y - face.p0.y) + N.z * (z - face.p0.z)) / N.x;
+              const pt = new THREE.Vector3(x, y, z);
+              if (face.triangles.some(t => isPointInTriangle(pt, t))) rowPts.push(pt);
+            }
+            for (let i = 0; i < rowPts.length - 1; i++) {
+              if (Math.abs(rowPts[i+1].z - rowPts[i].z) < 1.05) {
+                linePoints.push(rowPts[i].x, rowPts[i].y, rowPts[i].z, rowPts[i+1].x, rowPts[i+1].y, rowPts[i+1].z);
+              }
+            }
+          }
           for (let z = 0; z <= d; z++) {
-            if (isPointOnSurface(new THREE.Vector3(x, y, z))) {
-              surfacePoints.add(x + ',' + y + ',' + z);
+            const colPts = [];
+            for (let y = 0; y <= h; y++) {
+              const x = face.p0.x - (N.y * (y - face.p0.y) + N.z * (z - face.p0.z)) / N.x;
+              const pt = new THREE.Vector3(x, y, z);
+              if (face.triangles.some(t => isPointInTriangle(pt, t))) colPts.push(pt);
+            }
+            for (let i = 0; i < colPts.length - 1; i++) {
+              if (Math.abs(colPts[i+1].y - colPts[i].y) < 1.05) {
+                linePoints.push(colPts[i].x, colPts[i].y, colPts[i].z, colPts[i+1].x, colPts[i+1].y, colPts[i+1].z);
+              }
             }
           }
         }
       }
 
-      const tryAddSeg = (x1, y1, z1, x2, y2, z2) => {
-        const mid = new THREE.Vector3((x1 + x2) / 2, (y1 + y2) / 2, (z1 + z2) / 2);
-        if (isPointOnSurface(mid)) {
-          linePoints.push(x1, y1, z1, x2, y2, z2);
-        }
-      };
-
-      for (let x = 0; x <= w; x++) {
-        for (let y = 0; y <= h; y++) {
-          for (let z = 0; z <= d; z++) {
-            if (!surfacePoints.has(x + ',' + y + ',' + z)) continue;
-            if (x < w && surfacePoints.has((x + 1) + ',' + y + ',' + z)) tryAddSeg(x, y, z, x + 1, y, z);
-            if (y < h && surfacePoints.has(x + ',' + (y + 1) + ',' + z)) tryAddSeg(x, y, z, x, y + 1, z);
-            if (z < d && surfacePoints.has(x + ',' + y + ',' + (z + 1))) tryAddSeg(x, y, z, x, y, z + 1);
-          }
-        }
+      function isPointInTriangle(P, t) {
+        const dist = Math.abs(t.norm.dot(P.clone().sub(t.p0)));
+        if (dist > 0.02) return false;
+        const edge0 = new THREE.Vector3().subVectors(t.p1, t.p0);
+        const edge1 = new THREE.Vector3().subVectors(t.p2, t.p1);
+        const edge2 = new THREE.Vector3().subVectors(t.p0, t.p2);
+        const c0 = new THREE.Vector3().subVectors(P, t.p0).cross(edge0);
+        const c1 = new THREE.Vector3().subVectors(P, t.p1).cross(edge1);
+        const c2 = new THREE.Vector3().subVectors(P, t.p2).cross(edge2);
+        const d0 = c0.dot(t.norm), d1 = c1.dot(t.norm), d2 = c2.dot(t.norm);
+        return (d0 <= 0.02 && d1 <= 0.02 && d2 <= 0.02) || (d0 >= -0.02 && d1 >= -0.02 && d2 >= -0.02);
       }
+
     } else {
-      // Fallback khi chưa có brush: vẽ lưới 3 mặt chính
+      // Fallback
       for (let x = 0; x <= w; x++) {
-        linePoints.push(x, 0, 0, x, 0, d);
         linePoints.push(x, 0, d, x, h, d);
       }
       for (let y = 0; y <= h; y++) {
         linePoints.push(0, y, d, w, y, d);
-        linePoints.push(w, y, 0, w, y, d);
-      }
-      for (let z = 0; z <= d; z++) {
-        linePoints.push(0, 0, z, w, 0, z);
-        linePoints.push(w, 0, z, w, h, z);
       }
     }
 
@@ -143,7 +192,7 @@ export class GridOverlay {
       this.gridGroup.add(subGridLines);
     }
 
-    // 3. Mũi tên FRONT (Mặt trước) chỉ thẳng vào mặt trước Z=d
+    // 3. Mũi tên FRONT (Mặt trước)
     const arrowDir = new THREE.Vector3(0, 0, -1);
     const arrowOrigin = new THREE.Vector3(w / 2, 0.1, d + 3.2);
     const arrowHelper = new THREE.ArrowHelper(arrowDir, arrowOrigin, 2.5, 0x38bdf8, 0.7, 0.4);

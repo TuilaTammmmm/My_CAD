@@ -106,7 +106,6 @@ export class InteractivePicker {
     }
 
     const { w, h, d } = this.bounds;
-    // Tăng kích thước và độ đậm của nút tròn bắt dính theo yêu cầu người dùng
     const nodeGeom = new THREE.SphereGeometry(0.09, 12, 12);
     const nodeMat = new THREE.MeshBasicMaterial({
       color: 0x38bdf8,
@@ -115,16 +114,20 @@ export class InteractivePicker {
     });
 
     this.surfaceNodesList = [];
-    const pts = new Map();
+    const ptsList = [];
+    // Khử trùng lặp không gian: bất kỳ 2 điểm nào cách nhau < 0.4 đều được gộp thành 1 nút duy nhất
     const addPt = (x, y, z, normal) => {
-      const rx = Math.round(x * 1000) / 1000;
-      const ry = Math.round(y * 1000) / 1000;
-      const rz = Math.round(z * 1000) / 1000;
-      const k = `${rx.toFixed(2)}_${ry.toFixed(2)}_${rz.toFixed(2)}`;
-      if (!pts.has(k)) {
-        pts.set(k, { pos: new THREE.Vector3(rx, ry, rz), normals: [] });
+      const rx = Math.round(x * 100) / 100;
+      const ry = Math.round(y * 100) / 100;
+      const rz = Math.round(z * 100) / 100;
+      const cand = new THREE.Vector3(rx, ry, rz);
+      for (const existing of ptsList) {
+        if (existing.pos.distanceTo(cand) < 0.4) {
+          existing.normals.push(normal);
+          return;
+        }
       }
-      pts.get(k).normals.push(normal);
+      ptsList.push({ pos: cand, normals: [normal] });
     };
 
     if (this.currentBrush && this.currentBrush.geometry) {
@@ -156,7 +159,7 @@ export class InteractivePicker {
         const dot12 = v1.dot(v2);
 
         const denom = (dot00 * dot11 - dot01 * dot01);
-        if (denom < 1e-5) return false; // Loại bỏ tam giác dẹt/rác CSG tạo ra
+        if (denom < 1e-5) return false;
 
         const invDenom = 1 / denom;
         const u = (dot11 * dot02 - dot01 * dot12) * invDenom;
@@ -165,19 +168,7 @@ export class InteractivePicker {
         return (u >= -0.02) && (v >= -0.02) && (u + v <= 1.02);
       }
 
-      // Thêm các đỉnh thực tế của khối (apex rãnh V, góc cắt khối, gờ vát)
-      for (const t of triangles) {
-        const v0 = new THREE.Vector3().subVectors(t.p2, t.p0);
-        const v1 = new THREE.Vector3().subVectors(t.p1, t.p0);
-        const denom = (v0.dot(v0) * v1.dot(v1) - Math.pow(v0.dot(v1), 2));
-        if (denom >= 1e-5) {
-          addPt(t.p0.x, t.p0.y, t.p0.z, t.norm);
-          addPt(t.p1.x, t.p1.y, t.p1.z, t.norm);
-          addPt(t.p2.x, t.p2.y, t.p2.z, t.norm);
-        }
-      }
-
-      // Nhóm tam giác thành các mặt phẳng (kể cả mặt nghiêng/chéo)
+      // Nhóm tam giác thành các mặt phẳng
       const faces = [];
       for (const t of triangles) {
         let f = faces.find(item => item.norm.dot(t.norm) > 0.99 && Math.abs(item.norm.dot(t.p0.clone().sub(item.p0))) < 0.01);
@@ -185,12 +176,13 @@ export class InteractivePicker {
         else faces.push({ norm: t.norm, p0: t.p0, triangles: [t] });
       }
 
+      // Mỗi mặt chỉ lấy DUY NHẤT một trục pháp tuyến chủ đạo để giải tọa độ lưới
+      // Tránh việc sinh chồng chéo 2-3 bộ nút trên cùng một mặt nghiêng
       for (const face of faces) {
         const N = face.norm;
         const absX = Math.abs(N.x), absY = Math.abs(N.y), absZ = Math.abs(N.z);
 
-        // Sinh các nút bám sát bề mặt theo chiều ngang từng ô vuông
-        if (absZ >= 0.2) {
+        if (absZ >= absX && absZ >= absY && absZ > 1e-4) {
           for (let x = 0; x <= w; x++) {
             for (let y = 0; y <= h; y++) {
               const z = face.p0.z - (N.x * (x - face.p0.x) + N.y * (y - face.p0.y)) / N.z;
@@ -202,8 +194,7 @@ export class InteractivePicker {
               }
             }
           }
-        }
-        if (absX >= 0.2) {
+        } else if (absX >= absY && absX > 1e-4) {
           for (let z = 0; z <= d; z++) {
             for (let y = 0; y <= h; y++) {
               const x = face.p0.x - (N.y * (y - face.p0.y) + N.z * (z - face.p0.z)) / N.x;
@@ -215,8 +206,7 @@ export class InteractivePicker {
               }
             }
           }
-        }
-        if (absY >= 0.2) {
+        } else if (absY > 1e-4) {
           for (let x = 0; x <= w; x++) {
             for (let z = 0; z <= d; z++) {
               const y = face.p0.y - (N.x * (x - face.p0.x) + N.z * (z - face.p0.z)) / N.y;
@@ -230,6 +220,18 @@ export class InteractivePicker {
           }
         }
       }
+
+      // Thêm các đỉnh hình học (apex rãnh V, góc cắt khối) nếu chưa có nút lưới nào gần đó
+      for (const t of triangles) {
+        const v0 = new THREE.Vector3().subVectors(t.p2, t.p0);
+        const v1 = new THREE.Vector3().subVectors(t.p1, t.p0);
+        const denom = (v0.dot(v0) * v1.dot(v1) - Math.pow(v0.dot(v1), 2));
+        if (denom >= 1e-4) {
+          addPt(t.p0.x, t.p0.y, t.p0.z, t.norm);
+          addPt(t.p1.x, t.p1.y, t.p1.z, t.norm);
+          addPt(t.p2.x, t.p2.y, t.p2.z, t.norm);
+        }
+      }
     } else {
       // Fallback
       for (let x = 0; x <= w; x++) {
@@ -240,7 +242,7 @@ export class InteractivePicker {
       }
     }
 
-    pts.forEach((item) => {
+    ptsList.forEach((item) => {
       const mesh = new THREE.Mesh(nodeGeom, nodeMat);
       mesh.position.copy(item.pos);
       mesh.userData = { normals: item.normals };
@@ -252,7 +254,6 @@ export class InteractivePicker {
     this.updateVisibleGridNodes();
   }
 
-  // CẬP NHẬT CHỈ HIỆN CÁC NÚT LƯỚI TRÊN CÁC MẶT ĐANG HƯỚNG VỀ PHÍA CAMERA
   updateVisibleGridNodes() {
     if (this.mode === 'view' || !this.gridNodesGroup.visible) return;
 

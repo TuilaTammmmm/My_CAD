@@ -117,9 +117,12 @@ export class InteractivePicker {
     this.surfaceNodesList = [];
     const pts = new Map();
     const addPt = (x, y, z, normal) => {
-      const k = `${x.toFixed(3)},${y.toFixed(3)},${z.toFixed(3)}`;
+      const rx = Math.round(x * 1000) / 1000;
+      const ry = Math.round(y * 1000) / 1000;
+      const rz = Math.round(z * 1000) / 1000;
+      const k = `${rx.toFixed(2)}_${ry.toFixed(2)}_${rz.toFixed(2)}`;
       if (!pts.has(k)) {
-        pts.set(k, { pos: new THREE.Vector3(x, y, z), normals: [] });
+        pts.set(k, { pos: new THREE.Vector3(rx, ry, rz), normals: [] });
       }
       pts.get(k).normals.push(normal);
     };
@@ -138,17 +141,40 @@ export class InteractivePicker {
         if (len > 1e-6) triangles.push({ p0, p1, p2, norm: norm.normalize() });
       }
 
-      function isPointInTriangle(P, t) {
-        const dist = Math.abs(t.norm.dot(P.clone().sub(t.p0)));
+      function isPointInTriangleBary(P, t) {
+        const v2 = new THREE.Vector3().subVectors(P, t.p0);
+        const dist = Math.abs(t.norm.dot(v2));
         if (dist > 0.02) return false;
-        const edge0 = new THREE.Vector3().subVectors(t.p1, t.p0);
-        const edge1 = new THREE.Vector3().subVectors(t.p2, t.p1);
-        const edge2 = new THREE.Vector3().subVectors(t.p0, t.p2);
-        const c0 = new THREE.Vector3().subVectors(P, t.p0).cross(edge0);
-        const c1 = new THREE.Vector3().subVectors(P, t.p1).cross(edge1);
-        const c2 = new THREE.Vector3().subVectors(P, t.p2).cross(edge2);
-        const d0 = c0.dot(t.norm), d1 = c1.dot(t.norm), d2 = c2.dot(t.norm);
-        return (d0 <= 0.02 && d1 <= 0.02 && d2 <= 0.02) || (d0 >= -0.02 && d1 >= -0.02 && d2 >= -0.02);
+
+        const v0 = new THREE.Vector3().subVectors(t.p2, t.p0);
+        const v1 = new THREE.Vector3().subVectors(t.p1, t.p0);
+
+        const dot00 = v0.dot(v0);
+        const dot01 = v0.dot(v1);
+        const dot02 = v0.dot(v2);
+        const dot11 = v1.dot(v1);
+        const dot12 = v1.dot(v2);
+
+        const denom = (dot00 * dot11 - dot01 * dot01);
+        if (denom < 1e-5) return false; // Loại bỏ tam giác dẹt/rác CSG tạo ra
+
+        const invDenom = 1 / denom;
+        const u = (dot11 * dot02 - dot01 * dot12) * invDenom;
+        const v = (dot00 * dot12 - dot01 * dot02) * invDenom;
+
+        return (u >= -0.02) && (v >= -0.02) && (u + v <= 1.02);
+      }
+
+      // Thêm các đỉnh thực tế của khối (apex rãnh V, góc cắt khối, gờ vát)
+      for (const t of triangles) {
+        const v0 = new THREE.Vector3().subVectors(t.p2, t.p0);
+        const v1 = new THREE.Vector3().subVectors(t.p1, t.p0);
+        const denom = (v0.dot(v0) * v1.dot(v1) - Math.pow(v0.dot(v1), 2));
+        if (denom >= 1e-5) {
+          addPt(t.p0.x, t.p0.y, t.p0.z, t.norm);
+          addPt(t.p1.x, t.p1.y, t.p1.z, t.norm);
+          addPt(t.p2.x, t.p2.y, t.p2.z, t.norm);
+        }
       }
 
       // Nhóm tam giác thành các mặt phẳng (kể cả mặt nghiêng/chéo)
@@ -164,37 +190,39 @@ export class InteractivePicker {
         const absX = Math.abs(N.x), absY = Math.abs(N.y), absZ = Math.abs(N.z);
 
         // Sinh các nút bám sát bề mặt theo chiều ngang từng ô vuông
-        if (absZ >= 0.3) {
+        if (absZ >= 0.2) {
           for (let x = 0; x <= w; x++) {
             for (let y = 0; y <= h; y++) {
               const z = face.p0.z - (N.x * (x - face.p0.x) + N.y * (y - face.p0.y)) / N.z;
               if (z >= -0.01 && z <= d + 0.01) {
                 const pt = new THREE.Vector3(x, y, z);
-                if (face.triangles.some(t => isPointInTriangle(pt, t))) {
+                if (face.triangles.some(t => isPointInTriangleBary(pt, t))) {
                   addPt(pt.x, pt.y, pt.z, N);
                 }
               }
             }
           }
-        } else if (absX >= 0.3) {
+        }
+        if (absX >= 0.2) {
           for (let z = 0; z <= d; z++) {
             for (let y = 0; y <= h; y++) {
               const x = face.p0.x - (N.y * (y - face.p0.y) + N.z * (z - face.p0.z)) / N.x;
               if (x >= -0.01 && x <= w + 0.01) {
                 const pt = new THREE.Vector3(x, y, z);
-                if (face.triangles.some(t => isPointInTriangle(pt, t))) {
+                if (face.triangles.some(t => isPointInTriangleBary(pt, t))) {
                   addPt(pt.x, pt.y, pt.z, N);
                 }
               }
             }
           }
-        } else if (absY >= 0.3) {
+        }
+        if (absY >= 0.2) {
           for (let x = 0; x <= w; x++) {
             for (let z = 0; z <= d; z++) {
               const y = face.p0.y - (N.x * (x - face.p0.x) + N.z * (z - face.p0.z)) / N.y;
               if (y >= -0.01 && y <= h + 0.01) {
                 const pt = new THREE.Vector3(x, y, z);
-                if (face.triangles.some(t => isPointInTriangle(pt, t))) {
+                if (face.triangles.some(t => isPointInTriangleBary(pt, t))) {
                   addPt(pt.x, pt.y, pt.z, N);
                 }
               }
@@ -391,6 +419,20 @@ export class InteractivePicker {
   findSnapPoint() {
     this.raycaster.setFromCamera(this.mouse, this.camera);
 
+    const camDir = new THREE.Vector3();
+    this.camera.getWorldDirection(camDir);
+
+    // 1. Kiểm tra trực tiếp nếu trỏ chuột chạm vào quả cầu nút lưới (direct hit)
+    if (this.gridNodesGroup && this.gridNodesGroup.visible) {
+      const nodeHits = this.raycaster.intersectObjects(this.gridNodesGroup.children, false);
+      for (const nh of nodeHits) {
+        if (nh.object && nh.object.visible) {
+          return nh.object.position.clone();
+        }
+      }
+    }
+
+    // 2. Bắn tia tới bề mặt khối
     let hitPoint = null;
     let hitNormal = null;
 
@@ -400,10 +442,9 @@ export class InteractivePicker {
         const hit = intersects[0];
         // Tính pháp tuyến mặt phẳng va chạm ngoài thế giới thực
         const norm = hit.face.normal.clone().transformDirection(this.currentBrush.matrixWorld).normalize();
-        const viewDir = new THREE.Vector3().subVectors(this.camera.position, hit.point).normalize();
 
         // Chỉ chấp nhận nếu mặt phẳng đang hướng về phía camera
-        if (norm.dot(viewDir) > 0.05) {
+        if (norm.dot(camDir) < -0.02) {
           hitPoint = hit.point;
           hitNormal = norm;
         }
@@ -412,6 +453,50 @@ export class InteractivePicker {
 
     if (!hitPoint) return null;
 
+    // 3. Tìm nút gần nhất trên bề mặt (trong danh sách surfaceNodesList)
+    if (this.surfaceNodesList && this.surfaceNodesList.length > 0) {
+      let closestNode = null;
+      let minDistance = 1.05; // Bán kính bắt dính theo ô lưới
+
+      for (const node of this.surfaceNodesList) {
+        // Kiểm tra nút có hướng về phía camera
+        let facingCam = false;
+        if (node.normals && node.normals.length > 0) {
+          for (const n of node.normals) {
+            if (n.dot(camDir) < -0.02) {
+              facingCam = true;
+              break;
+            }
+          }
+        } else {
+          facingCam = true;
+        }
+        if (!facingCam) continue;
+
+        const dist = hitPoint.distanceTo(node.pos);
+        if (dist < minDistance) {
+          minDistance = dist;
+          closestNode = node.pos;
+        }
+      }
+
+      if (closestNode) {
+        // Kiểm tra xem node này có bị che khuất bởi mặt trước của khối không
+        const testOrigin = closestNode.clone().addScaledVector(camDir, -60);
+        const occRay = new THREE.Raycaster(testOrigin, camDir, 0.1, 120);
+        const occHits = occRay.intersectObject(this.currentBrush, false);
+        if (occHits.length > 0) {
+          const firstHit = occHits[0];
+          const distToCandidate = testOrigin.distanceTo(closestNode);
+          if (firstHit.distance < distToCandidate - 0.25) {
+            return null;
+          }
+        }
+        return closestNode.clone();
+      }
+    }
+
+    // 4. Fallback cho mặt phẳng trực giao
     let sx = Math.round(hitPoint.x);
     let sy = Math.round(hitPoint.y);
     let sz = Math.round(hitPoint.z);
@@ -432,8 +517,6 @@ export class InteractivePicker {
     const snapCandidate = new THREE.Vector3(sx, sy, sz);
 
     // Kiểm tra xem candidate có bị che khuất bởi mặt trước của khối không (chống bắt xuyên mặt sau)
-    const camDir = new THREE.Vector3();
-    this.camera.getWorldDirection(camDir);
     const testOrigin = snapCandidate.clone().addScaledVector(camDir, -60);
     const occRay = new THREE.Raycaster(testOrigin, camDir, 0.1, 120);
     const occHits = occRay.intersectObject(this.currentBrush, false);
@@ -441,7 +524,6 @@ export class InteractivePicker {
       const firstHit = occHits[0];
       const distToCandidate = testOrigin.distanceTo(snapCandidate);
       if (firstHit.distance < distToCandidate - 0.25) {
-        // Điểm này bị khuất phía sau một gờ khối khác
         return null;
       }
     }
@@ -471,7 +553,8 @@ export class InteractivePicker {
       this.tooltipElement.style.display = 'block';
       this.tooltipElement.style.left = `${e.clientX + 14}px`;
       this.tooltipElement.style.top = `${e.clientY - 28}px`;
-      this.tooltipElement.innerHTML = `📍 <b>(X: ${snap.x}, Y: ${snap.y}, Z: ${snap.z})</b>`;
+      const fmt = (n) => Number(n.toFixed(2));
+      this.tooltipElement.innerHTML = `📍 <b>(X: ${fmt(snap.x)}, Y: ${fmt(snap.y)}, Z: ${fmt(snap.z)})</b>`;
     }
   }
 

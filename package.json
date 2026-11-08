@@ -8,6 +8,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@vercel/analytics": "^2.0.1",
+    "@vercel/speed-insights": "^2.1.0",
     "three": "^0.187.0",
     "three-bvh-csg": "^0.0.18",
     "three-mesh-bvh": "^0.9.18",

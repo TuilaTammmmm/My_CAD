@@ -10,7 +10,11 @@ import { InteractivePicker } from './picker.js';
 import { exportToOBJ } from './exporter.js';
 import { ProjectionEngine } from './projection-engine.js';
 import { CAD2DEditor } from './cad2d-editor.js';
+import { inject } from '@vercel/analytics';
+import { injectSpeedInsights } from '@vercel/speed-insights';
 
+inject();
+injectSpeedInsights();
 // --- INITIALIZE THREE.JS ---
 const container = document.getElementById('viewport-container');
 const scene = new THREE.Scene();
@@ -166,7 +170,7 @@ const picker = new InteractivePicker(scene, camera, renderer, controls, cad, pre
   onCutExecute: (newBrush) => {
     setModel(newBrush, true);
   },
-  onPointsChanged: () => {},
+  onPointsChanged: () => { },
   onModeChange: (mode) => {
     syncModeUI(mode);
     gridOverlay.setVisible(mode !== 'view');

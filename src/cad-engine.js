@@ -572,7 +572,7 @@ export class CadEngine {
     return result;
   }
 
-  // TẠO ĐƯỜNG VIỀN KỸ THUẬT SẠCH SẼ (LỌC 100% CÁC NÉT CHÉO RÁC NỘI BỘ VÀ T-JUNCTIONS)
+    // TẠO ĐƯỜNG VIỀN KỸ THUẬT SẠCH SẼ (LỌC NÉT CHÉO RÁC NỘI BỘ, GIỮ TRỌN VẸN 100% CÁC CẠNH CẮT GỌT)
   createEdges(mesh) {
     const nonIndexedGeom = mesh.geometry.index ? mesh.geometry.toNonIndexed() : mesh.geometry;
     const cleanGeom = mergeVertices(nonIndexedGeom, 0.001);
@@ -582,9 +582,8 @@ export class CadEngine {
       return new THREE.LineSegments(rawEdges, this.edgeMaterial);
     }
 
-    // Trích xuất danh sách tam giác và pháp tuyến từ geometry chuẩn không bị lệch index
     const pos = nonIndexedGeom.attributes.position;
-    const triCount = pos.count / 3;
+    const triCount = Math.floor(pos.count / 3);
     const triangles = [];
     for (let i = 0; i < triCount; i++) {
       const p0 = new THREE.Vector3(pos.getX(i*3), pos.getY(i*3), pos.getZ(i*3));
@@ -597,34 +596,31 @@ export class CadEngine {
       }
     }
 
-    // Kiểm tra điểm P có nằm trong bất kỳ tam giác nào thuộc mặt phẳng có pháp tuyến tương thích
-    function isPointInPlanarTriangles(P, N) {
-      const EPS = 0.002;
+    // Kiểm tra điểm P có thuộc tam giác t bằng kiểm tra nửa mặt phẳng 3D (Half-plane test)
+    function isPointInTriangle(P, t) {
+      const dist = Math.abs(t.norm.dot(P.clone().sub(t.p0)));
+      if (dist > 0.005) return false;
+
+      const edge0 = new THREE.Vector3().subVectors(t.p1, t.p0);
+      const edge1 = new THREE.Vector3().subVectors(t.p2, t.p1);
+      const edge2 = new THREE.Vector3().subVectors(t.p0, t.p2);
+
+      const c0 = new THREE.Vector3().subVectors(P, t.p0).cross(edge0);
+      const c1 = new THREE.Vector3().subVectors(P, t.p1).cross(edge1);
+      const c2 = new THREE.Vector3().subVectors(P, t.p2).cross(edge2);
+
+      const d0 = c0.dot(t.norm);
+      const d1 = c1.dot(t.norm);
+      const d2 = c2.dot(t.norm);
+
+      return (d0 <= 1e-4 && d1 <= 1e-4 && d2 <= 1e-4) || (d0 >= -1e-4 && d1 >= -1e-4 && d2 >= -1e-4);
+    }
+
+    // Kiểm tra điểm P có thuộc bất kỳ tam giác nào trên mặt phẳng có pháp tuyến cùng hướng N
+    function isPointInFace(P, N) {
       for (const t of triangles) {
-        if (Math.abs(t.norm.dot(N)) > 0.98) {
-          const distToPlane = Math.abs(t.norm.dot(P.clone().sub(t.p0)));
-          if (distToPlane < 0.015) {
-            // Tọa độ trọng tâm (Barycentric coordinates) 3D chính xác tuyệt đối
-            const v0 = new THREE.Vector3().subVectors(t.p2, t.p0);
-            const v1 = new THREE.Vector3().subVectors(t.p1, t.p0);
-            const v2 = new THREE.Vector3().subVectors(P, t.p0);
-
-            const dot00 = v0.dot(v0);
-            const dot01 = v0.dot(v1);
-            const dot02 = v0.dot(v2);
-            const dot11 = v1.dot(v1);
-            const dot12 = v1.dot(v2);
-
-            const denom = (dot00 * dot11 - dot01 * dot01);
-            if (Math.abs(denom) < 1e-8) continue;
-            const invDenom = 1 / denom;
-            const u = (dot11 * dot02 - dot01 * dot12) * invDenom;
-            const v = (dot00 * dot12 - dot01 * dot02) * invDenom;
-
-            if (u >= -EPS && v >= -EPS && (u + v) <= 1 + EPS) {
-              return true;
-            }
-          }
+        if (t.norm.dot(N) > 0.98) {
+          if (isPointInTriangle(P, t)) return true;
         }
       }
       return false;
@@ -640,34 +636,27 @@ export class CadEngine {
       if (len < 0.0001) continue;
       dir.normalize();
 
-      let isInternalSplit = false;
-      const tSamples = [0.5, 0.35, 0.65];
+      let isCoplanarInternal = false;
+      const mid = new THREE.Vector3().addVectors(A, B).multiplyScalar(0.5);
 
       for (const t of triangles) {
         // Nếu đoạn thẳng AB cùng nằm trên mặt phẳng tam giác t
-        if (Math.abs(t.norm.dot(A.clone().sub(t.p0))) < 0.01 && Math.abs(t.norm.dot(B.clone().sub(t.p0))) < 0.01) {
+        if (Math.abs(t.norm.dot(A.clone().sub(t.p0))) < 0.005 && Math.abs(t.norm.dot(B.clone().sub(t.p0))) < 0.005) {
           const perp = new THREE.Vector3().crossVectors(t.norm, dir).normalize();
+          const offset = 0.02;
+          const pLeft = mid.clone().addScaledVector(perp, offset);
+          const pRight = mid.clone().addScaledVector(perp, -offset);
 
-          for (const sampleT of tSamples) {
-            const ptOnSegment = new THREE.Vector3().addVectors(A.clone().multiplyScalar(1 - sampleT), B.clone().multiplyScalar(sampleT));
-            for (const offset of [0.02, 0.01]) {
-              const pLeft = ptOnSegment.clone().addScaledVector(perp, offset);
-              const pRight = ptOnSegment.clone().addScaledVector(perp, -offset);
-
-              // Nếu cả 2 phía vuông góc của đoạn thẳng đều thuộc cùng một mặt phẳng của khối:
-              // Đây 100% là nét rác phân mảnh nội bộ (tessellation split), cần loại bỏ!
-              if (isPointInPlanarTriangles(pLeft, t.norm) && isPointInPlanarTriangles(pRight, t.norm)) {
-                isInternalSplit = true;
-                break;
-              }
-            }
-            if (isInternalSplit) break;
+          // Nếu cả 2 phía vuông góc của đoạn thẳng đều thuộc cùng một mặt phẳng của khối:
+          // Đây 100% là nét rác phân mảnh nội bộ (tessellation split), cần loại bỏ!
+          if (isPointInFace(pLeft, t.norm) && isPointInFace(pRight, t.norm)) {
+            isCoplanarInternal = true;
+            break;
           }
         }
-        if (isInternalSplit) break;
       }
 
-      if (!isInternalSplit) {
+      if (!isCoplanarInternal) {
         filteredPositions.push(A.x, A.y, A.z, B.x, B.y, B.z);
       }
     }

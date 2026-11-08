@@ -97,7 +97,7 @@ export class InteractivePicker {
     this.rebuildSurfaceGridNodes();
   }
 
-  // TẠO CÁC NÚT LƯỚI BỀ MẶT VÀ GÁN PHÁP TUYẾN MẶT ĐỂ QUẢN LÝ TẦM NHÌN
+    // TẠO CÁC NÚT LƯỚI BỀ MẶT BÁM SÁT 100% VÀO HÌNH DÁNG KHỐI THỰC TẾ
   rebuildSurfaceGridNodes() {
     while (this.gridNodesGroup.children.length > 0) {
       const obj = this.gridNodesGroup.children[0];
@@ -114,31 +114,79 @@ export class InteractivePicker {
     });
 
     const pts = new Map();
-    const addPt = (x, y, z, nx, ny, nz) => {
+    const addPt = (x, y, z, normal) => {
       const k = `${x},${y},${z}`;
       if (!pts.has(k)) {
         pts.set(k, { pos: new THREE.Vector3(x, y, z), normals: [] });
       }
-      pts.get(k).normals.push(new THREE.Vector3(nx, ny, nz));
+      pts.get(k).normals.push(normal);
     };
 
-    // Tạo các nút trên 6 mặt ngoài
-    for (let x = 0; x <= w; x++) {
-      for (let y = 0; y <= h; y++) {
-        addPt(x, y, d, 0, 0, 1);  // Trước
-        addPt(x, y, 0, 0, 0, -1); // Sau
+    if (this.currentBrush && this.currentBrush.geometry) {
+      const nonIndexed = this.currentBrush.geometry.index ? this.currentBrush.geometry.toNonIndexed() : this.currentBrush.geometry;
+      const pos = nonIndexed.attributes.position;
+      const triCount = Math.floor(pos.count / 3);
+      const triangles = [];
+      for (let i = 0; i < triCount; i++) {
+        const p0 = new THREE.Vector3(pos.getX(i*3), pos.getY(i*3), pos.getZ(i*3));
+        const p1 = new THREE.Vector3(pos.getX(i*3+1), pos.getY(i*3+1), pos.getZ(i*3+1));
+        const p2 = new THREE.Vector3(pos.getX(i*3+2), pos.getY(i*3+2), pos.getZ(i*3+2));
+        const norm = new THREE.Vector3().subVectors(p1, p0).cross(new THREE.Vector3().subVectors(p2, p0));
+        const len = norm.length();
+        if (len > 1e-6) triangles.push({ p0, p1, p2, norm: norm.normalize() });
       }
-    }
-    for (let x = 0; x <= w; x++) {
+
+      function getPointNormalsOnSurface(P) {
+        const normals = [];
+        for (const t of triangles) {
+          const distToPlane = Math.abs(t.norm.dot(P.clone().sub(t.p0)));
+          if (distToPlane < 0.02) {
+            const edge0 = new THREE.Vector3().subVectors(t.p1, t.p0);
+            const edge1 = new THREE.Vector3().subVectors(t.p2, t.p1);
+            const edge2 = new THREE.Vector3().subVectors(t.p0, t.p2);
+            const c0 = new THREE.Vector3().subVectors(P, t.p0).cross(edge0);
+            const c1 = new THREE.Vector3().subVectors(P, t.p1).cross(edge1);
+            const c2 = new THREE.Vector3().subVectors(P, t.p2).cross(edge2);
+            const d0 = c0.dot(t.norm), d1 = c1.dot(t.norm), d2 = c2.dot(t.norm);
+            if ((d0 <= 0.02 && d1 <= 0.02 && d2 <= 0.02) || (d0 >= -0.02 && d1 >= -0.02 && d2 >= -0.02)) {
+              normals.push(t.norm);
+            }
+          }
+        }
+        return normals.length > 0 ? normals : null;
+      }
+
+      for (let x = 0; x <= w; x++) {
+        for (let y = 0; y <= h; y++) {
+          for (let z = 0; z <= d; z++) {
+            const P = new THREE.Vector3(x, y, z);
+            const norms = getPointNormalsOnSurface(P);
+            if (norms) {
+              for (const n of norms) {
+                addPt(x, y, z, n);
+              }
+            }
+          }
+        }
+      }
+    } else {
+      for (let x = 0; x <= w; x++) {
+        for (let y = 0; y <= h; y++) {
+          addPt(x, y, d, new THREE.Vector3(0, 0, 1));
+          addPt(x, y, 0, new THREE.Vector3(0, 0, -1));
+        }
+      }
+      for (let x = 0; x <= w; x++) {
+        for (let z = 0; z <= d; z++) {
+          addPt(x, h, z, new THREE.Vector3(0, 1, 0));
+          addPt(x, 0, z, new THREE.Vector3(0, -1, 0));
+        }
+      }
       for (let z = 0; z <= d; z++) {
-        addPt(x, h, z, 0, 1, 0);  // Trên
-        addPt(x, 0, z, 0, -1, 0); // Dưới
-      }
-    }
-    for (let z = 0; z <= d; z++) {
-      for (let y = 0; y <= h; y++) {
-        addPt(w, y, z, 1, 0, 0);  // Phải
-        addPt(0, y, z, -1, 0, 0); // Trái
+        for (let y = 0; y <= h; y++) {
+          addPt(w, y, z, new THREE.Vector3(1, 0, 0));
+          addPt(0, y, z, new THREE.Vector3(-1, 0, 0));
+        }
       }
     }
 

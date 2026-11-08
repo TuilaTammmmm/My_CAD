@@ -431,6 +431,7 @@ const cad2dEditor = new CAD2DEditor(canvas2d, projectionEngine);
 let appMode = '3d'; // '3d' hoặc '2d'
 
 function switchTo2D() {
+  gridOverlay.setAllVisible(false);
   appMode = '2d';
   document.getElementById('switch-to-3d')?.classList.remove('active');
   document.getElementById('switch-to-2d')?.classList.add('active');
@@ -458,6 +459,8 @@ function switchTo2D() {
 }
 
 function switchTo3D() {
+  gridOverlay.setAllVisible(true);
+  gridOverlay.setVisible(picker ? picker.mode !== 'view' : false);
   appMode = '3d';
   document.getElementById('switch-to-2d')?.classList.remove('active');
   document.getElementById('switch-to-3d')?.classList.add('active');

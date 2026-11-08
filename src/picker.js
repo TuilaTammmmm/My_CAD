@@ -488,7 +488,7 @@ export class InteractivePicker {
       if (this.selectedPoints.length >= 3) {
         this.selectedPoints = [pt];
       } else {
-        const isDuplicate = this.selectedPoints.some(p => p.x === pt.x && p.y === pt.y && p.z === pt.z);
+        const isDuplicate = this.selectedPoints.some(p => Math.hypot(p.x - pt.x, p.y - pt.y, p.z - pt.z) < 0.05);
         if (isDuplicate) return;
         this.selectedPoints.push(pt);
       }
@@ -500,7 +500,7 @@ export class InteractivePicker {
       }
 
     } else if (this.mode === 'poly') {
-      const isDuplicate = this.selectedPoints.some(p => p.x === pt.x && p.y === pt.y && p.z === pt.z);
+      const isDuplicate = this.selectedPoints.some(p => Math.hypot(p.x - pt.x, p.y - pt.y, p.z - pt.z) < 0.05);
       if (isDuplicate) return;
       this.selectedPoints.push(pt);
       this.renderPointMarkers();
@@ -514,7 +514,7 @@ export class InteractivePicker {
       if (this.selectedPoints.length >= 3) {
         this.selectedPoints = [pt];
       } else {
-        const isDuplicate = this.selectedPoints.some(p => p.x === pt.x && p.y === pt.y && p.z === pt.z);
+        const isDuplicate = this.selectedPoints.some(p => Math.hypot(p.x - pt.x, p.y - pt.y, p.z - pt.z) < 0.05);
         if (isDuplicate) return;
         this.selectedPoints.push(pt);
       }
@@ -533,7 +533,7 @@ export class InteractivePicker {
       } else {
         if (this.selectedPoints.length === 1) {
           const p1 = this.selectedPoints[0];
-          if (p1.x === pt.x && p1.y === pt.y && p1.z === pt.z) return;
+          if (Math.hypot(p1.x - pt.x, p1.y - pt.y, p1.z - pt.z) < 0.05) return;
         }
         this.selectedPoints.push(pt);
       }

@@ -463,7 +463,7 @@ function switchTo3D() {
   document.getElementById('switch-to-3d')?.classList.add('active');
   const appModeTitle = document.getElementById('app-mode-title');
   const appModeSub = document.getElementById('app-mode-sub');
-  if (appModeTitle) appModeTitle.textContent = '3D Block CAD';
+  if (appModeTitle) appModeTitle.textContent = 'My CAD';
   if (appModeSub) appModeSub.textContent = '⚡ ĐỔI SANG 2D CAD';
 
   // Chuyển nội dung trong sidebar dùng chung: hiện 3D, ẩn 2D

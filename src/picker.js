@@ -19,6 +19,9 @@ export class InteractivePicker {
     // Default mode: 'view' (Chỉ Xem)
     this.mode = 'view';
 
+    // Bước bắt dính lưới: 1.0 (Nguyên ô) hoặc 0.5 (Cắt giữa ô)
+    this.snapStep = 1.0;
+
     // Options
     this.slantCutAbove = true;
     this.slantPlane = 'XY';
@@ -106,23 +109,19 @@ export class InteractivePicker {
     }
 
     const { w, h, d } = this.bounds;
-    const nodeGeom = new THREE.SphereGeometry(0.09, 12, 12);
-    const nodeMat = new THREE.MeshBasicMaterial({
-      color: 0x38bdf8,
-      transparent: true,
-      opacity: 0.85
-    });
+    const step = this.snapStep;
+    const minDist = step * 0.42;
 
     this.surfaceNodesList = [];
     const ptsList = [];
-    // Khử trùng lặp không gian: bất kỳ 2 điểm nào cách nhau < 0.4 đều được gộp thành 1 nút duy nhất
+    // Khử trùng lặp không gian: khoảng cách khử co dãn theo bước lưới step (0.42 khi step=1, 0.21 khi step=0.5)
     const addPt = (x, y, z, normal) => {
       const rx = Math.round(x * 100) / 100;
       const ry = Math.round(y * 100) / 100;
       const rz = Math.round(z * 100) / 100;
       const cand = new THREE.Vector3(rx, ry, rz);
       for (const existing of ptsList) {
-        if (existing.pos.distanceTo(cand) < 0.4) {
+        if (existing.pos.distanceTo(cand) < minDist) {
           existing.normals.push(normal);
           return;
         }
@@ -183,8 +182,8 @@ export class InteractivePicker {
         const absX = Math.abs(N.x), absY = Math.abs(N.y), absZ = Math.abs(N.z);
 
         if (absZ >= absX && absZ >= absY && absZ > 1e-4) {
-          for (let x = 0; x <= w; x++) {
-            for (let y = 0; y <= h; y++) {
+          for (let x = 0; x <= w + 1e-4; x += step) {
+            for (let y = 0; y <= h + 1e-4; y += step) {
               const z = face.p0.z - (N.x * (x - face.p0.x) + N.y * (y - face.p0.y)) / N.z;
               if (z >= -0.01 && z <= d + 0.01) {
                 const pt = new THREE.Vector3(x, y, z);
@@ -195,8 +194,8 @@ export class InteractivePicker {
             }
           }
         } else if (absX >= absY && absX > 1e-4) {
-          for (let z = 0; z <= d; z++) {
-            for (let y = 0; y <= h; y++) {
+          for (let z = 0; z <= d + 1e-4; z += step) {
+            for (let y = 0; y <= h + 1e-4; y += step) {
               const x = face.p0.x - (N.y * (y - face.p0.y) + N.z * (z - face.p0.z)) / N.x;
               if (x >= -0.01 && x <= w + 0.01) {
                 const pt = new THREE.Vector3(x, y, z);
@@ -207,8 +206,8 @@ export class InteractivePicker {
             }
           }
         } else if (absY > 1e-4) {
-          for (let x = 0; x <= w; x++) {
-            for (let z = 0; z <= d; z++) {
+          for (let x = 0; x <= w + 1e-4; x += step) {
+            for (let z = 0; z <= d + 1e-4; z += step) {
               const y = face.p0.y - (N.x * (x - face.p0.x) + N.z * (z - face.p0.z)) / N.y;
               if (y >= -0.01 && y <= h + 0.01) {
                 const pt = new THREE.Vector3(x, y, z);
@@ -234,20 +233,37 @@ export class InteractivePicker {
       }
     } else {
       // Fallback
-      for (let x = 0; x <= w; x++) {
-        for (let y = 0; y <= h; y++) {
+      for (let x = 0; x <= w + 1e-4; x += step) {
+        for (let y = 0; y <= h + 1e-4; y += step) {
           addPt(x, y, d, new THREE.Vector3(0, 0, 1));
           addPt(x, y, 0, new THREE.Vector3(0, 0, -1));
         }
       }
     }
 
+    const isWhole = (v) => Math.abs(v - Math.round(v)) < 0.02;
+    const nodeGeomWhole = new THREE.SphereGeometry(0.09, 12, 12);
+    const nodeMatWhole = new THREE.MeshBasicMaterial({
+      color: 0x38bdf8,
+      transparent: true,
+      opacity: 0.88
+    });
+    const nodeGeomHalf = new THREE.SphereGeometry(0.065, 10, 10);
+    const nodeMatHalf = new THREE.MeshBasicMaterial({
+      color: 0x67e8f9,
+      transparent: true,
+      opacity: 0.95
+    });
+
     ptsList.forEach((item) => {
-      const mesh = new THREE.Mesh(nodeGeom, nodeMat);
+      const isInteger = isWhole(item.pos.x) && isWhole(item.pos.y) && isWhole(item.pos.z);
+      const geom = isInteger ? nodeGeomWhole : nodeGeomHalf;
+      const mat = isInteger ? nodeMatWhole : nodeMatHalf;
+      const mesh = new THREE.Mesh(geom, mat);
       mesh.position.copy(item.pos);
-      mesh.userData = { normals: item.normals };
+      mesh.userData = { normals: item.normals, isHalf: !isInteger };
       this.gridNodesGroup.add(mesh);
-      this.surfaceNodesList.push({ pos: item.pos, normals: item.normals });
+      this.surfaceNodesList.push({ pos: item.pos, normals: item.normals, isHalf: !isInteger });
     });
 
     this.gridNodesGroup.visible = (this.mode !== 'view');
@@ -412,6 +428,19 @@ export class InteractivePicker {
           e.preventDefault();
           this.cycleCornerO();
         }
+      } else if (e.key.toLowerCase() === 's') {
+        if (this.mode !== 'view') {
+          e.preventDefault();
+          this.toggleSnapStep();
+        }
+      } else if (e.key.toLowerCase() === 'g') {
+        if (this.mode !== 'view') {
+          e.preventDefault();
+          if (this.callbacks.onToggleGridSquares) this.callbacks.onToggleGridSquares();
+        }
+      } else if (e.key.toLowerCase() === 'd') {
+        e.preventDefault();
+        if (this.callbacks.onToggleDim) this.callbacks.onToggleDim();
       }
     });
   }
@@ -457,7 +486,7 @@ export class InteractivePicker {
     // 3. Tìm nút gần nhất trên bề mặt (trong danh sách surfaceNodesList)
     if (this.surfaceNodesList && this.surfaceNodesList.length > 0) {
       let closestNode = null;
-      let minDistance = 1.05; // Bán kính bắt dính theo ô lưới
+      let minDistance = Math.max(0.38, this.snapStep * 1.05); // Bán kính bắt dính theo ô lưới
 
       for (const node of this.surfaceNodesList) {
         // Kiểm tra nút có hướng về phía camera
@@ -497,18 +526,19 @@ export class InteractivePicker {
       }
     }
 
-    // 4. Fallback cho mặt phẳng trực giao
-    let sx = Math.round(hitPoint.x);
-    let sy = Math.round(hitPoint.y);
-    let sz = Math.round(hitPoint.z);
+    // 4. Fallback cho mặt phẳng trực giao (hỗ trợ snap nửa ô 0.5)
+    const snapVal = (v) => Math.round(v / this.snapStep) * this.snapStep;
+    let sx = snapVal(hitPoint.x);
+    let sy = snapVal(hitPoint.y);
+    let sz = snapVal(hitPoint.z);
 
     // Khóa tọa độ theo đúng mặt phẳng va chạm
     if (Math.abs(hitNormal.z) > 0.8) {
-      sz = Math.round(hitPoint.z);
+      sz = snapVal(hitPoint.z);
     } else if (Math.abs(hitNormal.x) > 0.8) {
-      sx = Math.round(hitPoint.x);
+      sx = snapVal(hitPoint.x);
     } else if (Math.abs(hitNormal.y) > 0.8) {
-      sy = Math.round(hitPoint.y);
+      sy = snapVal(hitPoint.y);
     }
 
     sx = Math.max(0, Math.min(this.bounds.w, sx));
@@ -699,9 +729,9 @@ export class InteractivePicker {
     const signY = (corner.y >= this.bounds.h / 2) ? -1 : 1;
     const signZ = (corner.z >= this.bounds.d / 2) ? -1 : 1;
 
-    const stepX = Math.min(1, this.bounds.w);
-    const stepY = Math.min(1, this.bounds.h);
-    const stepZ = Math.min(1, this.bounds.d);
+    const stepX = Math.min(this.snapStep, this.bounds.w);
+    const stepY = Math.min(this.snapStep, this.bounds.h);
+    const stepZ = Math.min(this.snapStep, this.bounds.d);
 
     this.cornerDelta = {
       dx: signX * stepX,
@@ -1005,6 +1035,16 @@ export class InteractivePicker {
     this.updateHUD();
   }
 
+  toggleSnapStep() {
+    this.snapStep = (this.snapStep === 1.0) ? 0.5 : 1.0;
+    this.rebuildSurfaceGridNodes();
+    this.updateHUD();
+    if (this.callbacks.onSnapStepChange) {
+      this.callbacks.onSnapStepChange(this.snapStep);
+    }
+    return this.snapStep;
+  }
+
   changeDepth(delta) {
     this.isFullDepth = false;
     let maxVal = Math.max(this.bounds.w, this.bounds.h, this.bounds.d);
@@ -1015,7 +1055,8 @@ export class InteractivePicker {
       const vp = this.getVGrooveSliceParams();
       if (vp) maxVal = vp.maxD;
     }
-    this.customDepth = Math.max(1, Math.min(maxVal, this.customDepth + delta));
+    const step = this.snapStep;
+    this.customDepth = Math.max(step, Math.min(maxVal, Math.round((this.customDepth + delta * step) * 10) / 10));
     if (this.mode === 'vgroove') this.updatePreviewForVGroove();
     else if (this.mode === 'slant') {
       if (this.selectedPoints.length === 3) this.updatePreviewForPlane3Points();
@@ -1051,7 +1092,8 @@ export class InteractivePicker {
     if (!this.cornerDelta) return;
     const current = Math.abs(this.cornerDelta[axis]);
     const maxVal = (axis === 'dx') ? this.bounds.w : (axis === 'dy') ? this.bounds.h : this.bounds.d;
-    const newVal = Math.max(1, Math.min(maxVal, current + change));
+    const step = this.snapStep;
+    const newVal = Math.max(step, Math.min(maxVal, Math.round((current + change * step) * 10) / 10));
     const sign = Math.sign(this.cornerDelta[axis]) || 1;
     this.cornerDelta[axis] = sign * newVal;
     this.updatePreviewForCorner();
@@ -1168,12 +1210,21 @@ export class InteractivePicker {
 
     const depthText = this.isFullDepth ? `Xuyên suốt (${this.customDepth} ô)` : `${this.customDepth} ô`;
 
+    const stepBadge = (this.snapStep === 0.5) ? '✂️ Giữa Ô (0.5)' : '🎯 1 Ô';
+    const quickControlsHtml = `
+      <div style="display:inline-flex; align-items:center; gap:5px; margin-left:6px;">
+        <button class="hud-btn-toggle" id="hud-toggle-step" title="Chuyển bước chia lưới 1.0 (Nguyên ô) ↔ 0.5 (Cắt giữa ô) (Phím tắt: S)">${stepBadge}</button>
+        <button class="hud-btn-toggle" id="hud-toggle-grid" title="Bật/Tắt lưới ô vuông trên mặt khối (Phím tắt: G)">🔲 Ô Vuông</button>
+      </div>
+    `;
+
     if (this.mode === 'poly') {
       if (count === 0) {
         html = `
           <div class="hud-step">
             <span class="hud-badge pulse">Bước 1</span>
             <span>Click chọn <b>CÁC ĐIỂM LIÊN TIẾP</b> trên khối (3, 4, 5, 6... điểm) để tự kết nối thành vùng kín</span>
+            ${quickControlsHtml}
           </div>
         `;
       } else if (count < 3) {
@@ -1183,6 +1234,7 @@ export class InteractivePicker {
             <span>👉 Click tiếp <b>ĐIỂM THỨ ${count + 1}</b> để tạo thành hình kín...</span>
             <button class="hud-btn-action" id="hud-remove-point">↩️ Xóa điểm</button>
             <button class="hud-btn-cancel" id="hud-cancel-btn">✖️ Hủy</button>
+            ${quickControlsHtml}
           </div>
         `;
       } else {
@@ -1203,6 +1255,7 @@ export class InteractivePicker {
               ↩️ Xóa điểm cuối
             </button>
             <button class="hud-btn-cancel" id="hud-cancel-btn">✖️ Hủy</button>
+            ${quickControlsHtml}
           </div>
         `;
       }
@@ -1213,6 +1266,7 @@ export class InteractivePicker {
           <div class="hud-step">
             <span class="hud-badge pulse">Bước 1</span>
             <span>Click chọn <b>ĐIỂM 1</b> trên mặt khối (Vát theo 2 điểm hoặc 3 điểm)</span>
+            ${quickControlsHtml}
           </div>
         `;
       } else if (count === 1) {
@@ -1222,6 +1276,7 @@ export class InteractivePicker {
             <span class="hud-badge done">Điểm 1 (${p.x}, ${p.y}, ${p.z})</span>
             <span>👉 Hãy <b>Click chọn ĐIỂM 2</b> (hoặc click tiếp Điểm 3 để tạo Mặt Phẳng 3D)...</span>
             <button class="hud-btn-cancel" id="hud-cancel-btn">✖️ Hủy</button>
+            ${quickControlsHtml}
           </div>
         `;
       } else if (count === 2) {
@@ -1246,6 +1301,7 @@ export class InteractivePicker {
             </button>
             <span style="font-size:12px; opacity:0.85; margin:0 4px;">👉 Hoặc click <b>ĐIỂM 3</b> để vát mặt phẳng 3D</span>
             <button class="hud-btn-cancel" id="hud-cancel-btn">✖️</button>
+            ${quickControlsHtml}
           </div>
         `;
       } else {
@@ -1257,7 +1313,7 @@ export class InteractivePicker {
         if (isCoplanar) {
           html = `
             <div class="hud-actions">
-              <div class="hud-coords">📐 Rãnh tam giác trên mặt: 🟢 (${p1.x},${p1.y},${p1.z}) ➔ 🔵 (${p2.x},${p2.y},${p2.z}) ➔ 🟡 (${p3.x},${p3.y},${p3.z})</div>
+              <div class="hud-coords">📐 Rãnh tam giác: 🟢 (${p1.x},${p1.y},${p1.z}) ➔ 🔵 (${p2.x},${p2.y},${p2.z}) ➔ 🟡 (${p3.x},${p3.y},${p3.z})</div>
               <div class="hud-stepper">
                 <span>Độ sâu:</span>
                 <button class="step-btn" id="depth-minus" title="Giảm độ sâu">➖</button>
@@ -1269,6 +1325,7 @@ export class InteractivePicker {
                 ✂️ CẮT RÃNH TAM GIÁC (Enter)
               </button>
               <button class="hud-btn-cancel" id="hud-cancel-btn">✖️ Hủy</button>
+              ${quickControlsHtml}
             </div>
           `;
         } else {
@@ -1287,6 +1344,7 @@ export class InteractivePicker {
                 🎯 ${boundText}
               </button>
               <button class="hud-btn-cancel" id="hud-cancel-btn">✖️ Hủy</button>
+              ${quickControlsHtml}
             </div>
           `;
         }
@@ -1298,6 +1356,7 @@ export class InteractivePicker {
           <div class="hud-step">
             <span class="hud-badge pulse">Bước 1</span>
             <span>Click chọn <b>3 ĐIỂM</b> trên 3 cạnh xuất phát từ góc cần vát</span>
+            ${quickControlsHtml}
           </div>
         `;
       } else if (count === 1) {
@@ -1307,6 +1366,7 @@ export class InteractivePicker {
             <span class="hud-badge done">Điểm 1 (${p.x}, ${p.y}, ${p.z})</span>
             <span>👉 Click tiếp <b>ĐIỂM THỨ HAI</b> trên cạnh thứ hai...</span>
             <button class="hud-btn-cancel" id="hud-cancel-btn">✖️ Hủy</button>
+            ${quickControlsHtml}
           </div>
         `;
       } else if (count === 2) {
@@ -1317,6 +1377,7 @@ export class InteractivePicker {
             <span class="hud-badge done">2 Điểm</span>
             <span>👉 Click tiếp <b>ĐIỂM THỨ BA</b> trên cạnh thứ ba...</span>
             <button class="hud-btn-cancel" id="hud-cancel-btn">✖️ Hủy</button>
+            ${quickControlsHtml}
           </div>
         `;
       } else {
@@ -1330,6 +1391,7 @@ export class InteractivePicker {
               ✂️ CẮT GÓC (Enter)
             </button>
             <button class="hud-btn-cancel" id="hud-cancel-btn">✖️</button>
+            ${quickControlsHtml}
           </div>
         `;
       }
@@ -1340,6 +1402,7 @@ export class InteractivePicker {
           <div class="hud-step">
             <span class="hud-badge pulse">Bước 1</span>
             <span>Click chọn <b>GÓC 1</b> của rãnh hộp trên mặt khối</span>
+            ${quickControlsHtml}
           </div>
         `;
       } else if (count === 1) {
@@ -1349,6 +1412,7 @@ export class InteractivePicker {
             <span class="hud-badge done">Góc 1 (${p.x}, ${p.y}, ${p.z})</span>
             <span>👉 Click chọn <b>GÓC 2 ĐỐI DIỆN</b>...</span>
             <button class="hud-btn-cancel" id="hud-cancel-btn">✖️ Hủy</button>
+            ${quickControlsHtml}
           </div>
         `;
       } else {
@@ -1368,6 +1432,7 @@ export class InteractivePicker {
               ✂️ KHOÉT HỘP (Enter)
             </button>
             <button class="hud-btn-cancel" id="hud-cancel-btn">✖️</button>
+            ${quickControlsHtml}
           </div>
         `;
       }
@@ -1378,6 +1443,7 @@ export class InteractivePicker {
           <div class="hud-step">
             <span class="hud-badge pulse">Bước 1</span>
             <span>Click <b>3 điểm</b> (Đỉnh & 2 chân đáy) theo ô lưới trên mặt khối</span>
+            ${quickControlsHtml}
           </div>
         `;
       } else if (count === 1) {
@@ -1387,6 +1453,7 @@ export class InteractivePicker {
             <span class="hud-badge done">Điểm 1 (${p.x}, ${p.y}, ${p.z})</span>
             <span>👉 Click tiếp <b>ĐIỂM THỨ HAI</b>...</span>
             <button class="hud-btn-cancel" id="hud-cancel-btn">✖️ Hủy</button>
+            ${quickControlsHtml}
           </div>
         `;
       } else if (count === 2) {
@@ -1397,6 +1464,7 @@ export class InteractivePicker {
             <span class="hud-badge done">2 Điểm</span>
             <span>👉 Click tiếp <b>ĐIỂM THỨ BA</b>...</span>
             <button class="hud-btn-cancel" id="hud-cancel-btn">✖️ Hủy</button>
+            ${quickControlsHtml}
           </div>
         `;
       } else {
@@ -1417,12 +1485,21 @@ export class InteractivePicker {
               ✂️ CẮT RÃNH V (Enter)
             </button>
             <button class="hud-btn-cancel" id="hud-cancel-btn">✖️</button>
+            ${quickControlsHtml}
           </div>
         `;
       }
     }
 
     this.hudElement.innerHTML = html;
+
+    const btnToggleStep = document.getElementById('hud-toggle-step');
+    if (btnToggleStep) btnToggleStep.addEventListener('click', () => this.toggleSnapStep());
+
+    const btnToggleGrid = document.getElementById('hud-toggle-grid');
+    if (btnToggleGrid) btnToggleGrid.addEventListener('click', () => {
+      if (this.callbacks.onToggleGridSquares) this.callbacks.onToggleGridSquares();
+    });
 
     const btnCut = document.getElementById('hud-cut-btn');
     if (btnCut) btnCut.addEventListener('click', () => this.executeCurrentCut());

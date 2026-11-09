@@ -10,6 +10,7 @@ import { InteractivePicker } from './picker.js';
 import { exportToOBJ } from './exporter.js';
 import { ProjectionEngine } from './projection-engine.js';
 import { CAD2DEditor } from './cad2d-editor.js';
+import { DimensionOverlay } from './dimension-overlay.js';
 import { inject } from '@vercel/analytics';
 import { injectSpeedInsights } from '@vercel/speed-insights';
 
@@ -69,6 +70,7 @@ scene.add(sideLight);
 const cad = new CadEngine();
 const gridOverlay = new GridOverlay(scene);
 const preview = new CutterPreview(scene);
+const dimOverlay = new DimensionOverlay(scene, camera);
 
 let currentBrush = null;
 let currentEdges = null;
@@ -112,6 +114,10 @@ function setModel(brush, recordHistory = true) {
     saveHistory(currentBrush);
   }
 
+  const snapStep = (typeof picker !== 'undefined' && picker) ? picker.snapStep : 1.0;
+  gridOverlay.update(W, H, D, currentBrush, snapStep);
+  dimOverlay.updateBounds(W, H, D, snapStep);
+
   if (picker) {
     picker.updateModel(currentBrush, W, H, D);
   }
@@ -129,8 +135,10 @@ function resetBaseBlock() {
   const base = cad.createBaseBlock(W, H, D);
   setModel(base, true);
 
-  gridOverlay.update(W, H, D);
+  const snapStep = (typeof picker !== 'undefined' && picker) ? picker.snapStep : 1.0;
+  gridOverlay.update(W, H, D, currentBrush, snapStep);
   gridOverlay.setVisible(typeof picker !== 'undefined' && picker ? picker.mode !== 'view' : false);
+  dimOverlay.updateBounds(W, H, D, snapStep);
   centerCamera();
 }
 
@@ -157,6 +165,7 @@ function setCameraIsometric() {
   camera.lookAt(controls.target);
   controls.update();
   setActiveViewButton('view-iso');
+  dimOverlay.setView('iso');
 }
 
 function setActiveViewButton(id) {
@@ -174,8 +183,61 @@ const picker = new InteractivePicker(scene, camera, renderer, controls, cad, pre
   onModeChange: (mode) => {
     syncModeUI(mode);
     gridOverlay.setVisible(mode !== 'view');
+  },
+  onSnapStepChange: (step) => {
+    syncSnapStepUI(step);
+    gridOverlay.update(W, H, D, currentBrush, step);
+    dimOverlay.updateBounds(W, H, D, step);
+  },
+  onToggleGridSquares: () => {
+    toggleGridSquaresUI();
+  },
+  onToggleDim: () => {
+    toggleDimUI();
   }
 });
+
+// UI helpers cho bước cắt 0.5 (cắt giữa ô), bật/tắt ô vuông và số đo
+function syncSnapStepUI(step) {
+  const btn = document.getElementById('btn-toggle-snap-step');
+  const lbl = document.getElementById('lbl-snap-step');
+  const isHalf = (step === 0.5);
+  if (btn) btn.classList.toggle('active', isHalf);
+  if (lbl) lbl.textContent = isHalf ? 'Giữa Ô: BẬT' : 'Giữa Ô: TẮT';
+}
+
+function toggleSnapStepUI() {
+  const newStep = picker.toggleSnapStep();
+  syncSnapStepUI(newStep);
+}
+
+function syncGridSquaresUI(visible) {
+  const btn = document.getElementById('btn-toggle-grid-squares');
+  const lbl = document.getElementById('lbl-grid-squares');
+  if (btn) btn.classList.toggle('active', visible);
+  if (lbl) lbl.textContent = visible ? 'Ô Vuông: BẬT' : 'Ô Vuông: TẮT';
+}
+
+function toggleGridSquaresUI() {
+  const visible = gridOverlay.toggleGridSquares();
+  syncGridSquaresUI(visible);
+}
+
+function syncDimUI(enabled) {
+  const btn = document.getElementById('btn-toggle-dim');
+  const lbl = document.getElementById('lbl-toggle-dim');
+  if (btn) btn.classList.toggle('active', enabled);
+  if (lbl) lbl.textContent = enabled ? 'Số Đo: BẬT' : 'Số Đo: TẮT';
+}
+
+function toggleDimUI() {
+  const enabled = dimOverlay.toggle();
+  syncDimUI(enabled);
+}
+
+document.getElementById('btn-toggle-snap-step')?.addEventListener('click', toggleSnapStepUI);
+document.getElementById('btn-toggle-grid-squares')?.addEventListener('click', toggleGridSquaresUI);
+document.getElementById('btn-toggle-dim')?.addEventListener('click', toggleDimUI);
 
 // Đồng bộ trạng thái active của các nút chế độ trên thanh công cụ
 function syncModeUI(mode) {
@@ -390,6 +452,8 @@ function applyHorizontalView(stepNext = false) {
   camera.lookAt(controls.target);
   controls.update();
   setActiveViewButton('view-horizontal');
+  const viewKeys = ['front', 'right', 'back', 'left'];
+  dimOverlay.setView(viewKeys[horizontalViewIndex]);
 }
 
 const btnHorizontal = document.getElementById('view-horizontal');
@@ -408,6 +472,7 @@ document.getElementById('view-top').addEventListener('click', () => {
   camera.lookAt(controls.target);
   controls.update();
   setActiveViewButton('view-top');
+  dimOverlay.setView('top');
 });
 
 // Window resize handler
@@ -432,6 +497,7 @@ let appMode = '3d'; // '3d' hoặc '2d'
 
 function switchTo2D() {
   gridOverlay.setAllVisible(false);
+  dimOverlay.setEnabled(false);
   appMode = '2d';
   document.getElementById('switch-to-3d')?.classList.remove('active');
   document.getElementById('switch-to-2d')?.classList.add('active');
@@ -461,6 +527,9 @@ function switchTo2D() {
 function switchTo3D() {
   gridOverlay.setAllVisible(true);
   gridOverlay.setVisible(picker ? picker.mode !== 'view' : false);
+  const dimBtn = document.getElementById('btn-toggle-dim');
+  const isDimOn = dimBtn ? dimBtn.classList.contains('active') : true;
+  dimOverlay.setEnabled(isDimOn);
   appMode = '3d';
   document.getElementById('switch-to-2d')?.classList.remove('active');
   document.getElementById('switch-to-3d')?.classList.add('active');

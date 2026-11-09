@@ -142,30 +142,50 @@ function resetBaseBlock() {
   centerCamera();
 }
 
-function updateCameraFrustum() {
+function updateCameraFrustumForView(viewKey = 'iso') {
   const asp = container.clientWidth / container.clientHeight;
-  frustumSize = Math.max(12, Math.max(W, H, D) * 1.8);
+  const maxDim = Math.max(W, H, D);
+
+  let baseSpan;
+  if (viewKey === 'front' || viewKey === 'back') {
+    baseSpan = Math.max(H + 3.2, (W + 3.2) / asp);
+  } else if (viewKey === 'right' || viewKey === 'left') {
+    baseSpan = Math.max(H + 3.2, (D + 3.2) / asp);
+  } else if (viewKey === 'top') {
+    baseSpan = Math.max(D + 3.2, (W + 3.2) / asp);
+  } else {
+    baseSpan = maxDim * 1.85;
+  }
+
+  frustumSize = Math.max(10, baseSpan * 1.15);
   camera.left = -frustumSize * asp / 2;
   camera.right = frustumSize * asp / 2;
   camera.top = frustumSize / 2;
   camera.bottom = -frustumSize / 2;
+  camera.zoom = 1;
   camera.updateProjectionMatrix();
 }
 
+function updateCameraFrustum() {
+  updateCameraFrustumForView(dimOverlay ? dimOverlay.currentView : 'iso');
+}
+
 function centerCamera() {
-  updateCameraFrustum();
   controls.target.set(W / 2, H / 2, D / 2);
   setCameraIsometric();
 }
 
 function setCameraIsometric() {
+  updateCameraFrustumForView('iso');
   const dist = Math.max(W, H, D) * 3;
+  controls.target.set(W / 2, H / 2, D / 2);
   camera.position.set(W / 2 + dist, H / 2 + dist, D / 2 + dist);
   camera.up.set(0, 1, 0);
   camera.lookAt(controls.target);
   controls.update();
   setActiveViewButton('view-iso');
   dimOverlay.setView('iso');
+  gridOverlay.setView('iso');
 }
 
 function setActiveViewButton(id) {
@@ -424,10 +444,10 @@ document.getElementById('view-iso').addEventListener('click', setCameraIsometric
 // Gộp Chiếu Đứng và Chiếu Cạnh vào cùng 1 nút, nhấn để xoay góc nhìn ngang 90 độ
 let horizontalViewIndex = 0;
 const horizontalViews = [
-  { name: 'Đứng (Front)', getPos: (dist) => new THREE.Vector3(W / 2, H / 2, D / 2 + dist) },
-  { name: 'Cạnh Phải (Right)', getPos: (dist) => new THREE.Vector3(W / 2 + dist, H / 2, D / 2) },
-  { name: 'Sau (Back)', getPos: (dist) => new THREE.Vector3(W / 2, H / 2, D / 2 - dist) },
-  { name: 'Cạnh Trái (Left)', getPos: (dist) => new THREE.Vector3(W / 2 - dist, H / 2, D / 2) }
+  { name: 'Đứng (Front)', getPos: (dist, t) => new THREE.Vector3(t.x, t.y, t.z + dist), targetOffset: () => new THREE.Vector3(W / 2 - 0.5, H / 2 - 0.5, D / 2) },
+  { name: 'Cạnh Phải (Right)', getPos: (dist, t) => new THREE.Vector3(t.x + dist, t.y, t.z), targetOffset: () => new THREE.Vector3(W / 2, H / 2 - 0.5, D / 2 + 0.5) },
+  { name: 'Sau (Back)', getPos: (dist, t) => new THREE.Vector3(t.x, t.y, t.z - dist), targetOffset: () => new THREE.Vector3(W / 2 + 0.5, H / 2 - 0.5, D / 2) },
+  { name: 'Cạnh Trái (Left)', getPos: (dist, t) => new THREE.Vector3(t.x - dist, t.y, t.z), targetOffset: () => new THREE.Vector3(W / 2, H / 2 - 0.5, D / 2 - 0.5) }
 ];
 
 function applyHorizontalView(stepNext = false) {
@@ -445,15 +465,22 @@ function applyHorizontalView(stepNext = false) {
     }
     btn.title = `Góc chiếu ngang 90° - Đang ở [${view.name}]. Click để xoay 90° tiếp`;
   }
+  const viewKeys = ['front', 'right', 'back', 'left'];
+  const viewKey = viewKeys[horizontalViewIndex];
+
+  updateCameraFrustumForView(viewKey);
+  const target = view.targetOffset();
+  controls.target.copy(target);
+
   const dist = Math.max(W, H, D) * 4;
-  controls.target.set(W / 2, H / 2, D / 2);
-  camera.position.copy(view.getPos(dist));
+  camera.position.copy(view.getPos(dist, target));
   camera.up.set(0, 1, 0);
   camera.lookAt(controls.target);
   controls.update();
+
   setActiveViewButton('view-horizontal');
-  const viewKeys = ['front', 'right', 'back', 'left'];
-  dimOverlay.setView(viewKeys[horizontalViewIndex]);
+  dimOverlay.setView(viewKey);
+  gridOverlay.setView(viewKey);
 }
 
 const btnHorizontal = document.getElementById('view-horizontal');
@@ -465,14 +492,60 @@ if (btnHorizontal) {
 }
 
 document.getElementById('view-top').addEventListener('click', () => {
+  updateCameraFrustumForView('top');
+  const target = new THREE.Vector3(W / 2 - 0.5, H / 2, D / 2 + 0.5);
+  controls.target.copy(target);
+
   const dist = Math.max(W, H, D) * 4;
-  camera.position.set(W / 2, H / 2 + dist, D / 2);
+  camera.position.set(target.x, target.y + dist, target.z);
   camera.up.set(0, 0, -1);
-  controls.target.set(W / 2, H / 2, D / 2);
   camera.lookAt(controls.target);
   controls.update();
+
   setActiveViewButton('view-top');
   dimOverlay.setView('top');
+  gridOverlay.setView('top');
+});
+
+// Tự động chuyển đổi hiển thị số đo & lưới theo góc xoay tự do của chuột
+let lastDetectedView = 'iso';
+controls.addEventListener('change', () => {
+  if (appMode !== '3d') return;
+  const dir = new THREE.Vector3();
+  camera.getWorldDirection(dir);
+
+  let detected = 'iso';
+  if (Math.abs(dir.y + 1) < 0.08) {
+    detected = 'top';
+  } else if (Math.abs(dir.y) < 0.15) {
+    if (dir.z < -0.92) detected = 'front';
+    else if (dir.x < -0.92) detected = 'right';
+    else if (dir.z > 0.92) detected = 'back';
+    else if (dir.x > 0.92) detected = 'left';
+  }
+
+  if (detected !== lastDetectedView) {
+    lastDetectedView = detected;
+    dimOverlay.setView(detected);
+    gridOverlay.setView(detected);
+
+    if (detected === 'iso') {
+      setActiveViewButton('view-iso');
+    } else if (detected === 'top') {
+      setActiveViewButton('view-top');
+    } else {
+      setActiveViewButton('view-horizontal');
+      const idx = ['front', 'right', 'back', 'left'].indexOf(detected);
+      if (idx !== -1) {
+        horizontalViewIndex = idx;
+        const btn = document.getElementById('view-horizontal');
+        if (btn) {
+          const textSpan = btn.querySelector('.tool-text');
+          if (textSpan) textSpan.textContent = horizontalViews[idx].name;
+        }
+      }
+    }
+  }
 });
 
 // Window resize handler

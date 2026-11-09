@@ -1197,11 +1197,16 @@ export class InteractivePicker {
           <span class="hud-badge done">👁️ Chỉ Xem</span>
           <span>Đang ở chế độ xem kỹ thuật. Khối hiển thị sạch sẽ không vướng điểm.</span>
           <button class="hud-btn-toggle" id="hud-toggle-grid" title="Bật/Tắt lưới ô vuông hộp ban đầu (Phím tắt: G)">🔲 Ô Vuông</button>
+          <button class="hud-btn-toggle" id="hud-toggle-dim" title="Bật/Tắt số đo kỹ thuật (Phím tắt: D)">📏 Số Đo</button>
         </div>
       `;
       const btnToggleGrid = document.getElementById('hud-toggle-grid');
       if (btnToggleGrid) btnToggleGrid.addEventListener('click', () => {
         if (this.callbacks.onToggleGridSquares) this.callbacks.onToggleGridSquares();
+      });
+      const btnToggleDim = document.getElementById('hud-toggle-dim');
+      if (btnToggleDim) btnToggleDim.addEventListener('click', () => {
+        if (this.callbacks.onToggleDim) this.callbacks.onToggleDim();
       });
       return;
     }

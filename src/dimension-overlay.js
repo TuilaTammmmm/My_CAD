@@ -2,12 +2,12 @@ import * as THREE from 'three';
 
 /**
  * DimensionOverlay
- * Quản lý hiển thị số đo kích thước kỹ thuật (W, H, D) theo tiêu chuẩn bản vẽ CAD:
+ * Quản lý hiển thị số đo kích thước kỹ thuật (W, H, D) theo tiêu chuẩn bản vẽ kỹ thuật CAD:
  * - Tự động cập nhật số đo và hướng gióng khi đổi góc nhìn (Đứng, Cạnh, Bằng, Trục đo)
  * - Mũi tên kỹ thuật 2 đầu dạng nét CAD sắc nét (không dùng khối nón to che khuất)
  * - Đường gióng kích thước thanh mảnh, tinh tế, không chìm dưới sàn
- * - Nhãn số đo (Text sprite) hiển thị kích thước rõ ràng, gọn gàng
- * - HUD badge nổi thông báo góc nhìn và số đo
+ * - Nhãn số đo (Text sprite) hiển thị kích thước rõ ràng: Rộng: W, Cao: H, Sâu: D
+ * - Khung hiển thị và lề căn chỉnh tự động để số đo luôn nằm trọn vẹn trong màn hình
  */
 export class DimensionOverlay {
   constructor(scene, camera) {
@@ -27,15 +27,17 @@ export class DimensionOverlay {
       color: 0x38bdf8,
       transparent: true,
       opacity: 0.95,
-      depthTest: false
+      depthTest: false,
+      depthWrite: false
     });
 
-    // Đường gióng kích thước: Màu slate xám xanh mờ hơn
+    // Đường gióng kích thước: Màu xám xanh thanh mảnh
     this.extMat = new THREE.LineBasicMaterial({
-      color: 0x94a3b8,
+      color: 0x64748b,
       transparent: true,
-      opacity: 0.75,
-      depthTest: false
+      opacity: 0.85,
+      depthTest: false,
+      depthWrite: false
     });
 
     this.badgeElement = document.getElementById('view-dim-badge');
@@ -68,30 +70,30 @@ export class DimensionOverlay {
   }
 
   // Tạo sprite chữ số đo sắc nét từ 2D Canvas
-  createTextSprite(text, color = '#38bdf8', bgColor = 'rgba(15, 23, 42, 0.94)') {
+  createTextSprite(text, color = '#38bdf8', bgColor = 'rgba(15, 23, 42, 0.96)') {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     const dpr = 2;
-    canvas.width = 220 * dpr;
-    canvas.height = 64 * dpr;
+    canvas.width = 240 * dpr;
+    canvas.height = 72 * dpr;
     ctx.scale(dpr, dpr);
 
-    const w = 220, h = 64;
-    const boxW = 160, boxH = 40;
+    const w = 240, h = 72;
+    const boxW = 160, boxH = 42;
     const x = (w - boxW) / 2;
     const y = (h - boxH) / 2;
 
-    // Nền viên thuốc bóng bẩy
+    // Nền viên thuốc bo góc phong cách CAD hiện đại
     ctx.fillStyle = bgColor;
     ctx.strokeStyle = color;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 2.5;
     ctx.beginPath();
     ctx.roundRect(x, y, boxW, boxH, 10);
     ctx.fill();
     ctx.stroke();
 
     // Chữ số đo
-    ctx.font = 'bold 20px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.font = '600 20px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
     ctx.fillStyle = '#ffffff';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -102,36 +104,50 @@ export class DimensionOverlay {
     const mat = new THREE.SpriteMaterial({
       map: texture,
       depthTest: false,
+      depthWrite: false,
       transparent: true
     });
     const sprite = new THREE.Sprite(mat);
     sprite.renderOrder = 1010;
-    sprite.scale.set(1.2, 0.36, 1);
+    sprite.scale.set(1.4, 0.42, 1);
     return sprite;
   }
 
-  // Tạo mũi tên 2 cánh chuẩn kỹ thuật CAD (dạng line sắc nét, không bị méo góc nhìn)
-  addArrowLines(linePts, tipPos, lineDir, perpVec, arrowLen = 0.28, arrowWing = 0.09) {
-    const dir = lineDir.clone().normalize();
+  // Vẽ 2 mũi tên CAD tại 2 đầu đoạn thẳng: tip1 hướng về ngoài, tip2 hướng về ngoài
+  addCadArrows(linePts, p1, p2, perpVec, arrowLen = 0.28, arrowWing = 0.1) {
+    const dir = new THREE.Vector3().subVectors(p2, p1).normalize();
     const perp = perpVec.clone().normalize();
 
-    const back = tipPos.clone().addScaledVector(dir, -arrowLen);
-    const wing1 = back.clone().addScaledVector(perp, arrowWing);
-    const wing2 = back.clone().addScaledVector(perp, -arrowWing);
-
+    // Mũi tên tại p1 (hướng ra ngoài về phía p1)
+    const back1 = p1.clone().addScaledVector(dir, arrowLen);
+    const wing1A = back1.clone().addScaledVector(perp, arrowWing);
+    const wing1B = back1.clone().addScaledVector(perp, -arrowWing);
     linePts.push(
-      tipPos.x, tipPos.y, tipPos.z, wing1.x, wing1.y, wing1.z,
-      tipPos.x, tipPos.y, tipPos.z, wing2.x, wing2.y, wing2.z
+      p1.x, p1.y, p1.z, wing1A.x, wing1A.y, wing1A.z,
+      p1.x, p1.y, p1.z, wing1B.x, wing1B.y, wing1B.z
+    );
+
+    // Mũi tên tại p2 (hướng ra ngoài về phía p2)
+    const back2 = p2.clone().addScaledVector(dir, -arrowLen);
+    const wing2A = back2.clone().addScaledVector(perp, arrowWing);
+    const wing2B = back2.clone().addScaledVector(perp, -arrowWing);
+    linePts.push(
+      p2.x, p2.y, p2.z, wing2A.x, wing2A.y, wing2A.z,
+      p2.x, p2.y, p2.z, wing2B.x, wing2B.y, wing2B.z
     );
   }
 
-  // Tạo đường kích thước hoàn chỉnh: 2 đường gióng + 1 đường kích thước + 2 mũi tên + nhãn chữ
+  // Tạo đường kích thước hoàn chỉnh gồm:
+  // - 2 đường gióng (kéo từ điểm đo và nhô qua đường kích thước 0.25 ô)
+  // - 1 đường kích thước chính
+  // - 2 mũi tên kỹ thuật CAD
+  // - 1 nhãn số đo (badge text)
   createDimension(pStart, pEnd, offsetVec, perpArrowVec, labelText) {
     const dimGroup = new THREE.Group();
 
     const dStart = pStart.clone().add(offsetVec);
     const dEnd = pEnd.clone().add(offsetVec);
-    const extOverhang = offsetVec.clone().normalize().multiplyScalar(0.25);
+    const extOverhang = offsetVec.clone().normalize().multiplyScalar(0.28);
 
     // 1. Hai đường gióng (Extension Lines)
     const extPts = [
@@ -146,17 +162,12 @@ export class DimensionOverlay {
     extLines.renderOrder = 1004;
     dimGroup.add(extLines);
 
-    // 2. Đường kích thước chính + 2 Mũi tên CAD ở 2 đầu
+    // 2. Đường kích thước chính + 2 Mũi tên CAD
     const mainPts = [
       dStart.x, dStart.y, dStart.z,
       dEnd.x, dEnd.y, dEnd.z
     ];
-
-    const axisDir = new THREE.Vector3().subVectors(dEnd, dStart).normalize();
-    // Mũi tên ở đầu dStart (hướng từ trong ra dStart)
-    this.addArrowLines(mainPts, dStart, axisDir, perpArrowVec, 0.3, 0.1);
-    // Mũi tên ở đầu dEnd (hướng từ trong ra dEnd)
-    this.addArrowLines(mainPts, dEnd, axisDir.clone().negate(), perpArrowVec, 0.3, 0.1);
+    this.addCadArrows(mainPts, dStart, dEnd, perpArrowVec, 0.3, 0.1);
 
     const mainGeom = new THREE.BufferGeometry();
     mainGeom.setAttribute('position', new THREE.Float32BufferAttribute(mainPts, 3));
@@ -192,98 +203,169 @@ export class DimensionOverlay {
 
     let titleText = 'GÓC CHIẾU KỸ THUẬT';
     let dimsText = '';
-    const offset = 0.8;
+    const offset = 1.15; // Khoảng cách gióng kích thước chuẩn CAD
 
     if (view === 'front') {
-      // HÌNH CHIẾU ĐỨNG: Rộng (W) ngang đáy, Cao (H) bên trái
+      // HÌNH CHIẾU ĐỨNG (FRONT): Rộng (W) ngang đáy, Cao (H) bên trái
       titleText = 'HÌNH CHIẾU ĐỨNG (FRONT)';
       dimsText = `↔ Rộng: ${w} ô  |  ↕ Cao: ${h} ô`;
+      const zPlane = d + 0.02;
 
-      // Rộng: Dời theo -Y tại Z = D
-      const pW1 = new THREE.Vector3(0, 0, d);
-      const pW2 = new THREE.Vector3(w, 0, d);
-      this.group.add(this.createDimension(pW1, pW2, new THREE.Vector3(0, -offset, 0), new THREE.Vector3(0, 1, 0), `Rộng: ${w}`));
+      // Kích thước Rộng (X: 0 -> W, gióng xuống -Y)
+      const pW1 = new THREE.Vector3(0, 0, zPlane);
+      const pW2 = new THREE.Vector3(w, 0, zPlane);
+      this.group.add(this.createDimension(
+        pW1, pW2,
+        new THREE.Vector3(0, -offset, 0),
+        new THREE.Vector3(0, 1, 0),
+        `Rộng: ${w}`
+      ));
 
-      // Cao: Dời theo -X tại Z = D
-      const pH1 = new THREE.Vector3(0, 0, d);
-      const pH2 = new THREE.Vector3(0, h, d);
-      this.group.add(this.createDimension(pH1, pH2, new THREE.Vector3(-offset, 0, 0), new THREE.Vector3(1, 0, 0), `Cao: ${h}`));
-
-    } else if (view === 'right') {
-      // HÌNH CHIẾU CẠNH PHẢI: Sâu (D) ngang đáy, Cao (H) bên phải
-      titleText = 'HÌNH CHIẾU CẠNH PHẢI (RIGHT)';
-      dimsText = `↔ Sâu: ${d} ô  |  ↕ Cao: ${h} ô`;
-
-      // Sâu: Dời theo -Y tại X = W
-      const pD1 = new THREE.Vector3(w, 0, 0);
-      const pD2 = new THREE.Vector3(w, 0, d);
-      this.group.add(this.createDimension(pD1, pD2, new THREE.Vector3(0, -offset, 0), new THREE.Vector3(0, 1, 0), `Sâu: ${d}`));
-
-      // Cao: Dời theo +Z tại X = W
-      const pH1 = new THREE.Vector3(w, 0, d);
-      const pH2 = new THREE.Vector3(w, h, d);
-      this.group.add(this.createDimension(pH1, pH2, new THREE.Vector3(0, 0, offset), new THREE.Vector3(0, 0, -1), `Cao: ${h}`));
-
-    } else if (view === 'back') {
-      // HÌNH CHIẾU SAU: Rộng (W), Cao (H)
-      titleText = 'HÌNH CHIẾU SAU (BACK)';
-      dimsText = `↔ Rộng: ${w} ô  |  ↕ Cao: ${h} ô`;
-
-      const pW1 = new THREE.Vector3(0, 0, 0);
-      const pW2 = new THREE.Vector3(w, 0, 0);
-      this.group.add(this.createDimension(pW1, pW2, new THREE.Vector3(0, -offset, 0), new THREE.Vector3(0, 1, 0), `Rộng: ${w}`));
-
-      const pH1 = new THREE.Vector3(w, 0, 0);
-      const pH2 = new THREE.Vector3(w, h, 0);
-      this.group.add(this.createDimension(pH1, pH2, new THREE.Vector3(offset, 0, 0), new THREE.Vector3(-1, 0, 0), `Cao: ${h}`));
-
-    } else if (view === 'left') {
-      // HÌNH CHIẾU CẠNH TRÁI: Sâu (D), Cao (H)
-      titleText = 'HÌNH CHIẾU CẠNH TRÁI (LEFT)';
-      dimsText = `↔ Sâu: ${d} ô  |  ↕ Cao: ${h} ô`;
-
-      const pD1 = new THREE.Vector3(0, 0, 0);
-      const pD2 = new THREE.Vector3(0, 0, d);
-      this.group.add(this.createDimension(pD1, pD2, new THREE.Vector3(0, -offset, 0), new THREE.Vector3(0, 1, 0), `Sâu: ${d}`));
-
-      const pH1 = new THREE.Vector3(0, 0, 0);
-      const pH2 = new THREE.Vector3(0, h, 0);
-      this.group.add(this.createDimension(pH1, pH2, new THREE.Vector3(0, 0, -offset), new THREE.Vector3(0, 0, 1), `Cao: ${h}`));
+      // Kích thước Cao (Y: 0 -> H, gióng sang -X)
+      const pH1 = new THREE.Vector3(0, 0, zPlane);
+      const pH2 = new THREE.Vector3(0, h, zPlane);
+      this.group.add(this.createDimension(
+        pH1, pH2,
+        new THREE.Vector3(-offset, 0, 0),
+        new THREE.Vector3(1, 0, 0),
+        `Cao: ${h}`
+      ));
 
     } else if (view === 'top') {
-      // HÌNH CHIẾU BẰNG: Rộng (W) ngang, Sâu (D) dọc
+      // HÌNH CHIẾU BẰNG (TOP): Rộng (W) ngang, Sâu (D) dọc
+      // Trục nhìn từ +Y xuống: +X là ngang, +Z là hướng xuống dưới màn hình
       titleText = 'HÌNH CHIẾU BẰNG (TOP)';
       dimsText = `↔ Rộng: ${w} ô  |  ↕ Sâu: ${d} ô`;
+      const yPlane = h + 0.02;
 
-      // Rộng: Dời theo +Z tại Y = H
-      const pW1 = new THREE.Vector3(0, h, d);
-      const pW2 = new THREE.Vector3(w, h, d);
-      this.group.add(this.createDimension(pW1, pW2, new THREE.Vector3(0, 0, offset), new THREE.Vector3(0, 0, -1), `Rộng: ${w}`));
+      // Kích thước Rộng (X: 0 -> W, gióng xuống đáy màn hình +Z)
+      const pW1 = new THREE.Vector3(0, yPlane, d);
+      const pW2 = new THREE.Vector3(w, yPlane, d);
+      this.group.add(this.createDimension(
+        pW1, pW2,
+        new THREE.Vector3(0, 0, offset),
+        new THREE.Vector3(0, 0, -1),
+        `Rộng: ${w}`
+      ));
 
-      // Sâu: Dời theo -X tại Y = H
-      const pD1 = new THREE.Vector3(0, h, 0);
-      const pD2 = new THREE.Vector3(0, h, d);
-      this.group.add(this.createDimension(pD1, pD2, new THREE.Vector3(-offset, 0, 0), new THREE.Vector3(1, 0, 0), `Sâu: ${d}`));
+      // Kích thước Sâu (Z: d -> 0, gióng sang trái màn hình -X)
+      const pD1 = new THREE.Vector3(0, yPlane, d);
+      const pD2 = new THREE.Vector3(0, yPlane, 0);
+      this.group.add(this.createDimension(
+        pD1, pD2,
+        new THREE.Vector3(-offset, 0, 0),
+        new THREE.Vector3(1, 0, 0),
+        `Sâu: ${d}`
+      ));
+
+    } else if (view === 'right') {
+      // HÌNH CHIẾU CẠNH PHẢI (RIGHT): Sâu (D) ngang đáy, Cao (H) bên trái
+      titleText = 'HÌNH CHIẾU CẠNH PHẢI (RIGHT)';
+      dimsText = `↔ Sâu: ${d} ô  |  ↕ Cao: ${h} ô`;
+      const xPlane = w + 0.02;
+
+      // Kích thước Sâu (Z: d -> 0, gióng xuống đáy -Y)
+      const pD1 = new THREE.Vector3(xPlane, 0, d);
+      const pD2 = new THREE.Vector3(xPlane, 0, 0);
+      this.group.add(this.createDimension(
+        pD1, pD2,
+        new THREE.Vector3(0, -offset, 0),
+        new THREE.Vector3(0, 1, 0),
+        `Sâu: ${d}`
+      ));
+
+      // Kích thước Cao (Y: 0 -> H, gióng sang bên cạnh +Z)
+      const pH1 = new THREE.Vector3(xPlane, 0, d);
+      const pH2 = new THREE.Vector3(xPlane, h, d);
+      this.group.add(this.createDimension(
+        pH1, pH2,
+        new THREE.Vector3(0, 0, offset),
+        new THREE.Vector3(0, 0, -1),
+        `Cao: ${h}`
+      ));
+
+    } else if (view === 'back') {
+      // HÌNH CHIẾU SAU (BACK): Rộng (W), Cao (H)
+      titleText = 'HÌNH CHIẾU SAU (BACK)';
+      dimsText = `↔ Rộng: ${w} ô  |  ↕ Cao: ${h} ô`;
+      const zPlane = -0.02;
+
+      const pW1 = new THREE.Vector3(w, 0, zPlane);
+      const pW2 = new THREE.Vector3(0, 0, zPlane);
+      this.group.add(this.createDimension(
+        pW1, pW2,
+        new THREE.Vector3(0, -offset, 0),
+        new THREE.Vector3(0, 1, 0),
+        `Rộng: ${w}`
+      ));
+
+      const pH1 = new THREE.Vector3(w, 0, zPlane);
+      const pH2 = new THREE.Vector3(w, h, zPlane);
+      this.group.add(this.createDimension(
+        pH1, pH2,
+        new THREE.Vector3(offset, 0, 0),
+        new THREE.Vector3(-1, 0, 0),
+        `Cao: ${h}`
+      ));
+
+    } else if (view === 'left') {
+      // HÌNH CHIẾU CẠNH TRÁI (LEFT): Sâu (D), Cao (H)
+      titleText = 'HÌNH CHIẾU CẠNH TRÁI (LEFT)';
+      dimsText = `↔ Sâu: ${d} ô  |  ↕ Cao: ${h} ô`;
+      const xPlane = -0.02;
+
+      const pD1 = new THREE.Vector3(xPlane, 0, 0);
+      const pD2 = new THREE.Vector3(xPlane, 0, d);
+      this.group.add(this.createDimension(
+        pD1, pD2,
+        new THREE.Vector3(0, -offset, 0),
+        new THREE.Vector3(0, 1, 0),
+        `Sâu: ${d}`
+      ));
+
+      const pH1 = new THREE.Vector3(xPlane, 0, 0);
+      const pH2 = new THREE.Vector3(xPlane, h, 0);
+      this.group.add(this.createDimension(
+        pH1, pH2,
+        new THREE.Vector3(0, 0, -offset),
+        new THREE.Vector3(0, 0, 1),
+        `Cao: ${h}`
+      ));
 
     } else {
-      // PHỐI CẢNH TRỤC ĐO (ISO 3D): Hiển thị gọn gàng 3 trục khung bao, KHÔNG chìm dưới sàn
+      // PHỐI CẢNH TRỤC ĐO (ISO 3D): Hiển thị gọn gàng 3 trục khung bao W, H, D
       titleText = 'PHỐI CẢNH TRỤC ĐO (ISO 3D)';
       dimsText = `↔ Rộng: ${w}  |  ↕ Cao: ${h}  |  ↗ Sâu: ${d}`;
 
-      // Kích thước Rộng (X: 0 -> W): Nằm trên sàn Y = 0, dời ra phía trước +Z
+      // Kích thước Rộng (X: 0 -> W): Trên mặt đất, gióng ra phía trước +Z
       const pW1 = new THREE.Vector3(0, 0, d);
       const pW2 = new THREE.Vector3(w, 0, d);
-      this.group.add(this.createDimension(pW1, pW2, new THREE.Vector3(0, 0, offset), new THREE.Vector3(0, 1, 0), `Rộng: ${w}`));
+      this.group.add(this.createDimension(
+        pW1, pW2,
+        new THREE.Vector3(0, 0, offset),
+        new THREE.Vector3(0, 1, 0),
+        `Rộng: ${w}`
+      ));
 
-      // Kích thước Sâu (Z: 0 -> D): Nằm trên sàn Y = 0, dời sang bên phải +X
+      // Kích thước Sâu (Z: 0 -> D): Trên mặt đất, gióng sang bên phải +X
       const pD1 = new THREE.Vector3(w, 0, 0);
       const pD2 = new THREE.Vector3(w, 0, d);
-      this.group.add(this.createDimension(pD1, pD2, new THREE.Vector3(offset, 0, 0), new THREE.Vector3(0, 1, 0), `Sâu: ${d}`));
+      this.group.add(this.createDimension(
+        pD1, pD2,
+        new THREE.Vector3(offset, 0, 0),
+        new THREE.Vector3(0, 1, 0),
+        `Sâu: ${d}`
+      ));
 
-      // Kích thước Cao (Y: 0 -> H): Dọc theo cạnh đứng góc trái, dời sang -X
+      // Kích thước Cao (Y: 0 -> H): Dọc cạnh đứng góc trái, gióng sang -X
       const pH1 = new THREE.Vector3(0, 0, d);
       const pH2 = new THREE.Vector3(0, h, d);
-      this.group.add(this.createDimension(pH1, pH2, new THREE.Vector3(-offset, 0, 0), new THREE.Vector3(0, 0, 1), `Cao: ${h}`));
+      this.group.add(this.createDimension(
+        pH1, pH2,
+        new THREE.Vector3(-offset, 0, 0),
+        new THREE.Vector3(0, 0, 1),
+        `Cao: ${h}`
+      ));
     }
 
     // Cập nhật HUD badge nổi

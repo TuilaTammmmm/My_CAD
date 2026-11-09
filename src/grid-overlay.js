@@ -2,22 +2,29 @@ import * as THREE from 'three';
 
 /**
  * GridOverlay
- * Quản lý lưới ô vuông kỹ thuật 3D:
- * - Lưới sàn đáy (Floor grid)
- * - Mũi tên FRONT (Mặt trước)
- * - Lưới Ô Vuông của hộp phôi ban đầu (W x H x D) chia đều 1x1x1 (theo đúng đề bài SGK)
+ * Quản lý lưới ô vuông kỹ thuật theo đúng đề bài SGK và chuẩn bản vẽ CAD:
+ * - Lưới sàn đáy (Floor grid): Hiển thị trong chế độ 3D Trục Đo, tự động ẩn trong các góc chiếu 2D (Đứng, Cạnh, Bằng) để bản vẽ trong trẻo, tinh gọn
+ * - Mũi tên FRONT (Mặt trước): Hiển thị trong 3D Trục Đo, tự động ẩn trong góc chiếu 2D
+ * - Lưới Ô Vuông của hộp phôi ban đầu (W x H x D) chia đều 1x1x1 (theo đúng đề bài SGK):
+ *   + Ở các góc chiếu kỹ thuật (Đứng, Cạnh, Bằng): Hiển thị lưới phẳng 2D bao trùm toàn bộ diện tích hộp phôi ban đầu (cả vùng thịt lẫn vùng đã bị cắt gọt) giúp đếm ô cực kỳ trực quan
+ *   + Ở Phối cảnh Trục đo 3D: Hiển thị lưới ô vuông trên cả 6 mặt ngoài của khối hộp
  * - Bật / Tắt ô vuông linh hoạt ở MỌI chế độ (kể cả Chỉ Xem và Cắt Gọt)
  */
 export class GridOverlay {
   constructor(scene) {
     this.scene = scene;
 
+    this.w = 6;
+    this.h = 4;
+    this.d = 4;
+    this.currentView = 'iso';
+
     // Nhóm lưới ô vuông hộp ban đầu (bật/tắt được)
     this.gridGroup = new THREE.Group();
-    this.gridGroup.renderOrder = 992;
+    this.gridGroup.renderOrder = 998;
     this.scene.add(this.gridGroup);
 
-    // Mũi tên FRONT hiển thị độc lập
+    // Mũi tên FRONT hiển thị trong chế độ Trục đo
     this.arrowGroup = new THREE.Group();
     this.arrowGroup.renderOrder = 996;
     this.scene.add(this.arrowGroup);
@@ -27,37 +34,59 @@ export class GridOverlay {
     this.floorGrid.position.y = -0.01;
     this.scene.add(this.floorGrid);
 
-    // Trạng thái bật/tắt ô vuông (mặc định BẬT để tiện quan sát và đếm ô)
+    // Trạng thái bật/tắt ô vuông (mặc định BẬT)
     this.showGridSquares = true;
 
-    // Vật liệu đường lưới ô vuông hộp ban đầu (xanh cyan kỹ thuật, trong suốt vừa phải)
-    this.boxGridMat = new THREE.LineBasicMaterial({
+    // Vật liệu đường lưới ô vuông bên trong: xanh cyan kỹ thuật
+    this.innerGridMat = new THREE.LineBasicMaterial({
+      color: 0x38bdf8,
+      transparent: true,
+      opacity: 0.65,
+      depthTest: false,
+      depthWrite: false
+    });
+
+    // Đường viền khung bao hộp ngoài: xanh cyan đậm hơn, sắc nét
+    this.boxBorderMat = new THREE.LineBasicMaterial({
+      color: 0x0284c7,
+      transparent: true,
+      opacity: 0.95,
+      depthTest: false,
+      depthWrite: false
+    });
+
+    // Vật liệu 3D khi xem Trục Đo (có depthTest để nhìn thấy chiều sâu)
+    this.isoGridMat = new THREE.LineBasicMaterial({
       color: 0x38bdf8,
       transparent: true,
       opacity: 0.5,
       depthTest: true
     });
 
-    // Đường viền khung bao hộp ngoài
-    this.boxBorderMat = new THREE.LineBasicMaterial({
+    this.isoBorderMat = new THREE.LineBasicMaterial({
       color: 0x0284c7,
       transparent: true,
-      opacity: 0.7,
+      opacity: 0.75,
       depthTest: true
     });
   }
 
-  // Chuyển chế độ: Giữ nguyên trạng thái bật/tắt ô vuông của người dùng
-  setVisible(isEditing) {
-    this.updateVisibility();
-    this.arrowGroup.visible = true;
+  // Chuyển góc nhìn (iso, front, right, back, left, top)
+  setView(viewName) {
+    this.currentView = viewName;
+    this.rebuild();
   }
 
-  // Ẩn/Hiện toàn bộ (ví dụ khi sang 2D CAD)
+  // Chuyển chế độ thao tác: Giữ nguyên trạng thái bật/tắt ô vuông của người dùng
+  setVisible(isEditing) {
+    this.updateVisibility();
+  }
+
+  // Ẩn/Hiện toàn bộ (ví dụ khi sang 2D CAD Editor)
   setAllVisible(visible) {
     this.gridGroup.visible = visible && this.showGridSquares;
-    this.arrowGroup.visible = visible;
-    this.floorGrid.visible = visible;
+    this.arrowGroup.visible = visible && (this.currentView === 'iso');
+    this.floorGrid.visible = visible && (this.currentView === 'iso');
   }
 
   // Người dùng chủ động Bật / Tắt Lưới Ô Vuông (hoạt động ở cả Chỉ Xem lẫn Cắt Gọt)
@@ -78,8 +107,14 @@ export class GridOverlay {
 
   // Cập nhật kích thước lưới theo kích thước hộp ban đầu W x H x D
   update(w, h, d, brush = null, snapStep = 1.0) {
+    this.w = w;
+    this.h = h;
+    this.d = d;
     this.floorGrid.position.set(w / 2, -0.01, d / 2);
+    this.rebuild();
+  }
 
+  rebuild() {
     // Xóa sạch lưới cũ
     while (this.gridGroup.children.length > 0) {
       const obj = this.gridGroup.children[0];
@@ -94,49 +129,182 @@ export class GridOverlay {
       if (obj.geometry) obj.geometry.dispose();
     }
 
-    // TẠO LƯỚI Ô VUÔNG THEO ĐÚNG HỘP PHÔI BAN ĐẦU (W x H x D)
-    // Các đường kẻ ô vuông 1x1 trên toàn bộ các mặt bao quanh hộp phôi ban đầu
+    const { w, h, d } = this;
+    const view = this.currentView;
+
+    // 1. Điều khiển Sàn và Mũi tên: Chỉ hiện ở Trục đo 3D (ISO) để bản vẽ 2D hoàn toàn tinh gọn
+    const isIso = (view === 'iso');
+    this.floorGrid.visible = isIso;
+    this.arrowGroup.visible = isIso;
+
+    if (isIso) {
+      // Mũi tên FRONT chỉ trong Trục Đo
+      const arrowDir = new THREE.Vector3(0, 0, -1);
+      const arrowOrigin = new THREE.Vector3(w / 2, 0.1, d + 3.2);
+      const arrowHelper = new THREE.ArrowHelper(arrowDir, arrowOrigin, 2.5, 0x38bdf8, 0.7, 0.4);
+      arrowHelper.renderOrder = 996;
+      this.arrowGroup.add(arrowHelper);
+
+      // Lưới 3D cả 6 mặt khối hộp
+      this.build3DBoxGrid(w, h, d);
+    } else {
+      // Góc chiếu kỹ thuật 2D: Chiếu đứng, Cạnh, Bằng
+      this.build2DProjectedGrid(view, w, h, d);
+    }
+
+    this.updateVisibility();
+  }
+
+  // Xây dựng lưới 2D chuẩn xác theo góc chiếu kỹ thuật
+  build2DProjectedGrid(view, w, h, d) {
+    const innerPts = [];
+    const borderPts = [];
+
+    if (view === 'front') {
+      // HÌNH CHIẾU ĐỨNG: Khung W x H tại mặt trước Z = D
+      const zPlane = d + 0.005;
+
+      // Đường kẻ ô 1x1 bên trong
+      for (let x = 1; x < w; x++) {
+        innerPts.push(x, 0, zPlane, x, h, zPlane);
+      }
+      for (let y = 1; y < h; y++) {
+        innerPts.push(0, y, zPlane, w, y, zPlane);
+      }
+
+      // Khung viền ngoài chữ nhật W x H
+      borderPts.push(
+        0, 0, zPlane, w, 0, zPlane,
+        w, 0, zPlane, w, h, zPlane,
+        w, h, zPlane, 0, h, zPlane,
+        0, h, zPlane, 0, 0, zPlane
+      );
+
+    } else if (view === 'back') {
+      // HÌNH CHIẾU SAU: Khung W x H tại Z = 0
+      const zPlane = -0.005;
+      for (let x = 1; x < w; x++) {
+        innerPts.push(x, 0, zPlane, x, h, zPlane);
+      }
+      for (let y = 1; y < h; y++) {
+        innerPts.push(0, y, zPlane, w, y, zPlane);
+      }
+      borderPts.push(
+        0, 0, zPlane, w, 0, zPlane,
+        w, 0, zPlane, w, h, zPlane,
+        w, h, zPlane, 0, h, zPlane,
+        0, h, zPlane, 0, 0, zPlane
+      );
+
+    } else if (view === 'right') {
+      // HÌNH CHIẾU CẠNH PHẢI: Khung D x H tại mặt X = W
+      const xPlane = w + 0.005;
+      for (let z = 1; z < d; z++) {
+        innerPts.push(xPlane, 0, z, xPlane, h, z);
+      }
+      for (let y = 1; y < h; y++) {
+        innerPts.push(xPlane, y, 0, xPlane, y, d);
+      }
+      borderPts.push(
+        xPlane, 0, 0, xPlane, 0, d,
+        xPlane, 0, d, xPlane, h, d,
+        xPlane, h, d, xPlane, h, 0,
+        xPlane, h, 0, xPlane, 0, 0
+      );
+
+    } else if (view === 'left') {
+      // HÌNH CHIẾU CẠNH TRÁI: Khung D x H tại mặt X = 0
+      const xPlane = -0.005;
+      for (let z = 1; z < d; z++) {
+        innerPts.push(xPlane, 0, z, xPlane, h, z);
+      }
+      for (let y = 1; y < h; y++) {
+        innerPts.push(xPlane, y, 0, xPlane, y, d);
+      }
+      borderPts.push(
+        xPlane, 0, 0, xPlane, 0, d,
+        xPlane, 0, d, xPlane, h, d,
+        xPlane, h, d, xPlane, h, 0,
+        xPlane, h, 0, xPlane, 0, 0
+      );
+
+    } else if (view === 'top') {
+      // HÌNH CHIẾU BẰNG: Khung W x D tại nắp trên Y = H
+      const yPlane = h + 0.005;
+      for (let x = 1; x < w; x++) {
+        innerPts.push(x, yPlane, 0, x, yPlane, d);
+      }
+      for (let z = 1; z < d; z++) {
+        innerPts.push(0, yPlane, z, w, yPlane, z);
+      }
+      borderPts.push(
+        0, yPlane, 0, w, yPlane, 0,
+        w, yPlane, 0, w, yPlane, d,
+        w, yPlane, d, 0, yPlane, d,
+        0, yPlane, d, 0, yPlane, 0
+      );
+    }
+
+    if (innerPts.length > 0) {
+      const gGeom = new THREE.BufferGeometry();
+      gGeom.setAttribute('position', new THREE.Float32BufferAttribute(innerPts, 3));
+      const gridLines = new THREE.LineSegments(gGeom, this.innerGridMat);
+      gridLines.renderOrder = 998;
+      this.gridGroup.add(gridLines);
+    }
+
+    if (borderPts.length > 0) {
+      const bGeom = new THREE.BufferGeometry();
+      bGeom.setAttribute('position', new THREE.Float32BufferAttribute(borderPts, 3));
+      const borderLines = new THREE.LineSegments(bGeom, this.boxBorderMat);
+      borderLines.renderOrder = 999;
+      this.gridGroup.add(borderLines);
+    }
+  }
+
+  // Xây dựng lưới 3D toàn bộ khối hộp ban đầu
+  build3DBoxGrid(w, h, d) {
     const gridPts = [];
 
     // 1. Mặt Trước (Z = D) và Mặt Sau (Z = 0)
     for (let x = 1; x < w; x++) {
-      gridPts.push(x, 0, d, x, h, d); // Đứng trước
-      gridPts.push(x, 0, 0, x, h, 0); // Đứng sau
+      gridPts.push(x, 0, d, x, h, d);
+      gridPts.push(x, 0, 0, x, h, 0);
     }
     for (let y = 1; y < h; y++) {
-      gridPts.push(0, y, d, w, y, d); // Ngang trước
-      gridPts.push(0, y, 0, w, y, 0); // Ngang sau
+      gridPts.push(0, y, d, w, y, d);
+      gridPts.push(0, y, 0, w, y, 0);
     }
 
     // 2. Mặt Trái (X = 0) và Mặt Phải (X = W)
     for (let z = 1; z < d; z++) {
-      gridPts.push(0, 0, z, 0, h, z); // Đứng trái
-      gridPts.push(w, 0, z, w, h, z); // Đứng phải
+      gridPts.push(0, 0, z, 0, h, z);
+      gridPts.push(w, 0, z, w, h, z);
     }
     for (let y = 1; y < h; y++) {
-      gridPts.push(0, y, 0, 0, y, d); // Ngang trái
-      gridPts.push(w, y, 0, w, y, d); // Ngang phải
+      gridPts.push(0, y, 0, 0, y, d);
+      gridPts.push(w, y, 0, w, y, d);
     }
 
     // 3. Mặt Đáy (Y = 0) và Mặt Nắp Trên (Y = H)
     for (let x = 1; x < w; x++) {
-      gridPts.push(x, 0, 0, x, 0, d); // Dọc đáy
-      gridPts.push(x, h, 0, x, h, d); // Dọc nắp
+      gridPts.push(x, 0, 0, x, 0, d);
+      gridPts.push(x, h, 0, x, h, d);
     }
     for (let z = 1; z < d; z++) {
-      gridPts.push(0, 0, z, w, 0, z); // Ngang đáy
-      gridPts.push(0, h, z, w, h, z); // Ngang nắp
+      gridPts.push(0, 0, z, w, 0, z);
+      gridPts.push(0, h, z, w, h, z);
     }
 
     if (gridPts.length > 0) {
       const gGeom = new THREE.BufferGeometry();
       gGeom.setAttribute('position', new THREE.Float32BufferAttribute(gridPts, 3));
-      const gridLines = new THREE.LineSegments(gGeom, this.boxGridMat);
+      const gridLines = new THREE.LineSegments(gGeom, this.isoGridMat);
       gridLines.renderOrder = 993;
       this.gridGroup.add(gridLines);
     }
 
-    // 4. Khung viền 12 cạnh của hộp phôi ban đầu
+    // Khung viền 12 cạnh của hộp phôi ban đầu
     const borderPts = [
       // Đáy
       0, 0, 0, w, 0, 0,
@@ -156,17 +324,8 @@ export class GridOverlay {
     ];
     const bGeom = new THREE.BufferGeometry();
     bGeom.setAttribute('position', new THREE.Float32BufferAttribute(borderPts, 3));
-    const borderLines = new THREE.LineSegments(bGeom, this.boxBorderMat);
+    const borderLines = new THREE.LineSegments(bGeom, this.isoBorderMat);
     borderLines.renderOrder = 994;
     this.gridGroup.add(borderLines);
-
-    // 5. Mũi tên FRONT (Mặt trước) chuẩn kỹ thuật
-    const arrowDir = new THREE.Vector3(0, 0, -1);
-    const arrowOrigin = new THREE.Vector3(w / 2, 0.1, d + 3.2);
-    const arrowHelper = new THREE.ArrowHelper(arrowDir, arrowOrigin, 2.5, 0x38bdf8, 0.7, 0.4);
-    arrowHelper.renderOrder = 996;
-    this.arrowGroup.add(arrowHelper);
-
-    this.updateVisibility();
   }
 }

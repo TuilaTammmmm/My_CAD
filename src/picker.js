@@ -429,15 +429,11 @@ export class InteractivePicker {
           this.cycleCornerO();
         }
       } else if (e.key.toLowerCase() === 's') {
-        if (this.mode !== 'view') {
-          e.preventDefault();
-          this.toggleSnapStep();
-        }
+        e.preventDefault();
+        this.toggleSnapStep();
       } else if (e.key.toLowerCase() === 'g') {
-        if (this.mode !== 'view') {
-          e.preventDefault();
-          if (this.callbacks.onToggleGridSquares) this.callbacks.onToggleGridSquares();
-        }
+        e.preventDefault();
+        if (this.callbacks.onToggleGridSquares) this.callbacks.onToggleGridSquares();
       } else if (e.key.toLowerCase() === 'd') {
         e.preventDefault();
         if (this.callbacks.onToggleDim) this.callbacks.onToggleDim();
@@ -1199,9 +1195,14 @@ export class InteractivePicker {
       this.hudElement.innerHTML = `
         <div class="hud-step">
           <span class="hud-badge done">👁️ Chỉ Xem</span>
-          <span>Đang ở chế độ xem kỹ thuật. Khối hiển thị sạch sẽ không vướng điểm. Bấm các nút công cụ trên thanh công cụ khi cần cắt.</span>
+          <span>Đang ở chế độ xem kỹ thuật. Khối hiển thị sạch sẽ không vướng điểm.</span>
+          <button class="hud-btn-toggle" id="hud-toggle-grid" title="Bật/Tắt lưới ô vuông hộp ban đầu (Phím tắt: G)">🔲 Ô Vuông</button>
         </div>
       `;
+      const btnToggleGrid = document.getElementById('hud-toggle-grid');
+      if (btnToggleGrid) btnToggleGrid.addEventListener('click', () => {
+        if (this.callbacks.onToggleGridSquares) this.callbacks.onToggleGridSquares();
+      });
       return;
     }
 

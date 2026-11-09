@@ -637,7 +637,9 @@ document.getElementById('btn-2d-export-dxf')?.addEventListener('click', () => {
 // --- KHỞI CHẠY LẦN ĐẦU ---
 resetBaseBlock();
 picker.setMode('view');
-gridOverlay.setVisible(false);
+syncGridSquaresUI(gridOverlay.showGridSquares);
+syncDimUI(dimOverlay.enabled);
+syncSnapStepUI(picker.snapStep);
 
 // Animation loop
 function animate() {

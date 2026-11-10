@@ -1396,17 +1396,95 @@ export class InspectionTool {
     const positions = [];
     const edgePositions = [];
 
+    const edgeMap = new Map();
+    const roundCoord = (v) => Math.round(v * 1000);
+    const getEdgeKey = (pA, pB) => {
+      const kA = `${roundCoord(pA.x)},${roundCoord(pA.y)},${roundCoord(pA.z)}`;
+      const kB = `${roundCoord(pB.x)},${roundCoord(pB.y)},${roundCoord(pB.z)}`;
+      return (kA < kB) ? `${kA}|${kB}` : `${kB}|${kA}`;
+    };
+
+    const addEdge = (pA, pB) => {
+      const key = getEdgeKey(pA, pB);
+      const existing = edgeMap.get(key);
+      if (existing) {
+        existing.count++;
+      } else {
+        edgeMap.set(key, { pA, pB, count: 1 });
+      }
+    };
+
     for (const t of face.triangles) {
       positions.push(
         t.p0.x, t.p0.y, t.p0.z,
         t.p1.x, t.p1.y, t.p1.z,
         t.p2.x, t.p2.y, t.p2.z
       );
-      edgePositions.push(
-        t.p0.x, t.p0.y, t.p0.z, t.p1.x, t.p1.y, t.p1.z,
-        t.p1.x, t.p1.y, t.p1.z, t.p2.x, t.p2.y, t.p2.z,
-        t.p2.x, t.p2.y, t.p2.z, t.p0.x, t.p0.y, t.p0.z
-      );
+      addEdge(t.p0, t.p1);
+      addEdge(t.p1, t.p2);
+      addEdge(t.p2, t.p0);
+    }
+
+    // Chỉ những đoạn xuất hiện ĐÚNG 1 LẦN mới là chu vi ngoài của mặt phẳng
+    // Các đường chéo nội bộ bên trong tam giác CSG xuất hiện >= 2 lần -> loại bỏ hoàn toàn
+    const boundarySegments = [];
+    for (const item of edgeMap.values()) {
+      if (item.count === 1) {
+        boundarySegments.push({
+          p1: item.pA.clone(),
+          p2: item.pB.clone(),
+          len: item.pA.distanceTo(item.pB),
+          dir: new THREE.Vector3().subVectors(item.pB, item.pA).normalize(),
+          merged: false
+        });
+      }
+    }
+
+    // Nối các đoạn chu vi cùng phương thành nét liền hoàn chỉnh
+    for (let i = 0; i < boundarySegments.length; i++) {
+      if (boundarySegments[i].merged) continue;
+      const s1 = boundarySegments[i];
+      const u = s1.dir;
+      const p0 = s1.p1;
+
+      for (let j = i + 1; j < boundarySegments.length; j++) {
+        if (boundarySegments[j].merged) continue;
+        const s2 = boundarySegments[j];
+
+        if (Math.abs(u.dot(s2.dir)) < 0.99) continue;
+
+        const v1 = new THREE.Vector3().subVectors(s2.p1, p0);
+        const proj1 = v1.dot(u);
+        const dist1 = new THREE.Vector3().subVectors(v1, u.clone().multiplyScalar(proj1)).length();
+        if (dist1 > 0.05) continue;
+
+        const v2 = new THREE.Vector3().subVectors(s2.p2, p0);
+        const proj2 = v2.dot(u);
+        const dist2 = new THREE.Vector3().subVectors(v2, u.clone().multiplyScalar(proj2)).length();
+        if (dist2 > 0.05) continue;
+
+        const int1Min = 0;
+        const int1Max = s1.len;
+        const int2Min = Math.min(proj1, proj2);
+        const int2Max = Math.max(proj1, proj2);
+
+        const gap = Math.max(0, -int2Max, int2Min - int1Max);
+        if (gap <= 0.06) {
+          const newMin = Math.min(int1Min, int2Min);
+          const newMax = Math.max(int1Max, int2Max);
+          s1.p1 = p0.clone().addScaledVector(u, newMin);
+          s1.p2 = p0.clone().addScaledVector(u, newMax);
+          s1.len = newMax - newMin;
+          s1.dir = u;
+          s2.merged = true;
+        }
+      }
+    }
+
+    for (const s of boundarySegments) {
+      if (!s.merged && s.len > 0.01) {
+        edgePositions.push(s.p1.x, s.p1.y, s.p1.z, s.p2.x, s.p2.y, s.p2.z);
+      }
     }
 
     const geom = new THREE.BufferGeometry();

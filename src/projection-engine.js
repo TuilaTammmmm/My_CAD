@@ -68,15 +68,12 @@ export class ProjectionEngine {
       map2DFn = (pt) => ({ u: Number((d - pt.z).toFixed(3)), v: Number(pt.y.toFixed(3)) });
     }
 
-    // 1. Lọc cạnh có mặt kề hướng về camera (Back-face Culling)
-    const candidateEdges = this.extractCandidateEdges(brush.geometry, viewDir);
+    // 1. Lọc cạnh có mặt kề hướng về camera (Back-face Culling từ các cạnh kỹ thuật sạch của khối)
+    const candidateEdges = this.extractCandidateEdges(brush, viewDir);
 
     brush.updateMatrixWorld();
     const raycaster = new THREE.Raycaster();
     const visibleSegments = [];
-
-    const nonIndexed = brush.geometry.index ? brush.geometry.toNonIndexed() : brush.geometry;
-    const pos = nonIndexed.attributes.position;
 
     for (const edge of candidateEdges) {
       const p1_2d = map2DFn(edge.p1);
@@ -85,7 +82,7 @@ export class ProjectionEngine {
       if (len2D < 0.005) continue; // Cạnh chiếu thành điểm
 
       const len3D = edge.p1.distanceTo(edge.p2);
-      const numSub = Math.max(1, Math.min(8, Math.round(len3D / 0.5)));
+      const numSub = Math.max(1, Math.min(6, Math.round(len3D / 0.5)));
 
       for (let s = 0; s < numSub; s++) {
         const t1 = s / numSub;
@@ -108,25 +105,10 @@ export class ProjectionEngine {
         let isOccluded = false;
 
         for (const hit of hits) {
-          if (hit.distance < distToMid - 0.06) {
-            const f = hit.face;
-            if (f) {
-              const vA = new THREE.Vector3(pos.getX(f.a), pos.getY(f.a), pos.getZ(f.a));
-              const vB = new THREE.Vector3(pos.getX(f.b), pos.getY(f.b), pos.getZ(f.b));
-              const vC = new THREE.Vector3(pos.getX(f.c), pos.getY(f.c), pos.getZ(f.c));
-
-              const touchesEdge =
-                vA.distanceTo(edge.p1) < 0.02 || vB.distanceTo(edge.p1) < 0.02 || vC.distanceTo(edge.p1) < 0.02 ||
-                vA.distanceTo(edge.p2) < 0.02 || vB.distanceTo(edge.p2) < 0.02 || vC.distanceTo(edge.p2) < 0.02;
-
-              if (!touchesEdge && f.normal.dot(viewDir) < -0.05) {
-                isOccluded = true;
-                break;
-              }
-            } else {
-              isOccluded = true;
-              break;
-            }
+          // Nếu có bất kỳ mặt nào chắn trước điểm kiểm tra ít nhất 0.08 đơn vị -> bị che khuất
+          if (hit.distance < distToMid - 0.08) {
+            isOccluded = true;
+            break;
           }
         }
 
@@ -147,88 +129,74 @@ export class ProjectionEngine {
 
   /**
    * Trích xuất các cạnh ứng viên thực sự nhìn thấy từ hướng chiếu
+   * Lấy trực tiếp từ các cạnh kỹ thuật sạch của CadEngine (đã lọc nét rác, góc cắt 25 độ, nối liền)
+   * và áp dụng Back-Face Culling để loại bỏ hoàn toàn các cạnh nằm ở mặt sau/đáy.
    */
-  extractCandidateEdges(geometry, viewDir) {
-    const nonIndexed = geometry.index ? geometry.toNonIndexed() : geometry;
-    const merged = mergeVertices(nonIndexed, 0.001);
-    const pos = merged.attributes.position;
-    const index = merged.index;
+  extractCandidateEdges(brush, viewDir) {
+    let ePos = null;
+    if (this.cad && this.cad.createEdges) {
+      const edgeMesh = this.cad.createEdges(brush);
+      if (edgeMesh && edgeMesh.geometry && edgeMesh.geometry.attributes.position) {
+        ePos = edgeMesh.geometry.attributes.position;
+      }
+    }
 
-    const edgeMap = new Map();
-    const triCount = index ? index.count / 3 : pos.count / 3;
+    if (!ePos || ePos.count === 0) {
+      const nonIndexed = brush.geometry.index ? brush.geometry.toNonIndexed() : brush.geometry;
+      const cleanGeom = mergeVertices(nonIndexed, 0.001);
+      const rawEdges = new THREE.EdgesGeometry(cleanGeom, 25);
+      ePos = rawEdges.attributes.position;
+    }
 
-    const getV = (i) => {
-      const idx = index ? index.getX(i) : i;
-      return new THREE.Vector3(pos.getX(idx), pos.getY(idx), pos.getZ(idx));
-    };
+    if (!ePos || ePos.count === 0) return [];
 
+    // Lấy danh sách tam giác và pháp tuyến mặt của khối 3D
+    const nonIndexed = brush.geometry.index ? brush.geometry.toNonIndexed() : brush.geometry;
+    const pos = nonIndexed.attributes.position;
+    const triCount = Math.floor(pos.count / 3);
+    const triangles = [];
     for (let i = 0; i < triCount; i++) {
-      const v0 = getV(i * 3);
-      const v1 = getV(i * 3 + 1);
-      const v2 = getV(i * 3 + 2);
-
-      const cb = new THREE.Vector3().subVectors(v2, v1);
-      const ab = new THREE.Vector3().subVectors(v0, v1);
-      cb.cross(ab);
-      if (cb.length() < 1e-7) continue;
-      const normal = cb.normalize();
-
-      const addEdge = (va, vb) => {
-        const kA = `${va.x.toFixed(3)},${va.y.toFixed(3)},${va.z.toFixed(3)}`;
-        const kB = `${vb.x.toFixed(3)},${vb.y.toFixed(3)},${vb.z.toFixed(3)}`;
-        const key = kA < kB ? `${kA}_${kB}` : `${kB}_${kA}`;
-
-        if (!edgeMap.has(key)) {
-          edgeMap.set(key, { p1: va, p2: vb, normals: [normal] });
-        } else {
-          edgeMap.get(key).normals.push(normal);
-        }
-      };
-
-      addEdge(v0, v1);
-      addEdge(v1, v2);
-      addEdge(v2, v0);
+      const p0 = new THREE.Vector3(pos.getX(i * 3), pos.getY(i * 3), pos.getZ(i * 3));
+      const p1 = new THREE.Vector3(pos.getX(i * 3 + 1), pos.getY(i * 3 + 1), pos.getZ(i * 3 + 1));
+      const p2 = new THREE.Vector3(pos.getX(i * 3 + 2), pos.getY(i * 3 + 2), pos.getZ(i * 3 + 2));
+      const norm = new THREE.Vector3().subVectors(p1, p0).cross(new THREE.Vector3().subVectors(p2, p0));
+      const len = norm.length();
+      if (len > 1e-6) {
+        triangles.push({ p0, p1, p2, norm: norm.normalize() });
+      }
     }
 
     const candidateEdges = [];
-    const thresholdCos = Math.cos(THREE.MathUtils.degToRad(5));
 
-    for (const [, edge] of edgeMap.entries()) {
+    for (let i = 0; i < ePos.count; i += 2) {
+      const p1 = new THREE.Vector3(ePos.getX(i), ePos.getY(i), ePos.getZ(i));
+      const p2 = new THREE.Vector3(ePos.getX(i + 1), ePos.getY(i + 1), ePos.getZ(i + 1));
+      const len = p1.distanceTo(p2);
+      if (len < 0.005) continue;
+
+      // Tìm các mặt kề với đoạn thẳng (p1, p2)
+      const adjNormals = [];
+      for (const t of triangles) {
+        if (Math.abs(t.norm.dot(p1.clone().sub(t.p0))) < 0.015 &&
+            Math.abs(t.norm.dot(p2.clone().sub(t.p0))) < 0.015) {
+          if (!adjNormals.some(n => n.dot(t.norm) > 0.95)) {
+            adjNormals.push(t.norm);
+          }
+        }
+      }
+
       // BACK-FACE CULLING:
-      // Một cạnh CHỈ có thể nhìn thấy nếu có ít nhất một mặt kề hướng về phía camera
-      let hasFrontFacingFace = false;
-      for (const n of edge.normals) {
+      // Ít nhất 1 mặt kề phải hướng về phía camera (n.dot(viewDir) < -0.01)
+      let hasFacingFace = false;
+      for (const n of adjNormals) {
         if (n.dot(viewDir) < -0.01) {
-          hasFrontFacingFace = true;
+          hasFacingFace = true;
           break;
         }
       }
-      if (!hasFrontFacingFace) {
-        continue; // Bỏ qua cạnh nằm ở mặt sau / đáy khuất
-      }
 
-      if (edge.normals.length === 1) {
-        candidateEdges.push({ p1: edge.p1, p2: edge.p2 });
-      } else {
-        const n0 = edge.normals[0];
-        let isCrease = false;
-        let isSilhouette = false;
-
-        for (let j = 1; j < edge.normals.length; j++) {
-          const nj = edge.normals[j];
-          if (n0.dot(nj) < thresholdCos) {
-            isCrease = true;
-          }
-          const d1 = n0.dot(viewDir);
-          const d2 = nj.dot(viewDir);
-          if ((d1 < -0.01 && d2 >= -0.01) || (d2 < -0.01 && d1 >= -0.01)) {
-            isSilhouette = true;
-          }
-        }
-
-        if (isCrease || isSilhouette) {
-          candidateEdges.push({ p1: edge.p1, p2: edge.p2 });
-        }
+      if (hasFacingFace) {
+        candidateEdges.push({ p1, p2 });
       }
     }
 

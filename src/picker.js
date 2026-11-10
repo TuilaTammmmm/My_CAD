@@ -595,19 +595,26 @@ export class InteractivePicker {
     }
 
     // 4. Fallback cho mặt phẳng trực giao (hỗ trợ các bước chia lưới 1, 0.5, 0.25, 0.125)
-    const snapVal = (v) => Math.round(v / this.snapStep) * this.snapStep;
+    const snapVal = (v) => Number((Math.round(v / this.snapStep) * this.snapStep).toFixed(4));
     let sx = snapVal(hitPoint.x);
     let sy = snapVal(hitPoint.y);
     let sz = snapVal(hitPoint.z);
 
-    // Khóa tọa độ theo đúng mặt phẳng va chạm
+    // Khóa tọa độ tuyệt đối theo mặt phẳng ngoài để không bị sai số 0.001 sinh vết cắt dư
     if (Math.abs(hitNormal.z) > 0.8) {
-      sz = snapVal(hitPoint.z);
+      sz = (hitPoint.z > this.bounds.d / 2) ? this.bounds.d : 0;
     } else if (Math.abs(hitNormal.x) > 0.8) {
-      sx = snapVal(hitPoint.x);
+      sx = (hitPoint.x > this.bounds.w / 2) ? this.bounds.w : 0;
     } else if (Math.abs(hitNormal.y) > 0.8) {
-      sy = snapVal(hitPoint.y);
+      sy = (hitPoint.y > this.bounds.h / 2) ? this.bounds.h : 0;
     }
+
+    if (Math.abs(sx) < 0.02) sx = 0;
+    if (Math.abs(sx - this.bounds.w) < 0.02) sx = this.bounds.w;
+    if (Math.abs(sy) < 0.02) sy = 0;
+    if (Math.abs(sy - this.bounds.h) < 0.02) sy = this.bounds.h;
+    if (Math.abs(sz) < 0.02) sz = 0;
+    if (Math.abs(sz - this.bounds.d) < 0.02) sz = this.bounds.d;
 
     sx = Math.max(0, Math.min(this.bounds.w, sx));
     sy = Math.max(0, Math.min(this.bounds.h, sy));

@@ -829,8 +829,43 @@ export class CAD2DEditor {
         }
       }
 
-      // Đo kích thước thẳng giữa 2 điểm (Linear Dimension)
+      // Đo kích thước thẳng: Click vào cạnh bất kỳ để đo ngay chiều dài cạnh, hoặc click 2 điểm
       if (this.pendingPoints.length === 0) {
+        let bestLine = null;
+        let minLineDist = Math.max(0.35, 18 / this.scale);
+
+        for (const elem of this.elements) {
+          if (elem.type === 'line') {
+            const dLine = this.pointToSegmentDistance(clickPoint, elem.p1, elem.p2);
+            if (dLine < minLineDist) {
+              minLineDist = dLine;
+              bestLine = elem;
+            }
+          }
+        }
+
+        if (bestLine) {
+          const dist = Math.hypot(bestLine.p2.u - bestLine.p1.u, bestLine.p2.v - bestLine.p1.v);
+          if (dist > 0.05) {
+            const existingDim = this.elements.find(e =>
+              e.type === 'dim' &&
+              ((Math.hypot(e.p1.u - bestLine.p1.u, e.p1.v - bestLine.p1.v) < 0.05 && Math.hypot(e.p2.u - bestLine.p2.u, e.p2.v - bestLine.p2.v) < 0.05) ||
+               (Math.hypot(e.p1.u - bestLine.p2.u, e.p1.v - bestLine.p2.v) < 0.05 && Math.hypot(e.p2.u - bestLine.p1.u, e.p2.v - bestLine.p1.v) < 0.05))
+            );
+            if (!existingDim) {
+              this.elements.push({
+                type: 'dim',
+                p1: { u: bestLine.p1.u, v: bestLine.p1.v },
+                p2: { u: bestLine.p2.u, v: bestLine.p2.v },
+                dist: Number(dist.toFixed(2))
+              });
+              this.saveHistory();
+              this.render();
+              return;
+            }
+          }
+        }
+
         this.pendingPoints.push(snap);
       } else {
         const p1 = this.pendingPoints[0];
@@ -1773,7 +1808,7 @@ export class CAD2DEditor {
         ? `🔄 <b>Bo Cung (Fillet R = ${this.filletRadius}):</b> Click chọn Nét thứ 1`
         : `🔄 <b>Bo Cung (Fillet R = ${this.filletRadius}):</b> Click chọn Nét thứ 2 để bo tròn tiếp xúc góc`;
     } else if (this.tool === 'dim') {
-      toolHint = `📐 <b>Đo Kích Thước:</b> Click 2 điểm để đo khoảng cách, hoặc click thẳng vào cung/tròn để đo bán kính R`;
+      toolHint = `📐 <b>Đo Kích Thước:</b> Click thẳng vào cạnh để đo ngay chiều dài cạnh (hoặc click 2 điểm để đo khoảng cách)`;
     } else if (this.tool === 'dim-radial') {
       toolHint = `⭕ <b>Đo Bán Kính (R) / Đường Kính (Ø):</b> Click vào Cung Tròn hoặc Đường Tròn bất kỳ`;
     } else if (this.tool === 'erase') {
@@ -2389,6 +2424,59 @@ export class CAD2DEditor {
           ctx.lineWidth = 2.4;
           ctx.stroke();
         }
+      }
+    }
+
+    // Highlight xem trước khi rê chuột vào cạnh ở công cụ Đo Kích Thước (DIM)
+    if (this.tool === 'dim' && this.pendingPoints.length === 0 && this.hoverSnap) {
+      const clickPoint = { u: this.hoverSnap.u, v: this.hoverSnap.v };
+      let bestLine = null;
+      let minLineDist = Math.max(0.35, 18 / s);
+
+      for (const elem of this.elements) {
+        if (elem.type === 'line') {
+          const dLine = this.pointToSegmentDistance(clickPoint, elem.p1, elem.p2);
+          if (dLine < minLineDist) {
+            minLineDist = dLine;
+            bestLine = elem;
+          }
+        }
+      }
+
+      if (bestLine) {
+        const x1 = this.offsetX + bestLine.p1.u * s;
+        const y1 = this.offsetY - bestLine.p1.v * s;
+        const x2 = this.offsetX + bestLine.p2.u * s;
+        const y2 = this.offsetY - bestLine.p2.v * s;
+        const len = Math.hypot(bestLine.p2.u - bestLine.p1.u, bestLine.p2.v - bestLine.p1.v).toFixed(2);
+
+        ctx.save();
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 4;
+        ctx.shadowColor = '#38bdf8';
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+
+        const midX = (x1 + x2) / 2;
+        const midY = (y1 + y2) / 2;
+        ctx.fillStyle = '#0f172a';
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 1.5;
+        ctx.shadowBlur = 0;
+        ctx.beginPath();
+        ctx.roundRect(midX - 28, midY - 26, 56, 20, 4);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.font = 'bold 11px monospace';
+        ctx.fillStyle = '#38bdf8';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`L = ${len}`, midX, midY - 16);
+        ctx.restore();
       }
     }
 

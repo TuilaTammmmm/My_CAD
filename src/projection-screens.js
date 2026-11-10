@@ -265,9 +265,9 @@ export class ProjectionScreensOverlay {
     titleSprite.position.set(xPos, h + 0.45, d / 2);
     screenGroup.add(titleSprite);
 
-    // 5. Nét hình chiếu Side (u = Z, v = Y)
+    // 5. Nét hình chiếu Side (u = d - Z, v = Y -> Z = d - u)
     if (sideData) {
-      this.addProjectionLines(screenGroup, sideData, (u, v) => new THREE.Vector3(xPos - 0.02, v, u), 0xf59e0b);
+      this.addProjectionLines(screenGroup, sideData, (u, v) => new THREE.Vector3(xPos - 0.02, v, d - u), 0xf59e0b);
     }
 
     // 6. Đường gióng

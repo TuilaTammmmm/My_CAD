@@ -3,12 +3,11 @@ import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 /**
  * ProjectionEngine
- * Trích xuất 3 hình chiếu vuông góc kỹ thuật (Đứng - Front, Bằng - Top, Cạnh - Right/Side)
- * Chuẩn xác tuyệt đối theo TCVN & ISO:
- * - Trích xuất đầy đủ đường bao (Silhouette edges) và các đường gờ sắc nét (Crease edges)
- * - Khắc phục triệt để lỗi mất nét chân biên dạng, hở nét đứt đoạn, cụt nét chéo (5.7 thay vì 6)
- * - Phân loại chính xác Nét Thấy (Visible) vs Nét Khuất (Hidden)
- * - Gộp các phân đoạn thẳng hàng liên tục thành các đoạn thẳng hoàn chỉnh, sạch đẹp, dễ đo đạc
+ * Trích xuất 3 hình chiếu vuông góc kỹ thuật (Front, Top, Right) từ mô hình 3D
+ * - Chỉ trích xuất các Nét Thấy (Visible lines) thực tế trên từng mặt (Back-face culled)
+ * - Loại bỏ hoàn toàn nét ẩn/nét khuất không cần thiết theo yêu cầu người dùng
+ * - Khắc phục triệt để hiện tượng lẫn lộn nét giữa mặt Đứng (Front) và mặt Bằng (Top)
+ * - Gộp các phân đoạn thẳng hàng 1D (Collinear Interval Merging) cho đường nét liền mạch tuyệt đối
  */
 export class ProjectionEngine {
   constructor(cadEngine) {
@@ -16,7 +15,7 @@ export class ProjectionEngine {
   }
 
   /**
-   * Tính toán 3 hình chiếu của mô hình brush hiện tại
+   * Tính toán các hình chiếu vuông góc từ mô hình brush 3D
    * @param {THREE.Mesh} brush - Khối 3D hiện tại
    * @param {Object} bounds - Kích thước { w, h, d }
    * @returns {Object} { front, top, side, right, bounds }
@@ -32,65 +31,60 @@ export class ProjectionEngine {
       };
     }
 
-    const { w, h, d } = bounds;
-
     const front = this.projectOrthographic(brush, 'front', bounds);
     const top = this.projectOrthographic(brush, 'top', bounds);
     const right = this.projectOrthographic(brush, 'right', bounds);
-    const side = right; // Chiếu cạnh (Side/Right view)
+    const side = right;
 
     return { front, top, side, right, bounds };
   }
 
   /**
-   * Thực hiện phép chiếu trực giao và phân loại nét thấy / nét khuất
+   * Chiếu trực giao một hướng nhìn cụ thể
    */
   projectOrthographic(brush, viewType, bounds) {
     const { w, h, d } = bounds;
     let viewDir, rayOriginFn, map2DFn;
 
     if (viewType === 'front') {
-      // 1. Hình Chiếu Đứng (Front): Nhìn theo trục -Z (từ phía trước +Z về Z = 0)
-      // 2D: u = X, v = Y (Rộng w x Cao h)
+      // 1. FRONT VIEW: Camera nhìn theo trục -Z (từ phía trước +Z về Z = 0)
+      // 2D: u = X, v = Y (Phạm vi: [0, w] x [0, h])
       viewDir = new THREE.Vector3(0, 0, -1);
       rayOriginFn = (pt) => new THREE.Vector3(pt.x, pt.y, d + 50);
       map2DFn = (pt) => ({ u: Number(pt.x.toFixed(3)), v: Number(pt.y.toFixed(3)) });
 
     } else if (viewType === 'top') {
-      // 2. Hình Chiếu Bằng (Top): Nhìn từ trên cao +Y xuống Y = 0
-      // 2D: u = X, v = d - Z (Mặt trước Z=d ở dưới, mặt sau Z=0 ở trên) (Rộng w x Sâu d)
+      // 2. TOP VIEW: Camera nhìn theo trục -Y (từ trên nóc +Y xuống Y = 0)
+      // 2D: u = X, v = d - Z (Mặt trước Z=d ở dưới v=0, mặt sau Z=0 ở trên v=d) (Phạm vi: [0, w] x [0, d])
       viewDir = new THREE.Vector3(0, -1, 0);
       rayOriginFn = (pt) => new THREE.Vector3(pt.x, h + 50, pt.z);
       map2DFn = (pt) => ({ u: Number(pt.x.toFixed(3)), v: Number((d - pt.z).toFixed(3)) });
 
     } else if (viewType === 'right' || viewType === 'side') {
-      // 3. Hình Chiếu Cạnh (Right View): Nhìn từ bên phải +X về X = 0
-      // 2D: u = d - Z (Mặt trước Z=d ở bên trái người nhìn, mặt sau Z=0 ở bên phải), v = Y (Sâu d x Cao h)
+      // 3. RIGHT VIEW: Camera nhìn từ bên phải theo trục -X (từ +X về X = 0)
+      // 2D: u = d - Z (Mặt trước Z=d bên trái người nhìn u=0, mặt sau Z=0 bên phải u=d), v = Y ([0, d] x [0, h])
       viewDir = new THREE.Vector3(-1, 0, 0);
       rayOriginFn = (pt) => new THREE.Vector3(w + 50, pt.y, pt.z);
       map2DFn = (pt) => ({ u: Number((d - pt.z).toFixed(3)), v: Number(pt.y.toFixed(3)) });
     }
 
-    // Trích xuất các cạnh ứng viên (crease edges + boundary + silhouette edges của hướng nhìn)
+    // 1. Lọc cạnh có mặt kề hướng về camera (Back-face Culling)
     const candidateEdges = this.extractCandidateEdges(brush.geometry, viewDir);
 
     brush.updateMatrixWorld();
     const raycaster = new THREE.Raycaster();
     const visibleSegments = [];
-    const hiddenSegments = [];
 
     const nonIndexed = brush.geometry.index ? brush.geometry.toNonIndexed() : brush.geometry;
     const pos = nonIndexed.attributes.position;
 
-    // Kiểm tra từng cạnh
     for (const edge of candidateEdges) {
       const p1_2d = map2DFn(edge.p1);
       const p2_2d = map2DFn(edge.p2);
       const len2D = Math.hypot(p2_2d.u - p1_2d.u, p2_2d.v - p1_2d.v);
-      if (len2D < 0.005) continue; // Cạnh vuông góc mặt phẳng chiếu (chiếu thành 1 điểm)
+      if (len2D < 0.005) continue; // Cạnh chiếu thành điểm
 
       const len3D = edge.p1.distanceTo(edge.p2);
-      // Chia nhỏ cạnh để kiểm tra nét khuất cục bộ (tối đa 8 đoạn)
       const numSub = Math.max(1, Math.min(8, Math.round(len3D / 0.5)));
 
       for (let s = 0; s < numSub; s++) {
@@ -103,7 +97,7 @@ export class ProjectionEngine {
         const subP1_2D = map2DFn(subP1_3D);
         const subP2_2D = map2DFn(subP2_3D);
 
-        // Bắn tia kiểm tra che khuất
+        // Bắn tia kiểm tra che khuất bởi mặt khác phía trước
         const origin = rayOriginFn(mid3D);
         const distToMid = origin.distanceTo(mid3D);
         raycaster.set(origin, viewDir);
@@ -114,11 +108,9 @@ export class ProjectionEngine {
         let isOccluded = false;
 
         for (const hit of hits) {
-          // Chỉ coi là che khuất nếu mặt chắn nằm trước ít nhất 0.06 đơn vị
           if (hit.distance < distToMid - 0.06) {
             const f = hit.face;
             if (f) {
-              // Kiểm tra xem tam giác bị va chạm có chứa hoặc liền kề với cạnh này không
               const vA = new THREE.Vector3(pos.getX(f.a), pos.getY(f.a), pos.getZ(f.a));
               const vB = new THREE.Vector3(pos.getX(f.b), pos.getY(f.b), pos.getZ(f.b));
               const vC = new THREE.Vector3(pos.getX(f.c), pos.getY(f.c), pos.getZ(f.c));
@@ -127,7 +119,6 @@ export class ProjectionEngine {
                 vA.distanceTo(edge.p1) < 0.02 || vB.distanceTo(edge.p1) < 0.02 || vC.distanceTo(edge.p1) < 0.02 ||
                 vA.distanceTo(edge.p2) < 0.02 || vB.distanceTo(edge.p2) < 0.02 || vC.distanceTo(edge.p2) < 0.02;
 
-              // Nếu không phải là mặt kề của cạnh và mặt đó hướng về camera
               if (!touchesEdge && f.normal.dot(viewDir) < -0.05) {
                 isOccluded = true;
                 break;
@@ -139,30 +130,23 @@ export class ProjectionEngine {
           }
         }
 
-        const seg = { p1: subP1_2D, p2: subP2_2D };
-        if (isOccluded) {
-          hiddenSegments.push(seg);
-        } else {
-          visibleSegments.push(seg);
+        if (!isOccluded) {
+          visibleSegments.push({ p1: subP1_2D, p2: subP2_2D });
         }
       }
     }
 
-    // Gộp các phân đoạn thẳng hàng 1D chính xác tuyệt đối
+    // 2. Gộp các đoạn thẳng cùng phương thành các cạnh hoàn chỉnh
     const mergedVisible = this.mergeCollinear2DLines(visibleSegments);
-    const mergedHidden = this.mergeCollinear2DLines(hiddenSegments);
-
-    // Lọc bỏ nét khuất bị nét thấy đè lên
-    const cleanHidden = this.filterHiddenOverlaps(mergedHidden, mergedVisible);
 
     return {
       visible: mergedVisible,
-      hidden: cleanHidden
+      hidden: [] // Chỉ giữ nét thấy, không hiển thị nét ẩn theo yêu cầu
     };
   }
 
   /**
-   * Trích xuất các cạnh hình học có nghĩa (đường viền phôi, gờ sắc nhọn, và đường biên silhouette)
+   * Trích xuất các cạnh ứng viên thực sự nhìn thấy từ hướng chiếu
    */
   extractCandidateEdges(geometry, viewDir) {
     const nonIndexed = geometry.index ? geometry.toNonIndexed() : geometry;
@@ -207,11 +191,23 @@ export class ProjectionEngine {
     }
 
     const candidateEdges = [];
-    const thresholdCos = Math.cos(THREE.MathUtils.degToRad(5)); // Góc nhị diện > 5 độ
+    const thresholdCos = Math.cos(THREE.MathUtils.degToRad(5));
 
     for (const [, edge] of edgeMap.entries()) {
+      // BACK-FACE CULLING:
+      // Một cạnh CHỈ có thể nhìn thấy nếu có ít nhất một mặt kề hướng về phía camera
+      let hasFrontFacingFace = false;
+      for (const n of edge.normals) {
+        if (n.dot(viewDir) < -0.01) {
+          hasFrontFacingFace = true;
+          break;
+        }
+      }
+      if (!hasFrontFacingFace) {
+        continue; // Bỏ qua cạnh nằm ở mặt sau / đáy khuất
+      }
+
       if (edge.normals.length === 1) {
-        // Cạnh biên ngoài hở (Boundary edge)
         candidateEdges.push({ p1: edge.p1, p2: edge.p2 });
       } else {
         const n0 = edge.normals[0];
@@ -225,7 +221,7 @@ export class ProjectionEngine {
           }
           const d1 = n0.dot(viewDir);
           const d2 = nj.dot(viewDir);
-          if ((d1 < -1e-4 && d2 >= -1e-4) || (d2 < -1e-4 && d1 >= -1e-4)) {
+          if ((d1 < -0.01 && d2 >= -0.01) || (d2 < -0.01 && d1 >= -0.01)) {
             isSilhouette = true;
           }
         }
@@ -241,7 +237,6 @@ export class ProjectionEngine {
 
   /**
    * Gộp các đoạn thẳng cùng phương và liên tục thành 1 đoạn dài duy nhất (1D Interval Merging)
-   * Đảm bảo không bị cụt nét, không bị gián đoạn giữa chừng
    */
   mergeCollinear2DLines(lines, EPS_DIST = 0.02, EPS_GAP = 0.05) {
     if (lines.length <= 1) return lines;
@@ -324,30 +319,5 @@ export class ProjectionEngine {
     }
 
     return result;
-  }
-
-  /**
-   * Lọc bỏ những nét khuất bị nét thấy đè lên hoàn toàn
-   */
-  filterHiddenOverlaps(hiddenLines, visibleLines) {
-    const EPS = 0.03;
-    return hiddenLines.filter(h => {
-      const hMid = { u: (h.p1.u + h.p2.u) / 2, v: (h.p1.v + h.p2.v) / 2 };
-      for (const v of visibleLines) {
-        const dist = this.pointToSegmentDistance(hMid, v.p1, v.p2);
-        if (dist < EPS) return false;
-      }
-      return true;
-    });
-  }
-
-  pointToSegmentDistance(p, a, b) {
-    const ab = { u: b.u - a.u, v: b.v - a.v };
-    const ap = { u: p.u - a.u, v: p.v - a.v };
-    const l2 = ab.u * ab.u + ab.v * ab.v;
-    if (l2 < 1e-6) return Math.hypot(p.u - a.u, p.v - a.v);
-    let t = Math.max(0, Math.min(1, (ap.u * ab.u + ap.v * ab.v) / l2));
-    const proj = { u: a.u + t * ab.u, v: a.v + t * ab.v };
-    return Math.hypot(p.u - proj.u, p.v - proj.v);
   }
 }

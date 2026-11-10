@@ -80,6 +80,7 @@ const inspectionTool = new InspectionTool(scene, camera, renderer, controls, cad
   onToggleDim: () => toggleDimUI(),
   onToggleScreens: () => toggleScreensUI()
 });
+inspectionTool.setProjectionScreens(projectionScreens);
 
 let currentBrush = null;
 let currentEdges = null;

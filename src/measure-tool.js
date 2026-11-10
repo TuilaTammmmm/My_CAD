@@ -68,6 +68,13 @@ export class InspectionTool {
     this.initEvents();
   }
 
+  setProjectionScreens(screens) {
+    this.projectionScreens = screens;
+    this.projectionScreens.onUpdate = () => {
+      this.cacheEdges();
+    };
+  }
+
   // Khởi tạo các sự kiện DOM trên bảng công cụ bên phải
   initDOM() {
     if (!this.panelElement) return;
@@ -327,18 +334,18 @@ export class InspectionTool {
 
           // 1. Kiểm tra cùng phương (song song hoặc ngược chiều)
           const dot = Math.abs(u.dot(s2.dir));
-          if (dot < 0.995) continue;
+          if (dot < 0.99) continue;
 
           // 2. Kiểm tra s2 có nằm trên cùng đường thẳng 3D đi qua p0 với vector chỉ phương u
           const v1 = new THREE.Vector3().subVectors(s2.p1, p0);
           const proj1 = v1.dot(u);
           const dist1 = new THREE.Vector3().subVectors(v1, u.clone().multiplyScalar(proj1)).length();
-          if (dist1 > 0.035) continue;
+          if (dist1 > 0.05) continue;
 
           const v2 = new THREE.Vector3().subVectors(s2.p2, p0);
           const proj2 = v2.dot(u);
           const dist2 = new THREE.Vector3().subVectors(v2, u.clone().multiplyScalar(proj2)).length();
-          if (dist2 > 0.035) continue;
+          if (dist2 > 0.05) continue;
 
           // 3. Tính khoảng 1D (Intervals) của cả 2 đoạn trên trục u
           const int1Min = 0;
@@ -346,15 +353,9 @@ export class InspectionTool {
           const int2Min = Math.min(proj1, proj2);
           const int2Max = Math.max(proj1, proj2);
 
-          // 4. Kiểm tra xem 2 khoảng có giao nhau hoặc tiếp giáp (cho phép khe hở sai số <= 0.045)
-          const overlapMin = Math.max(int1Min, int2Min);
-          const overlapMax = Math.min(int1Max, int2Max);
-          const gap = int2Min - int1Max;
-          const gapRev = int1Min - int2Max;
-
-          const isConnected = (overlapMin <= overlapMax) || (gap > 0 && gap < 0.045) || (gapRev > 0 && gapRev < 0.045);
-
-          if (isConnected) {
+          // 4. Kiểm tra xem 2 khoảng có giao nhau hoặc tiếp giáp (cho phép khe hở sai số <= 0.06)
+          const gap = Math.max(0, -int2Max, int2Min - int1Max);
+          if (gap <= 0.06) {
             const newMin = Math.min(int1Min, int2Min);
             const newMax = Math.max(int1Max, int2Max);
 
@@ -381,6 +382,13 @@ export class InspectionTool {
           mid: new THREE.Vector3().addVectors(s.p1, s.p2).multiplyScalar(0.5),
           dir: s.dir
         });
+      }
+    }
+
+    // Thêm các cạnh trên 3 Màn Chiếu Kỹ Thuật (nếu đang bật màn chiếu) để đo trực tiếp cạnh & góc trên màn chiếu
+    if (this.projectionScreens && this.projectionScreens.enabled && this.projectionScreens.screenEdges) {
+      for (const se of this.projectionScreens.screenEdges) {
+        this.edgesList.push(se);
       }
     }
   }
@@ -523,8 +531,8 @@ export class InspectionTool {
       const dist = this.pointToSegmentDistance2D(mouseX, mouseY, x1, y1, x2, y2);
       if (dist >= minScreenDist) continue;
 
-      // KIỂM TRA CHE KHUẤT HÌNH HỌC: Cạnh có bị mặt khối phía trước che khuất không?
-      if (this.currentBrush) {
+      // KIỂM TRA CHE KHUẤT HÌNH HỌC: Chỉ kiểm tra với cạnh của khối 3D (không áp dụng với cạnh màn chiếu ở ngoài)
+      if (!edge.isScreenEdge && this.currentBrush) {
         const midNDC = edge.mid.clone().project(this.camera);
         if (midNDC.z >= -1 && midNDC.z <= 1) {
           occRay.setFromCamera({ x: midNDC.x, y: midNDC.y }, this.camera);
@@ -766,7 +774,11 @@ export class InspectionTool {
     let itemTitle = '';
     let itemSub = '';
 
-    if (isOrthographicView) {
+    if (edge.isScreenEdge) {
+      badgeText = `L = ${fmt(len3D)} ô`;
+      itemTitle = `Cạnh [Màn ${edge.screenName}]: ${fmt(len3D)} ô`;
+      itemSub = `Đo trực tiếp trên Màn Chiếu ${edge.screenName} | Chiều dài: ${fmt(len3D)} ô`;
+    } else if (isOrthographicView) {
       // Khi đang xem ở góc chiếu 2D (như trong ảnh screenshot của user)
       if (isOblique) {
         badgeText = `L = ${fmt(len2D)} ô (3D: ${fmt(len3D)})`;

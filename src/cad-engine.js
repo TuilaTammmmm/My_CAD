@@ -683,8 +683,76 @@ export class CadEngine {
       }
     }
 
+    // 3. Gộp các đoạn thẳng cùng phương thành nét liền hoàn chỉnh (Heal collinear edges)
+    const segments = [];
+    for (let i = 0; i < filteredPositions.length; i += 6) {
+      const p1 = new THREE.Vector3(filteredPositions[i], filteredPositions[i+1], filteredPositions[i+2]);
+      const p2 = new THREE.Vector3(filteredPositions[i+3], filteredPositions[i+4], filteredPositions[i+5]);
+      const len = p1.distanceTo(p2);
+      if (len > 0.005) {
+        segments.push({ p1, p2, len, dir: new THREE.Vector3().subVectors(p2, p1).normalize(), merged: false });
+      }
+    }
+
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (let i = 0; i < segments.length; i++) {
+        if (segments[i].merged) continue;
+        const s1 = segments[i];
+        const u = s1.dir;
+        const p0 = s1.p1;
+
+        for (let j = i + 1; j < segments.length; j++) {
+          if (segments[j].merged) continue;
+          const s2 = segments[j];
+
+          // 1. Kiểm tra cùng phương (song song hoặc ngược chiều)
+          if (Math.abs(u.dot(s2.dir)) < 0.99) continue;
+
+          // 2. Kiểm tra khoảng cách vuông góc từ s2 tới đường thẳng s1
+          const v1 = new THREE.Vector3().subVectors(s2.p1, p0);
+          const proj1 = v1.dot(u);
+          const perpDist1 = new THREE.Vector3().subVectors(v1, u.clone().multiplyScalar(proj1)).length();
+          if (perpDist1 > 0.05) continue;
+
+          const v2 = new THREE.Vector3().subVectors(s2.p2, p0);
+          const proj2 = v2.dot(u);
+          const perpDist2 = new THREE.Vector3().subVectors(v2, u.clone().multiplyScalar(proj2)).length();
+          if (perpDist2 > 0.05) continue;
+
+          // 3. Chiếu 1D và kiểm tra tiếp giáp / giao nhau
+          const int1Min = 0;
+          const int1Max = s1.len;
+          const int2Min = Math.min(proj1, proj2);
+          const int2Max = Math.max(proj1, proj2);
+
+          const gap = Math.max(0, -int2Max, int2Min - int1Max);
+          if (gap <= 0.06) {
+            const newMin = Math.min(int1Min, int2Min);
+            const newMax = Math.max(int1Max, int2Max);
+
+            s1.p1 = p0.clone().addScaledVector(u, newMin);
+            s1.p2 = p0.clone().addScaledVector(u, newMax);
+            s1.len = newMax - newMin;
+            s1.dir = u;
+            s2.merged = true;
+            changed = true;
+            break;
+          }
+        }
+      }
+    }
+
+    const finalPositions = [];
+    for (const s of segments) {
+      if (!s.merged && s.len > 0.01) {
+        finalPositions.push(s.p1.x, s.p1.y, s.p1.z, s.p2.x, s.p2.y, s.p2.z);
+      }
+    }
+
     const finalGeom = new THREE.BufferGeometry();
-    finalGeom.setAttribute('position', new THREE.Float32BufferAttribute(filteredPositions, 3));
+    finalGeom.setAttribute('position', new THREE.Float32BufferAttribute(finalPositions, 3));
 
     const edges = new THREE.LineSegments(finalGeom, this.edgeMaterial);
     edges.position.copy(mesh.position);

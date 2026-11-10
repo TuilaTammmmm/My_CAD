@@ -224,61 +224,162 @@ export class CAD2DEditor {
     const w = this.currentViewW || this.bounds.w;
     const h = this.currentViewH || this.bounds.h;
 
-    // Tính toán scale tự động để khối bao quanh chiếm 60% chiều cao màn hình
-    const targetPixelH = rect.height * 0.55;
-    this.scale = Math.max(35, Math.min(85, Math.round(targetPixelH / Math.max(4, h))));
-
-    // Đặt gốc tọa độ O(0,0) lệch sang trái một chút để chừa chỗ cho sidebar
-    this.offsetX = Math.round(rect.width * 0.38);
-    this.offsetY = Math.round(rect.height * 0.72);
+    if (this.currentViewType === 'all') {
+      const targetPixelH = rect.height * 0.70;
+      const targetPixelW = rect.width * 0.65;
+      this.scale = Math.max(22, Math.min(65, Math.round(Math.min(targetPixelH / Math.max(4, h), targetPixelW / Math.max(5, w)))));
+      this.offsetX = Math.round(rect.width * 0.32);
+      this.offsetY = Math.round(rect.height * 0.82);
+    } else {
+      const targetPixelH = rect.height * 0.55;
+      this.scale = Math.max(35, Math.min(85, Math.round(targetPixelH / Math.max(4, h))));
+      this.offsetX = Math.round(rect.width * 0.38);
+      this.offsetY = Math.round(rect.height * 0.72);
+    }
   }
 
-  // Nạp nét hình chiếu (Đứng - Front, Bằng - Top, Cạnh - Side/Right) từ mô hình 3D
+  // Nạp hình chiếu kỹ thuật 2D: 'all' (cả 3 hình chiếu cùng lúc) hoặc 'front', 'top', 'side'
   syncFrom3D(viewType = 'front') {
     if (!this.currentBrush) return;
     const proj = this.projectionEngine.generateProjections(this.currentBrush, this.bounds);
-    let viewData = proj[viewType];
-    if (!viewData && (viewType === 'side' || viewType === 'right')) {
-      viewData = proj.right || proj.side;
-    }
-    if (!viewData) viewData = proj.front;
-
     this.currentViewType = viewType;
-    let viewW = this.bounds.w;
-    let viewH = this.bounds.h;
 
-    if (viewType === 'top') {
-      viewW = this.bounds.w;
-      viewH = this.bounds.d;
-    } else if (viewType === 'side' || viewType === 'right') {
-      viewW = this.bounds.d;
-      viewH = this.bounds.h;
-    }
-
-    this.currentViewW = viewW;
-    this.currentViewH = viewH;
+    const W = this.bounds.w;
+    const H = this.bounds.h;
+    const D = this.bounds.d;
+    const GAP = 2.0;
 
     this.elements = [];
 
-    if (viewData && viewData.visible) {
-      for (const line of viewData.visible) {
-        this.elements.push({
-          type: 'line',
-          style: 'visible',
-          p1: { u: line.p1.u, v: line.p1.v },
-          p2: { u: line.p2.u, v: line.p2.v }
-        });
+    if (viewType === 'all') {
+      // HIỂN THỊ CẢ 3 HÌNH CHIẾU CÙNG LÚC (3-VIEW TECHNICAL DRAWING)
+      this.currentViewW = W + GAP + D;
+      this.currentViewH = D + GAP + H;
+
+      // 1. TOP VIEW (Đặt ở dưới cùng bên trái: [0, W] x [0, D])
+      if (proj.top && proj.top.visible) {
+        for (const line of proj.top.visible) {
+          this.elements.push({
+            type: 'line',
+            style: 'visible',
+            view: 'top',
+            p1: { u: line.p1.u, v: line.p1.v },
+            p2: { u: line.p2.u, v: line.p2.v }
+          });
+        }
       }
-    }
-    if (viewData && viewData.hidden) {
-      for (const line of viewData.hidden) {
-        this.elements.push({
-          type: 'line',
-          style: 'hidden',
-          p1: { u: line.p1.u, v: line.p1.v },
-          p2: { u: line.p2.u, v: line.p2.v }
-        });
+      this.elements.push({
+        type: 'label',
+        text: `TOP VIEW (${W}×${D})`,
+        color: '#10b981',
+        p: { u: W / 2, v: -0.45 }
+      });
+
+      // 2. FRONT VIEW (Đặt ở trên Top View: [0, W] x [D + GAP, D + GAP + H])
+      const frontYOffset = D + GAP;
+      if (proj.front && proj.front.visible) {
+        for (const line of proj.front.visible) {
+          this.elements.push({
+            type: 'line',
+            style: 'visible',
+            view: 'front',
+            p1: { u: line.p1.u, v: line.p1.v + frontYOffset },
+            p2: { u: line.p2.u, v: line.p2.v + frontYOffset }
+          });
+        }
       }
+      this.elements.push({
+        type: 'label',
+        text: `FRONT VIEW (${W}×${H})`,
+        color: '#38bdf8',
+        p: { u: W / 2, v: frontYOffset + H + 0.45 }
+      });
+
+      // 3. RIGHT VIEW (Đặt bên phải Front View: [W + GAP, W + GAP + D] x [D + GAP, D + GAP + H])
+      const rightXOffset = W + GAP;
+      const rightData = proj.right || proj.side;
+      if (rightData && rightData.visible) {
+        for (const line of rightData.visible) {
+          this.elements.push({
+            type: 'line',
+            style: 'visible',
+            view: 'right',
+            p1: { u: line.p1.u + rightXOffset, v: line.p1.v + frontYOffset },
+            p2: { u: line.p2.u + rightXOffset, v: line.p2.v + frontYOffset }
+          });
+        }
+      }
+      this.elements.push({
+        type: 'label',
+        text: `RIGHT VIEW (${D}×${H})`,
+        color: '#f59e0b',
+        p: { u: rightXOffset + D / 2, v: frontYOffset + H + 0.45 }
+      });
+
+      // 4. ĐƯỜNG GIÓNG LIÊN KẾT GIỮA CÁC HÌNH CHIẾU (DASHED GUIDES)
+      this.elements.push({
+        type: 'line', style: 'guide',
+        p1: { u: 0, v: D }, p2: { u: 0, v: frontYOffset }
+      });
+      this.elements.push({
+        type: 'line', style: 'guide',
+        p1: { u: W, v: D }, p2: { u: W, v: frontYOffset }
+      });
+      this.elements.push({
+        type: 'line', style: 'guide',
+        p1: { u: W, v: frontYOffset }, p2: { u: rightXOffset, v: frontYOffset }
+      });
+      this.elements.push({
+        type: 'line', style: 'guide',
+        p1: { u: W, v: frontYOffset + H }, p2: { u: rightXOffset, v: frontYOffset + H }
+      });
+
+    } else {
+      // HIỂN THỊ TỪNG HÌNH CHIẾU RIÊNG LẺ
+      let viewData = proj[viewType];
+      if (!viewData && (viewType === 'side' || viewType === 'right')) {
+        viewData = proj.right || proj.side;
+      }
+      if (!viewData) viewData = proj.front;
+
+      let viewW = W;
+      let viewH = H;
+      let viewLabel = `FRONT VIEW (${W}×${H})`;
+      let labelColor = '#38bdf8';
+
+      if (viewType === 'top') {
+        viewW = W;
+        viewH = D;
+        viewLabel = `TOP VIEW (${W}×${D})`;
+        labelColor = '#10b981';
+      } else if (viewType === 'side' || viewType === 'right') {
+        viewW = D;
+        viewH = H;
+        viewLabel = `RIGHT VIEW (${D}×${H})`;
+        labelColor = '#f59e0b';
+      }
+
+      this.currentViewW = viewW;
+      this.currentViewH = viewH;
+
+      if (viewData && viewData.visible) {
+        for (const line of viewData.visible) {
+          this.elements.push({
+            type: 'line',
+            style: 'visible',
+            view: viewType,
+            p1: { u: line.p1.u, v: line.p1.v },
+            p2: { u: line.p2.u, v: line.p2.v }
+          });
+        }
+      }
+
+      this.elements.push({
+        type: 'label',
+        text: viewLabel,
+        color: labelColor,
+        p: { u: viewW / 2, v: viewH + 0.45 }
+      });
     }
 
     document.querySelectorAll('.tool-btn-sync').forEach(btn => {
@@ -287,7 +388,7 @@ export class CAD2DEditor {
 
     this.updateFrameButtonUI();
     this.saveHistory();
-    this.resetView();
+    this.centerView();
     this.render();
   }
 
@@ -2108,7 +2209,11 @@ export class CAD2DEditor {
         ctx.moveTo(x1, y1);
         ctx.lineTo(x2, y2);
 
-        if (elem.style === 'hidden') {
+        if (elem.style === 'guide') {
+          ctx.strokeStyle = 'rgba(56, 189, 248, 0.45)'; // Nét gióng dóng liên kết các hình chiếu
+          ctx.lineWidth = 1.2;
+          ctx.setLineDash([4, 4]);
+        } else if (elem.style === 'hidden') {
           ctx.strokeStyle = '#facc15'; // Nét đứt vàng
           ctx.lineWidth = 2.2;
           ctx.setLineDash([7, 4]);
@@ -2253,6 +2358,44 @@ export class CAD2DEditor {
         ctx.textAlign = (cosA >= 0) ? 'left' : 'right';
         ctx.textBaseline = 'bottom';
         ctx.fillText(labelText, doglegX + (cosA >= 0 ? 4 : -4), doglegY - 2);
+      } else if (elem.type === 'label') {
+        const x = this.offsetX + elem.p.u * s;
+        const y = this.offsetY - elem.p.v * s;
+        ctx.save();
+        ctx.font = 'bold 12px "Segoe UI", Arial, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const color = elem.color || '#38bdf8';
+        const textWidth = ctx.measureText(elem.text).width;
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.roundRect(x - textWidth / 2 - 8, y - 12, textWidth + 16, 24, 6);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = color;
+        ctx.fillText(elem.text, x, y);
+        ctx.restore();
+
+      } else if (elem.type === 'dim-angle') {
+        const x = this.offsetX + elem.p.u * s;
+        const y = this.offsetY - elem.p.v * s;
+        ctx.save();
+        ctx.font = 'bold 12px monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const badge = `∠ ${elem.angle}°`;
+        ctx.fillStyle = '#0f172a';
+        ctx.strokeStyle = '#f59e0b';
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.roundRect(x - 26, y - 12, 52, 24, 6);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#f59e0b';
+        ctx.fillText(badge, x, y);
+        ctx.restore();
       }
     }
 

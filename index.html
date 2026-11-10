@@ -174,114 +174,120 @@
       <!-- ============================================== -->
       <div id="sidebar-2d-tools" style="display: none;">
         
-        <!-- NHÓM 1: CÔNG CỤ NÉT VẼ 2D -->
+        <!-- NHÓM 1: 2D DRAWING TOOLS -->
         <div class="sidebar-section">
-          <div class="section-label">CÔNG CỤ NÉT VẼ 2D</div>
+          <div class="section-label">2D DRAWING TOOLS</div>
           <div class="tool-list">
-            <button class="tool-btn cad2d-tool-btn active" data-tool="line-visible" title="Vẽ nét thấy: Click Điểm 1 ➔ Điểm 2">
+            <button class="tool-btn cad2d-tool-btn active" data-tool="line-visible" title="Visible Line: Click Point 1 ➔ Point 2">
               <span class="tool-icon">
                 <svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12" stroke-width="3"/></svg>
               </span>
-              <span class="tool-text">Nét Thấy (Liền)</span>
+              <span class="tool-text">Visible Line</span>
             </button>
 
-            <button class="tool-btn cad2d-tool-btn" data-tool="line-hidden" title="Vẽ nét khuất: Click Điểm 1 ➔ Điểm 2">
+            <button class="tool-btn cad2d-tool-btn" data-tool="line-hidden" title="Hidden Line: Click Point 1 ➔ Point 2">
               <span class="tool-icon">
                 <svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12" stroke-dasharray="4 3" stroke-width="2.5"/></svg>
               </span>
-              <span class="tool-text">Nét Khuất (Đứt)</span>
+              <span class="tool-text">Hidden Line</span>
             </button>
 
-            <button class="tool-btn cad2d-tool-btn" data-tool="rect" title="Vẽ hình chữ nhật: Click Góc 1 ➔ Góc 2">
+            <button class="tool-btn cad2d-tool-btn" data-tool="rect" title="Rectangle: Click Corner 1 ➔ Corner 2">
               <span class="tool-icon">
                 <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="1" fill="none" stroke-width="2.2"/></svg>
               </span>
-              <span class="tool-text">Hình Chữ Nhật</span>
+              <span class="tool-text">Rectangle</span>
             </button>
 
-            <button class="tool-btn cad2d-tool-btn" data-tool="circle" title="Vẽ đường tròn (Click Tâm ➔ Bán kính)">
+            <button class="tool-btn cad2d-tool-btn" data-tool="circle" title="Circle: Click Center ➔ Radius">
               <span class="tool-icon">
                 <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/></svg>
               </span>
-              <span class="tool-text">Đường Tròn</span>
+              <span class="tool-text">Circle</span>
             </button>
 
-            <button class="tool-btn cad2d-tool-btn" data-tool="dim" title="Đo kích thước: Click vào cạnh để đo ngay chiều dài, hoặc click 2 điểm">
+            <button class="tool-btn cad2d-tool-btn" data-tool="dim" title="Measure Tool: Click any edge to measure length, click 2 edges to measure angle, or click 2 points">
               <span class="tool-icon">
                 <svg viewBox="0 0 24 24"><path d="M2 12h20M6 8l-4 4 4 4M18 8l4 4-4 4"/></svg>
               </span>
-              <span class="tool-text">Đo Kích Thước</span>
+              <span class="tool-text">Measure (Dim)</span>
             </button>
 
-            <button class="tool-btn cad2d-tool-btn" data-tool="erase" title="Tỉa nét cắt chuẩn AutoCAD TRIM (Click vào đoạn nét trong/ngoài để cắt)">
+            <button class="tool-btn cad2d-tool-btn" data-tool="erase" title="Trim / Erase: Click edge to trim or erase">
               <span class="tool-icon">
                 <svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
               </span>
-              <span class="tool-text">Tỉa Nét Cắt (TRIM)</span>
+              <span class="tool-text">Trim / Erase</span>
             </button>
 
-            <button class="tool-btn cad2d-tool-btn" data-tool="pan" title="Kéo chuột để di chuyển mặt phẳng">
+            <button class="tool-btn cad2d-tool-btn" data-tool="pan" title="Pan / Move: Drag with left click to pan viewport">
               <span class="tool-icon">
                 <svg viewBox="0 0 24 24"><path d="M12 2v20M2 12h20M7 7l10 10M17 7L7 17"/></svg>
               </span>
-              <span class="tool-text">Di Chuyển / Pan</span>
+              <span class="tool-text">Pan / Move</span>
             </button>
           </div>
         </div>
 
-        <!-- NHÓM 2: LỊCH SỬ & THAO TÁC -->
+        <!-- NHÓM 2: HISTORY & CONTROLS -->
         <div class="sidebar-section">
-          <div class="section-label">LỊCH SỬ & THAO TÁC</div>
+          <div class="section-label">HISTORY & CONTROLS</div>
           
           <div class="sidebar-grid-2">
-            <button class="tool-btn-compact" id="btn-2d-undo" disabled title="Hoàn tác nét vẽ (Ctrl+Z)">
+            <button class="tool-btn-compact" id="btn-2d-undo" disabled title="Undo (Ctrl+Z)">
               <svg viewBox="0 0 24 24"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
               <span>Undo</span>
             </button>
-            <button class="tool-btn-compact" id="btn-2d-redo" disabled title="Làm lại nét vẽ (Ctrl+Y)">
+            <button class="tool-btn-compact" id="btn-2d-redo" disabled title="Redo (Ctrl+Y)">
               <svg viewBox="0 0 24 24"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"/></svg>
               <span>Redo</span>
             </button>
           </div>
 
           <div class="tool-list">
-            <button class="tool-btn" id="btn-2d-toggle-snap" title="Chuyển đổi bắt dính: Lưới (0.5) ↔ Tự do Freeform (Phím tắt: G hoặc giữ Alt)">
+            <button class="tool-btn" id="btn-2d-toggle-snap" title="Toggle Snap: Grid (0.5) ↔ Freeform (Shortcut: G or hold Alt)">
               <span class="tool-icon">
                 <svg viewBox="0 0 24 24"><path d="M4 4h4v4H4zM16 4h4v4h-4zM4 16h4v4H4zM16 16h4v4h-4z"/></svg>
               </span>
-              <span class="tool-text" id="lbl-snap-mode">Bắt Dính: Lưới (0.5)</span>
+              <span class="tool-text" id="lbl-snap-mode">Snap: Grid (0.5)</span>
             </button>
 
-            <button class="tool-btn" id="btn-2d-toggle-frame" title="Chuyển đổi Khung CAD: Tắt (Tự Do) ➔ Khung Phôi 3D ➔ Khung Bản Vẽ A4 (ISO)">
+            <button class="tool-btn" id="btn-2d-toggle-frame" title="Toggle CAD Frame: Off (Free) ➔ Part Stock Box ➔ A4 Drawing Sheet (ISO)">
               <span class="tool-icon">
                 <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" fill="none" stroke-width="2" stroke-dasharray="4 2"/></svg>
               </span>
-              <span class="tool-text" id="lbl-frame-mode">Khung CAD: Tắt (Tự Do)</span>
+              <span class="tool-text" id="lbl-frame-mode">Frame: Stock Box</span>
             </button>
 
             <div class="sidebar-sync-group">
-              <div class="sync-group-label">LẤY HÌNH CHIẾU TỪ 3D</div>
-              <div class="sidebar-grid-3">
-                <button class="tool-btn-sync active" id="btn-sync-front" data-view="front" title="Nạp Hình Chiếu Đứng (Front: Mặt X-Y) từ khối 3D">
+              <div class="sync-group-label">ORTHOGRAPHIC 2D VIEWS</div>
+              <div class="sidebar-grid-2" style="margin-bottom: 6px;">
+                <button class="tool-btn-sync" id="btn-sync-all" data-view="all" title="Display All 3 Views (Front + Top + Right) together in CAD sheet">
+                  <span class="sync-icon">📑</span>
+                  <span>All (3-View)</span>
+                </button>
+                <button class="tool-btn-sync active" id="btn-sync-front" data-view="front" title="Front View (X-Y plane)">
                   <span class="sync-icon">🟦</span>
-                  <span>Đứng</span>
+                  <span>Front</span>
                 </button>
-                <button class="tool-btn-sync" id="btn-sync-top" data-view="top" title="Nạp Hình Chiếu Bằng (Top: Mặt X-Z) từ khối 3D">
+              </div>
+              <div class="sidebar-grid-2">
+                <button class="tool-btn-sync" id="btn-sync-top" data-view="top" title="Top View (X-Z plane)">
                   <span class="sync-icon">🟩</span>
-                  <span>Bằng</span>
+                  <span>Top</span>
                 </button>
-                <button class="tool-btn-sync" id="btn-sync-side" data-view="side" title="Nạp Hình Chiếu Cạnh (Right: Mặt Z-Y) từ khối 3D">
+                <button class="tool-btn-sync" id="btn-sync-side" data-view="side" title="Right Side View (Z-Y plane)">
                   <span class="sync-icon">🟨</span>
-                  <span>Cạnh</span>
+                  <span>Right</span>
                 </button>
               </div>
             </div>
 
-            <button class="tool-btn" id="btn-2d-clear" title="Xóa toàn bộ bản vẽ trên mặt phẳng">
+            <button class="tool-btn" id="btn-2d-clear" title="Clear all drawings on plane">
               <span class="tool-icon">
                 <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14H7L5 6"/></svg>
               </span>
-              <span class="tool-text">Xóa Sạch Bản Vẽ</span>
+              <span class="tool-text">Clear Plane</span>
             </button>
           </div>
 

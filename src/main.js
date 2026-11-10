@@ -11,6 +11,7 @@ import { exportToOBJ } from './exporter.js';
 import { ProjectionEngine } from './projection-engine.js';
 import { CAD2DEditor } from './cad2d-editor.js';
 import { DimensionOverlay } from './dimension-overlay.js';
+import { InspectionTool } from './measure-tool.js';
 import { inject } from '@vercel/analytics';
 import { injectSpeedInsights } from '@vercel/speed-insights';
 
@@ -71,6 +72,7 @@ const cad = new CadEngine();
 const gridOverlay = new GridOverlay(scene);
 const preview = new CutterPreview(scene);
 const dimOverlay = new DimensionOverlay(scene, camera);
+const inspectionTool = new InspectionTool(scene, camera, renderer, controls, cad);
 
 let currentBrush = null;
 let currentEdges = null;
@@ -120,6 +122,10 @@ function setModel(brush, recordHistory = true) {
 
   if (picker) {
     picker.updateModel(currentBrush, W, H, D);
+  }
+
+  if (inspectionTool) {
+    inspectionTool.updateModel(currentBrush, currentEdges);
   }
 }
 
@@ -203,6 +209,14 @@ const picker = new InteractivePicker(scene, camera, renderer, controls, cad, pre
   onModeChange: (mode) => {
     syncModeUI(mode);
     gridOverlay.setVisible(mode !== 'view');
+    if (mode === 'view') {
+      inspectionTool.show();
+    } else {
+      inspectionTool.hide();
+    }
+  },
+  onClearMeasures: () => {
+    inspectionTool.clearAll();
   },
   onSnapStepChange: (step) => {
     syncSnapStepUI(step);
@@ -571,6 +585,7 @@ let appMode = '3d'; // '3d' hoặc '2d'
 function switchTo2D() {
   gridOverlay.setAllVisible(false);
   dimOverlay.setEnabled(false);
+  inspectionTool.hide();
   appMode = '2d';
   document.getElementById('switch-to-3d')?.classList.remove('active');
   document.getElementById('switch-to-2d')?.classList.add('active');
@@ -622,6 +637,10 @@ function switchTo3D() {
   const helper = document.querySelector('.hud-helper');
   if (hud) hud.style.display = 'block';
   if (helper) helper.style.display = 'block';
+
+  if (picker && picker.mode === 'view') {
+    inspectionTool.show();
+  }
 
   // Ẩn 2D canvas
   cad2dEditor.hide();
@@ -710,6 +729,8 @@ document.getElementById('btn-2d-export-dxf')?.addEventListener('click', () => {
 // --- KHỞI CHẠY LẦN ĐẦU ---
 resetBaseBlock();
 picker.setMode('view');
+inspectionTool.updateModel(currentBrush, currentEdges);
+inspectionTool.show();
 syncGridSquaresUI(gridOverlay.showGridSquares);
 syncDimUI(dimOverlay.enabled);
 syncSnapStepUI(picker.snapStep);

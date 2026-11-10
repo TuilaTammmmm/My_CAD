@@ -1195,9 +1195,10 @@ export class InteractivePicker {
       this.hudElement.innerHTML = `
         <div class="hud-step">
           <span class="hud-badge done">👁️ Chỉ Xem</span>
-          <span>Đang ở chế độ xem kỹ thuật. Khối hiển thị sạch sẽ không vướng điểm.</span>
+          <span>Click cạnh hoặc góc để đo kích thước & góc 3D.</span>
           <button class="hud-btn-toggle" id="hud-toggle-grid" title="Bật/Tắt lưới ô vuông hộp ban đầu (Phím tắt: G)">🔲 Ô Vuông</button>
-          <button class="hud-btn-toggle" id="hud-toggle-dim" title="Bật/Tắt số đo kỹ thuật (Phím tắt: D)">📏 Số Đo</button>
+          <button class="hud-btn-toggle" id="hud-toggle-dim" title="Bật/Tắt khung số đo tổng thể (Phím tắt: D)">📏 Khung Số Đo</button>
+          <button class="hud-btn-toggle" id="hud-clear-measures" style="color: #f87171; border-color: rgba(248, 113, 113, 0.4);" title="Xóa toàn bộ các số đo cạnh & góc đã lưu (Phím tắt: Delete)">🗑️ Xóa Số Đo</button>
         </div>
       `;
       const btnToggleGrid = document.getElementById('hud-toggle-grid');
@@ -1207,6 +1208,10 @@ export class InteractivePicker {
       const btnToggleDim = document.getElementById('hud-toggle-dim');
       if (btnToggleDim) btnToggleDim.addEventListener('click', () => {
         if (this.callbacks.onToggleDim) this.callbacks.onToggleDim();
+      });
+      const btnClearMeasures = document.getElementById('hud-clear-measures');
+      if (btnClearMeasures) btnClearMeasures.addEventListener('click', () => {
+        if (this.callbacks.onClearMeasures) this.callbacks.onClearMeasures();
       });
       return;
     }

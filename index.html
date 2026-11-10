@@ -370,6 +370,69 @@
       </button>
     </div>
 
+    <!-- BẢNG CÔNG CỤ ĐO ĐẠC & KIỂM TRA BÊN PHẢI (CHỈ XUẤT HIỆN KHI Ở TAB CHỈ XEM) -->
+    <aside id="inspection-panel" class="inspection-panel" style="display: none;">
+      <div class="panel-header">
+        <div class="panel-title-group">
+          <span class="panel-icon">🔍</span>
+          <span class="panel-title">KIỂM TRA & ĐO ĐẠC</span>
+        </div>
+        <div class="panel-header-actions">
+          <span class="panel-mode-badge">Chỉ Xem</span>
+          <button id="btn-toggle-inspection-panel" class="panel-collapse-btn" title="Thu gọn / Mở rộng bảng">▶</button>
+        </div>
+      </div>
+
+      <!-- HƯỚNG DẪN THAO TÁC THEO CHẾ ĐỘ -->
+      <div class="measure-instruction" id="measure-instruction">
+        👉 <b>Rê chuột vào cạnh</b> để bắt dính, <b>Click</b> để hiển thị chiều dài CAD.
+      </div>
+
+      <!-- CÁC CHẾ ĐỘ ĐO ĐẠC -->
+      <div class="measure-tool-group">
+        <div class="measure-section-label">CHẾ ĐỘ ĐO (Phím M)</div>
+        <div class="measure-modes-grid">
+          <button class="measure-mode-btn active" data-measure-mode="edge" title="Đo chiều dài cạnh">
+            <span class="m-icon">📏</span>
+            <span class="m-text">Đo Cạnh</span>
+          </button>
+          <button class="measure-mode-btn" data-measure-mode="angle-edges" title="Đo góc giữa 2 cạnh (Click Cạnh 1 ➔ Click Cạnh 2)">
+            <span class="m-icon">📐</span>
+            <span class="m-text">Góc 2 Cạnh</span>
+          </button>
+          <button class="measure-mode-btn" data-measure-mode="angle-faces" title="Đo góc giữa 2 mặt (Click Mặt 1 ➔ Click Mặt 2)">
+            <span class="m-icon">🧱</span>
+            <span class="m-text">Góc 2 Mặt</span>
+          </button>
+          <button class="measure-mode-btn" data-measure-mode="distance" title="Đo khoảng cách giữa 2 điểm">
+            <span class="m-icon">🎯</span>
+            <span class="m-text">2 Điểm</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- CÁC NÚT THAO TÁC XÓA & COPY -->
+      <div class="measure-actions-bar">
+        <button id="btn-clear-all-measures" class="btn-measure-danger" title="Xóa toàn bộ các số đo đang lưu trên hình (Delete)">
+          🗑️ Xóa Hết Số Đo
+        </button>
+        <button id="btn-copy-measures" class="btn-measure-secondary" title="Sao chép danh sách số đo vào Clipboard">
+          📋 Copy
+        </button>
+      </div>
+
+      <!-- DANH SÁCH CÁC SỐ ĐO ĐÃ LƯU TRÊN HÌNH -->
+      <div class="measure-history-section">
+        <div class="measure-history-header">
+          <span>DANH SÁCH SỐ ĐO</span>
+          <span class="badge-count" id="measure-count">0</span>
+        </div>
+        <div class="measure-list" id="measure-list">
+          <div class="empty-measure-hint">Chưa có số đo nào.<br>Click vào cạnh hoặc góc trên khối để bắt đầu đo!</div>
+        </div>
+      </div>
+    </aside>
+
     <!-- BANNER SỐ ĐO KỸ THUẬT NỔI PHÍA TRÊN KHI ĐỔI GÓC NHÌN -->
     <div id="view-dim-badge" class="view-dim-badge" style="display: flex;">
       <div class="badge-icon">📐</div>

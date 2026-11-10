@@ -27,6 +27,8 @@ export class ProjectionScreensOverlay {
 
     // Danh sách cạnh 3D trên màn chiếu để công cụ đo đạc có thể đo cạnh & góc
     this.screenEdges = [];
+    // Danh sách tấm nền màn chiếu để kiểm tra chắn tia nhìn (chống chọn xuyên qua)
+    this.screenPanels = [];
     this.onUpdate = null;
   }
 
@@ -63,6 +65,7 @@ export class ProjectionScreensOverlay {
     }
 
     this.screenEdges = [];
+    this.screenPanels = [];
     if (!this.currentBrush) return;
 
     const { w, h, d, offsetDist } = this;
@@ -96,7 +99,9 @@ export class ProjectionScreensOverlay {
     });
     const panel = new THREE.Mesh(planeGeom, planeMat);
     panel.position.set(w / 2, h / 2, zPos);
+    panel.userData = { isScreenPanel: true, screenName: 'Front' };
     screenGroup.add(panel);
+    this.screenPanels.push(panel);
 
     // 2. Khung viền màn chiếu đậm nét màu Cyan (#38bdf8)
     const borderPts = [
@@ -171,7 +176,9 @@ export class ProjectionScreensOverlay {
     const panel = new THREE.Mesh(planeGeom, planeMat);
     panel.rotation.x = Math.PI / 2;
     panel.position.set(w / 2, yPos, d / 2);
+    panel.userData = { isScreenPanel: true, screenName: 'Top' };
     screenGroup.add(panel);
+    this.screenPanels.push(panel);
 
     // 2. Khung viền màn chiếu màu Emerald (#10b981)
     const borderPts = [
@@ -246,7 +253,9 @@ export class ProjectionScreensOverlay {
     const panel = new THREE.Mesh(planeGeom, planeMat);
     panel.rotation.y = Math.PI / 2;
     panel.position.set(xPos, h / 2, d / 2);
+    panel.userData = { isScreenPanel: true, screenName: 'Side' };
     screenGroup.add(panel);
+    this.screenPanels.push(panel);
 
     // 2. Khung viền màn chiếu màu Vàng Hổ Phách (#f59e0b)
     const borderPts = [
@@ -402,5 +411,10 @@ export class ProjectionScreensOverlay {
     const sprite = new THREE.Sprite(spriteMat);
     sprite.scale.set(2.0, 0.35, 1);
     return sprite;
+  }
+
+  // Lấy danh sách các tấm nền màn chiếu đang hiển thị (phục vụ chống bắt dính xuyên thấu)
+  getScreenPanels() {
+    return (this.enabled && this.group.visible) ? this.screenPanels : [];
   }
 }

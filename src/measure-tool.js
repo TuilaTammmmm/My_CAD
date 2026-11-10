@@ -509,12 +509,34 @@ export class InspectionTool {
     const height = rect.height;
 
     let bestEdge = null;
-    let minScreenDist = 20; // Ngưỡng bắt dính: 20 pixel
+    let minScreenDist = 22; // Ngưỡng bắt dính: 22 pixel
     let minZ = Infinity;
 
     const p1Screen = new THREE.Vector3();
     const p2Screen = new THREE.Vector3();
     const occRay = new THREE.Raycaster();
+
+    // Lấy danh sách các tấm nền màn chiếu đang hiển thị (nếu có)
+    const screenPanels = (this.projectionScreens && this.projectionScreens.getScreenPanels)
+      ? this.projectionScreens.getScreenPanels()
+      : [];
+
+    // Kiểm tra xem chuột có đang trỏ thẳng vào tấm màn chiếu nào không
+    let mouseHitScreen = false;
+    let mouseHitScreenDist = Infinity;
+    if (screenPanels.length > 0) {
+      const mouseRay = new THREE.Raycaster();
+      const mouseNDC = new THREE.Vector2(
+        (mouseX / width) * 2 - 1,
+        -(mouseY / height) * 2 + 1
+      );
+      mouseRay.setFromCamera(mouseNDC, this.camera);
+      const sHits = mouseRay.intersectObjects(screenPanels, false);
+      if (sHits.length > 0) {
+        mouseHitScreen = true;
+        mouseHitScreenDist = sHits[0].distance;
+      }
+    }
 
     for (const edge of this.edgesList) {
       p1Screen.copy(edge.p1).project(this.camera);
@@ -531,7 +553,26 @@ export class InspectionTool {
       const dist = this.pointToSegmentDistance2D(mouseX, mouseY, x1, y1, x2, y2);
       if (dist >= minScreenDist) continue;
 
-      // KIỂM TRA CHE KHUẤT HÌNH HỌC: Chỉ kiểm tra với cạnh của khối 3D (không áp dụng với cạnh màn chiếu ở ngoài)
+      // KIỂM TRA CHE KHUẤT BỞI MÀN CHIẾU KỸ THUẬT:
+      // A. Nếu chuột đang trỏ trên màn chiếu, tuyệt đối không bắt dính cạnh của khối 3D phía sau màn chiếu
+      if (mouseHitScreen && !edge.isScreenEdge) {
+        continue;
+      }
+
+      // B. Kiểm tra nếu có màn chiếu nào chắn giữa camera và trung điểm cạnh của khối 3D
+      if (!edge.isScreenEdge && screenPanels.length > 0) {
+        const camPos = this.camera.position;
+        const dirToMid = new THREE.Vector3().subVectors(edge.mid, camPos);
+        const distToEdge = dirToMid.length();
+        dirToMid.normalize();
+        occRay.set(camPos, dirToMid);
+        const sOccHits = occRay.intersectObjects(screenPanels, false);
+        if (sOccHits.length > 0 && sOccHits[0].distance < distToEdge - 0.08) {
+          continue; // Màn chiếu đục nằm chắn ngay trước cạnh!
+        }
+      }
+
+      // C. KIỂM TRA CHE KHUẤT HÌNH HỌC BỞI CHÍNH KHỐI 3D
       if (!edge.isScreenEdge && this.currentBrush) {
         const midNDC = edge.mid.clone().project(this.camera);
         if (midNDC.z >= -1 && midNDC.z <= 1) {
@@ -582,8 +623,18 @@ export class InspectionTool {
     this.mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
     this.raycaster.setFromCamera(this.mouse, this.camera);
 
+    const screenPanels = (this.projectionScreens && this.projectionScreens.getScreenPanels)
+      ? this.projectionScreens.getScreenPanels()
+      : [];
+    const screenHits = (screenPanels.length > 0) ? this.raycaster.intersectObjects(screenPanels, false) : [];
+
     const hits = this.raycaster.intersectObject(this.currentBrush, false);
     if (hits.length === 0) return null;
+
+    // Nếu màn chiếu ở phía trước khối 3D, không cho chọn mặt khối xuyên qua màn chiếu
+    if (screenHits.length > 0 && screenHits[0].distance < hits[0].distance) {
+      return null;
+    }
 
     const camDir = new THREE.Vector3();
     this.camera.getWorldDirection(camDir);
@@ -1239,26 +1290,16 @@ export class InspectionTool {
   // CÁC HÀM TIỆN ÍCH ĐỒ HỌA 3D (GRAPHIC HELPERS)
   // ==========================================
 
-  // Highlight một đoạn thẳng cạnh
-  createEdgeHighlight(p1, p2, colorHex = 0xfbbf24, linewidth = 4) {
-    const geom = new THREE.BufferGeometry();
-    geom.setAttribute('position', new THREE.Float32BufferAttribute([p1.x, p1.y, p1.z, p2.x, p2.y, p2.z], 3));
-    const mat = new THREE.LineBasicMaterial({
-      color: colorHex,
-      linewidth,
-      depthTest: false,
-      depthWrite: false,
-      transparent: true,
-      opacity: 0.95
-    });
-    const line = new THREE.LineSegments(geom, mat);
-    line.renderOrder = 1030;
-    return line;
-  }
+  // Highlight một đoạn thẳng cạnh: Dạng ống trụ 3D phát sáng rõ nét, to đẹp mắt
+  createEdgeHighlight(p1, p2, colorHex = 0xfbbf24, size = 0.045) {
+    const radius = (typeof size === 'number' && size > 0.5) ? 0.045 : (size || 0.045);
+    const group = new THREE.Group();
+    const dir = new THREE.Vector3().subVectors(p2, p1);
+    const len = dir.length();
+    if (len < 0.001) return group;
 
-  // Highlight một điểm (Sphere marker)
-  createPointHighlight(p, colorHex = 0xfbbf24, radius = 0.08) {
-    const geom = new THREE.SphereGeometry(radius, 12, 12);
+    // 1. Thân ống trụ 3D nổi bật, dày dặn
+    const cylGeom = new THREE.CylinderGeometry(radius, radius, len, 12, 1, false);
     const mat = new THREE.MeshBasicMaterial({
       color: colorHex,
       depthTest: false,
@@ -1266,22 +1307,105 @@ export class InspectionTool {
       transparent: true,
       opacity: 0.95
     });
-    const mesh = new THREE.Mesh(geom, mat);
-    mesh.position.copy(p);
-    mesh.renderOrder = 1032;
-    return mesh;
+    const cyl = new THREE.Mesh(cylGeom, mat);
+
+    const mid = new THREE.Vector3().addVectors(p1, p2).multiplyScalar(0.5);
+    cyl.position.copy(mid);
+    cyl.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
+    cyl.renderOrder = 1030;
+    group.add(cyl);
+
+    // 2. Hai chỏm cầu tròn tại 2 đỉnh đầu mút của cạnh
+    const sphereGeom = new THREE.SphereGeometry(radius * 1.55, 12, 12);
+    const s1 = new THREE.Mesh(sphereGeom, mat);
+    s1.position.copy(p1);
+    s1.renderOrder = 1031;
+    group.add(s1);
+
+    const s2 = new THREE.Mesh(sphereGeom, mat);
+    s2.position.copy(p2);
+    s2.renderOrder = 1031;
+    group.add(s2);
+
+    // 3. Đường chỉ sáng trắng ở trung tâm
+    const lineGeom = new THREE.BufferGeometry().setFromPoints([p1, p2]);
+    const lineMat = new THREE.LineBasicMaterial({
+      color: 0xffffff,
+      depthTest: false,
+      depthWrite: false,
+      transparent: true,
+      opacity: 0.95
+    });
+    const coreLine = new THREE.Line(lineGeom, lineMat);
+    coreLine.renderOrder = 1032;
+    group.add(coreLine);
+
+    return group;
   }
 
-  // Highlight một mặt phẳng (Translucent mesh)
-  createFaceHighlight(face, colorHex = 0x38bdf8, opacity = 0.45) {
+  // Highlight một điểm (Sphere marker): 3 tầng hào quang rực rỡ, to rõ
+  createPointHighlight(p, colorHex = 0xfbbf24, size = 0.13) {
+    const radius = (typeof size === 'number' && size < 0.09) ? 0.13 : (size || 0.13);
+    const group = new THREE.Group();
+
+    // 1. Quả cầu tâm sáng đậm màu
+    const coreGeom = new THREE.SphereGeometry(radius, 16, 16);
+    const coreMat = new THREE.MeshBasicMaterial({
+      color: colorHex,
+      depthTest: false,
+      depthWrite: false
+    });
+    const core = new THREE.Mesh(coreGeom, coreMat);
+    core.position.copy(p);
+    core.renderOrder = 1033;
+    group.add(core);
+
+    // 2. Vòng hào quang lớn bao quanh dạng wireframe
+    const haloGeom = new THREE.SphereGeometry(radius * 1.9, 14, 14);
+    const haloMat = new THREE.MeshBasicMaterial({
+      color: colorHex,
+      transparent: true,
+      opacity: 0.45,
+      wireframe: true,
+      depthTest: false,
+      depthWrite: false
+    });
+    const halo = new THREE.Mesh(haloGeom, haloMat);
+    halo.position.copy(p);
+    halo.renderOrder = 1034;
+    group.add(halo);
+
+    // 3. Điểm tâm trắng phản chiếu
+    const sparkGeom = new THREE.SphereGeometry(radius * 0.42, 8, 8);
+    const sparkMat = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      depthTest: false,
+      depthWrite: false
+    });
+    const spark = new THREE.Mesh(sparkGeom, sparkMat);
+    spark.position.copy(p);
+    spark.renderOrder = 1035;
+    group.add(spark);
+
+    return group;
+  }
+
+  // Highlight một mặt phẳng (Translucent mesh + đường viền tương phản cao)
+  createFaceHighlight(face, colorHex = 0x38bdf8, opacity = 0.55) {
     const group = new THREE.Group();
     const positions = [];
+    const edgePositions = [];
 
     for (const t of face.triangles) {
       positions.push(
         t.p0.x, t.p0.y, t.p0.z,
         t.p1.x, t.p1.y, t.p1.z,
         t.p2.x, t.p2.y, t.p2.z
+      );
+      edgePositions.push(
+        t.p0.x, t.p0.y, t.p0.z, t.p1.x, t.p1.y, t.p1.z,
+        t.p1.x, t.p1.y, t.p1.z, t.p2.x, t.p2.y, t.p2.z,
+        t.p2.x, t.p2.y, t.p2.z, t.p0.x, t.p0.y, t.p0.z
       );
     }
 
@@ -1298,9 +1422,24 @@ export class InspectionTool {
       depthWrite: false
     });
     const mesh = new THREE.Mesh(geom, mat);
-    mesh.position.addScaledVector(face.norm, 0.005);
+    mesh.position.addScaledVector(face.norm, 0.008);
     mesh.renderOrder = 1020;
     group.add(mesh);
+
+    // Viền khung mặt màu sáng tương phản cao
+    const edgeGeom = new THREE.BufferGeometry();
+    edgeGeom.setAttribute('position', new THREE.Float32BufferAttribute(edgePositions, 3));
+    const edgeMat = new THREE.LineBasicMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.85,
+      depthTest: false,
+      depthWrite: false
+    });
+    const edgeLine = new THREE.LineSegments(edgeGeom, edgeMat);
+    edgeLine.position.addScaledVector(face.norm, 0.012);
+    edgeLine.renderOrder = 1022;
+    group.add(edgeLine);
 
     return group;
   }
@@ -1319,29 +1458,32 @@ export class InspectionTool {
     );
   }
 
-  // Tạo sprite nhãn số đo sắc nét từ 2D Canvas
+  // Tạo sprite nhãn số đo sắc nét, to đẹp từ 2D Canvas
   createTextSprite(text, borderColor = '#38bdf8', bgColor = 'rgba(15, 23, 42, 0.95)') {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     const dpr = 2;
-    canvas.width = 250 * dpr;
-    canvas.height = 70 * dpr;
+    canvas.width = 280 * dpr;
+    canvas.height = 76 * dpr;
     ctx.scale(dpr, dpr);
 
-    const w = 250, h = 70;
-    const boxW = 180, boxH = 40;
+    const w = 280, h = 76;
+    const boxW = 220, boxH = 46;
     const x = (w - boxW) / 2;
     const y = (h - boxH) / 2;
 
+    ctx.shadowColor = borderColor;
+    ctx.shadowBlur = 10;
     ctx.fillStyle = bgColor;
     ctx.strokeStyle = borderColor;
-    ctx.lineWidth = 2.5;
+    ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.roundRect(x, y, boxW, boxH, 10);
+    ctx.roundRect(x, y, boxW, boxH, 12);
     ctx.fill();
     ctx.stroke();
 
-    ctx.font = '600 17px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.shadowBlur = 0;
+    ctx.font = 'bold 18px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
     ctx.fillStyle = '#ffffff';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -1357,7 +1499,7 @@ export class InspectionTool {
     });
     const sprite = new THREE.Sprite(mat);
     sprite.renderOrder = 1040;
-    sprite.scale.set(1.4, 0.38, 1);
+    sprite.scale.set(1.65, 0.45, 1);
     return sprite;
   }
 

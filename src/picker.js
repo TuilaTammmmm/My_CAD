@@ -66,11 +66,11 @@ export class InteractivePicker {
   }
 
   initHoverMarker() {
-    const geom = new THREE.SphereGeometry(0.18, 16, 16);
+    const geom = new THREE.SphereGeometry(0.22, 16, 16);
     const mat = new THREE.MeshBasicMaterial({
       color: 0x38bdf8,
       transparent: true,
-      opacity: 0.9,
+      opacity: 0.92,
       depthTest: false
     });
     this.hoverMarker = new THREE.Mesh(geom, mat);
@@ -78,18 +78,22 @@ export class InteractivePicker {
     this.hoverMarker.visible = false;
     this.scene.add(this.hoverMarker);
 
-    const ringGeom = new THREE.RingGeometry(0.24, 0.36, 24);
+    const ringGeom = new THREE.RingGeometry(0.30, 0.46, 28);
     const ringMat = new THREE.MeshBasicMaterial({
       color: 0x38bdf8,
       side: THREE.DoubleSide,
       transparent: true,
-      opacity: 0.75,
+      opacity: 0.85,
       depthTest: false
     });
     this.hoverRing = new THREE.Mesh(ringGeom, ringMat);
     this.hoverRing.renderOrder = 1001;
     this.hoverRing.visible = false;
     this.scene.add(this.hoverRing);
+  }
+
+  setProjectionScreens(screens) {
+    this.projectionScreens = screens;
   }
 
   updateModel(brush, w, h, d) {
@@ -504,6 +508,19 @@ export class InteractivePicker {
       }
     }
 
+    // Chống bắt dính xuyên qua màn chiếu: Nếu chuột trỏ vào màn chiếu chắn trước khối
+    if (this.projectionScreens && this.projectionScreens.getScreenPanels) {
+      const sPanels = this.projectionScreens.getScreenPanels();
+      if (sPanels.length > 0) {
+        const sHits = this.raycaster.intersectObjects(sPanels, false);
+        if (sHits.length > 0) {
+          if (!frontHit || sHits[0].distance < frontHit.distance) {
+            return null; // Chuột trỏ trên màn chiếu, không chọn khối phía sau
+          }
+        }
+      }
+    }
+
     // 2. Kiểm tra trực tiếp nếu trỏ chuột chạm vào quả cầu nút lưới (direct hit)
     // CHỈ CHẤP NHẬN NÚT NẰM Ở MẶT TRƯỚC (không bị che bởi vách trước, không nằm ở sau lưng)
     if (this.gridNodesGroup && this.gridNodesGroup.visible) {
@@ -800,24 +817,26 @@ export class InteractivePicker {
       if (obj.geometry) obj.geometry.dispose();
     }
 
-    const colors = [0x10b981, 0x38bdf8, 0xf59e0b]; // 🟢 1, 🔵 2, 🟡 3
+    const colors = [0x10b981, 0x0ea5e9, 0xf59e0b]; // 🟢 1: Lục bảo, 🔵 2: Lam điện, 🟡 3: Hổ phách
     const pts = this.selectedPoints;
 
     pts.forEach((pt, index) => {
       const color = (this.mode === 'corner') ? 0xf59e0b : colors[index % colors.length];
 
-      const sphereGeom = new THREE.SphereGeometry(0.22, 16, 16);
+      // 1. Quả cầu lõi sáng to rõ
+      const sphereGeom = new THREE.SphereGeometry(0.28, 18, 18);
       const sphereMat = new THREE.MeshBasicMaterial({ color: color, depthTest: false });
       const sphere = new THREE.Mesh(sphereGeom, sphereMat);
       sphere.position.set(pt.x, pt.y, pt.z);
       sphere.renderOrder = 1002;
       this.pickerGroup.add(sphere);
 
-      const haloGeom = new THREE.SphereGeometry(0.34, 12, 12);
+      // 2. Vòng hào quang ngoài wireframe lớn nổi bật
+      const haloGeom = new THREE.SphereGeometry(0.46, 14, 14);
       const haloMat = new THREE.MeshBasicMaterial({
         color: color,
         transparent: true,
-        opacity: 0.4,
+        opacity: 0.45,
         wireframe: true,
         depthTest: false
       });
@@ -825,6 +844,14 @@ export class InteractivePicker {
       halo.position.set(pt.x, pt.y, pt.z);
       halo.renderOrder = 1003;
       this.pickerGroup.add(halo);
+
+      // 3. Chấm tâm sáng trắng tạo điểm nhấn tương phản
+      const sparkGeom = new THREE.SphereGeometry(0.1, 10, 10);
+      const sparkMat = new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: false });
+      const spark = new THREE.Mesh(sparkGeom, sparkMat);
+      spark.position.set(pt.x, pt.y, pt.z);
+      spark.renderOrder = 1004;
+      this.pickerGroup.add(spark);
     });
 
     if (pts.length === 2 && this.mode === 'slant') {

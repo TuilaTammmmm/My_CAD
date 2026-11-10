@@ -252,6 +252,7 @@ const picker = new InteractivePicker(scene, camera, renderer, controls, cad, pre
     toggleScreensUI();
   }
 });
+picker.setProjectionScreens(projectionScreens);
 
 // UI helpers cho bước cắt (1, 1/2, 1/4, 1/8), bật/tắt ô vuông và số đo
 function syncSnapStepUI(step) {
@@ -322,7 +323,6 @@ document.querySelectorAll('.subdiv-btn').forEach(btn => {
 document.getElementById('btn-toggle-snap-step')?.addEventListener('click', toggleSnapStepUI);
 document.getElementById('btn-toggle-grid-squares')?.addEventListener('click', toggleGridSquaresUI);
 document.getElementById('btn-toggle-dim')?.addEventListener('click', toggleDimUI);
-document.getElementById('inspect-toggle-screens')?.addEventListener('click', toggleScreensUI);
 
 // Đồng bộ trạng thái active của các nút chế độ trên thanh công cụ
 function syncModeUI(mode) {

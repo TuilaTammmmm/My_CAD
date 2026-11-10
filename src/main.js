@@ -218,6 +218,13 @@ const picker = new InteractivePicker(scene, camera, renderer, controls, cad, pre
   onClearMeasures: () => {
     inspectionTool.clearAll();
   },
+  onToggleInspect: () => {
+    if (inspectionTool.isCollapsed) {
+      inspectionTool.expandPanel();
+    } else {
+      inspectionTool.collapsePanel();
+    }
+  },
   onSnapStepChange: (step) => {
     syncSnapStepUI(step);
     gridOverlay.update(W, H, D, currentBrush, step);

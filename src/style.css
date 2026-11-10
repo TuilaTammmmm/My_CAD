@@ -782,16 +782,50 @@ body {
   gap: 14px;
   overflow-y: auto;
   overflow-x: hidden;
-  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
+  transition: opacity 0.25s ease;
 }
 
-.inspection-panel.collapsed {
-  transform: translateX(240px);
-  opacity: 0.85;
+/* NÚT NỔI MỞ BẢNG ĐO ĐẠC KHI ĐÃ THU GỌN */
+.floating-inspect-btn {
+  position: absolute;
+  right: 18px;
+  top: 18px;
+  background: rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  color: #38bdf8;
+  border-radius: 12px;
+  padding: 9px 15px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  z-index: 55;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: fadeInRight 0.25s ease-out;
 }
 
-.inspection-panel.collapsed > *:not(.panel-header) {
-  display: none !important;
+.floating-inspect-btn:hover {
+  background: linear-gradient(135deg, rgba(2, 132, 199, 0.4), rgba(56, 189, 248, 0.2));
+  border-color: #38bdf8;
+  color: #ffffff;
+  transform: translateX(-4px);
+  box-shadow: 0 12px 30px rgba(2, 132, 199, 0.35);
+}
+
+@keyframes fadeInRight {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 .inspection-panel .panel-header {

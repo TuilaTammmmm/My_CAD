@@ -3,12 +3,12 @@ import * as THREE from 'three';
 /**
  * InspectionTool (Công cụ kiểm tra & đo đạc CAD 3D)
  * Hỗ trợ chuyên sâu cho chế độ "Chỉ Xem":
- * - Đo chiều dài cạnh (Click vào cạnh ➔ hiện kích thước CAD kèm mũi tên và số đo)
- * - Đo góc giữa 2 cạnh (Click Cạnh 1 ➔ Click Cạnh 2 ➔ hiện cung tròn đo góc 3D và số độ)
- * - Đo góc giữa 2 mặt (Click Mặt 1 ➔ Click Mặt 2 ➔ tính góc nhị diện giữa 2 mặt phẳng)
- * - Đo khoảng cách 2 điểm (Click Điểm 1 ➔ Click Điểm 2 ➔ hiện khoảng cách D và delta X, Y, Z)
- * - Lưu lại toàn bộ các số đo trên mô hình 3D cho đến khi người dùng bấm "Xóa hết"
- * - Quản lý danh sách số đo trực quan ở bảng công cụ bên phải (cho phép xóa lẻ từng mục)
+ * - Đo chiều dài cạnh (Tự động gộp các đoạn chéo/thẳng bị đứt nét do tam giác hóa thành 1 cạnh dài hoàn chỉnh)
+ * - Đo góc giữa 2 cạnh (Nhận diện đỉnh giao nhau, vẽ cung tròn góc 3D chuẩn CAD và số độ)
+ * - Đo góc giữa 2 mặt (Nhận diện chính xác từng vùng mặt phẳng kết nối, tính góc nhị diện thực tế)
+ * - Đo khoảng cách 2 điểm (Click 2 đỉnh bất kỳ ➔ hiện khoảng cách D và ΔX, ΔY, ΔZ)
+ * - Nút thu gọn / mở lại thông minh (luôn có nút nổi ở mép phải, không bao giờ bị mất)
+ * - Lưu lại toàn bộ số đo trên 3D cho đến khi người dùng bấm "Xóa hết"
  */
 export class InspectionTool {
   constructor(scene, camera, renderer, controls, cad, callbacks = {}) {
@@ -21,7 +21,8 @@ export class InspectionTool {
 
     this.container = renderer.domElement.parentElement;
     this.active = false;
-    this.subMode = 'edge'; // 'edge', 'angle-edges', 'angle-faces', 'distance', 'none'
+    this.subMode = 'edge'; // 'edge', 'angle-edges', 'angle-faces', 'distance'
+    this.isCollapsed = false;
 
     // Nhóm 3D chứa tất cả các số đo đã lưu (Persistent Measurements)
     this.measurementsGroup = new THREE.Group();
@@ -41,6 +42,7 @@ export class InspectionTool {
     this.currentEdges = null;
     this.edgesList = [];
     this.facesList = [];
+    this.triangleToFaceMap = [];
 
     // Trạng thái chọn tạm thời khi đo góc / khoảng cách
     this.selectedEdge1 = null;
@@ -57,6 +59,7 @@ export class InspectionTool {
 
     // Tham chiếu các thành phần DOM
     this.panelElement = document.getElementById('inspection-panel');
+    this.floatingBtn = document.getElementById('btn-floating-open-inspect');
     this.instructionElement = document.getElementById('measure-instruction');
     this.measureListElement = document.getElementById('measure-list');
     this.measureCountElement = document.getElementById('measure-count');
@@ -89,15 +92,32 @@ export class InspectionTool {
       btnCopy.addEventListener('click', () => this.copyToClipboard());
     }
 
-    // Nút thu gọn / mở rộng bảng
+    // Nút thu gọn bảng (▶)
     const btnCollapse = document.getElementById('btn-toggle-inspection-panel');
     if (btnCollapse) {
-      btnCollapse.addEventListener('click', () => {
-        const isCollapsed = this.panelElement.classList.toggle('collapsed');
-        btnCollapse.textContent = isCollapsed ? '◀' : '▶';
-        btnCollapse.title = isCollapsed ? 'Mở rộng bảng đo đạc' : 'Thu gọn bảng';
-      });
+      btnCollapse.addEventListener('click', () => this.collapsePanel());
     }
+
+    // Nút mở lại bảng khi đã thu gọn (🔍 Đo Đạc ◀)
+    if (this.floatingBtn) {
+      this.floatingBtn.addEventListener('click', () => this.expandPanel());
+    }
+  }
+
+  // Thu gọn bảng đo đạc
+  collapsePanel() {
+    this.isCollapsed = true;
+    if (this.panelElement) this.panelElement.style.display = 'none';
+    if (this.floatingBtn && this.active) {
+      this.floatingBtn.style.display = 'flex';
+    }
+  }
+
+  // Mở rộng lại bảng đo đạc
+  expandPanel() {
+    this.isCollapsed = false;
+    if (this.panelElement) this.panelElement.style.display = 'flex';
+    if (this.floatingBtn) this.floatingBtn.style.display = 'none';
   }
 
   // Khởi tạo lắng nghe tương tác chuột trên viewport 3D
@@ -136,7 +156,6 @@ export class InspectionTool {
       } else if (e.key === 'Delete' || (e.ctrlKey && e.key.toLowerCase() === 'k')) {
         this.clearAll();
       } else if (e.key.toLowerCase() === 'm') {
-        // Chu trình đổi chế độ đo: edge ➔ angle-edges ➔ angle-faces ➔ distance
         const modes = ['edge', 'angle-edges', 'angle-faces', 'distance'];
         const nextIdx = (modes.indexOf(this.subMode) + 1) % modes.length;
         this.setSubMode(modes[nextIdx]);
@@ -144,24 +163,27 @@ export class InspectionTool {
     });
   }
 
-  // Kích hoạt / Ẩn hiện công cụ
+  // Kích hoạt khi vào tab "Chỉ Xem"
   show() {
     this.active = true;
-    if (this.panelElement) {
-      this.panelElement.style.display = 'flex';
-      this.panelElement.classList.remove('collapsed');
+    if (this.isCollapsed) {
+      if (this.panelElement) this.panelElement.style.display = 'none';
+      if (this.floatingBtn) this.floatingBtn.style.display = 'flex';
+    } else {
+      if (this.panelElement) this.panelElement.style.display = 'flex';
+      if (this.floatingBtn) this.floatingBtn.style.display = 'none';
     }
     this.updateInstruction();
     this.updateUIList();
   }
 
+  // Ẩn khi rời khỏi tab "Chỉ Xem"
   hide() {
     this.active = false;
     this.resetSelection();
     this.clearPreview();
-    if (this.panelElement) {
-      this.panelElement.style.display = 'none';
-    }
+    if (this.panelElement) this.panelElement.style.display = 'none';
+    if (this.floatingBtn) this.floatingBtn.style.display = 'none';
   }
 
   // Đổi chế độ đo đạc con
@@ -202,10 +224,8 @@ export class InspectionTool {
         this.instructionElement.innerHTML = `👉 <b>Click ĐIỂM THỨ NHẤT</b> (Đỉnh hoặc nút lưới) trên khối.`;
       } else {
         const p = this.selectedPoint1;
-        this.instructionElement.innerHTML = `🟢 <b>Điểm 1 (${p.x}, ${p.y}, ${p.z})</b>. Hãy <b>Click ĐIỂM THỨ HAI</b> để đo khoảng cách.`;
+        this.instructionElement.innerHTML = `🟢 <b>Điểm 1 (${p.x.toFixed(1)}, ${p.y.toFixed(1)}, ${p.z.toFixed(1)})</b>. Hãy <b>Click ĐIỂM THỨ HAI</b> để đo khoảng cách.`;
       }
-    } else {
-      this.instructionElement.innerHTML = `👁️ Chế độ quan sát tự do.`;
     }
   }
 
@@ -219,78 +239,215 @@ export class InspectionTool {
     this.clearPreview();
   }
 
-  // Trích xuất toàn bộ danh sách các cạnh thực của khối 3D
+  // =========================================================================
+  // GỘP CÁC ĐOẠN THẲNG CÙNG PHƯƠNG THÀNH CẠNH LIỀN HOÀN CHỈNH (HEAL COLLINEAR EDGES)
+  // Khắc phục triệt để lỗi đoạn chéo nét bị đứt nửa chừng do phân chia tam giác
+  // =========================================================================
   cacheEdges() {
     this.edgesList = [];
     if (!this.currentEdges || !this.currentEdges.geometry) return;
     const pos = this.currentEdges.geometry.attributes.position;
-    if (!pos) return;
+    if (!pos || pos.count === 0) return;
 
+    const rawSegments = [];
     for (let i = 0; i < pos.count; i += 2) {
       const p1 = new THREE.Vector3(pos.getX(i), pos.getY(i), pos.getZ(i));
       const p2 = new THREE.Vector3(pos.getX(i + 1), pos.getY(i + 1), pos.getZ(i + 1));
       const len = p1.distanceTo(p2);
       if (len > 0.005) {
+        const dir = new THREE.Vector3().subVectors(p2, p1).normalize();
+        rawSegments.push({ p1, p2, len, dir, merged: false });
+      }
+    }
+
+    // Thuật toán gộp các đoạn thẳng cùng phương nối tiếp nhau
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (let i = 0; i < rawSegments.length; i++) {
+        if (rawSegments[i].merged) continue;
+        const s1 = rawSegments[i];
+
+        for (let j = i + 1; j < rawSegments.length; j++) {
+          if (rawSegments[j].merged) continue;
+          const s2 = rawSegments[j];
+
+          // Kiểm tra xem 2 đoạn thẳng có cùng phương không
+          const dot = Math.abs(s1.dir.dot(s2.dir));
+          if (dot < 0.999) continue;
+
+          let match = false;
+          let newStart = null;
+          let newEnd = null;
+
+          // Trường hợp 1: s1.p2 chạm s2.p1
+          if (s1.p2.distanceTo(s2.p1) < 0.01) {
+            const vComb = new THREE.Vector3().subVectors(s2.p2, s1.p1);
+            if (vComb.length() > 0.005 && s1.dir.dot(vComb.clone().normalize()) > 0.998) {
+              newStart = s1.p1;
+              newEnd = s2.p2;
+              match = true;
+            }
+          }
+          // Trường hợp 2: s1.p1 chạm s2.p2
+          else if (s1.p1.distanceTo(s2.p2) < 0.01) {
+            const vComb = new THREE.Vector3().subVectors(s1.p2, s2.p1);
+            if (vComb.length() > 0.005 && s2.dir.dot(vComb.clone().normalize()) > 0.998) {
+              newStart = s2.p1;
+              newEnd = s1.p2;
+              match = true;
+            }
+          }
+          // Trường hợp 3: s1.p2 chạm s2.p2
+          else if (s1.p2.distanceTo(s2.p2) < 0.01) {
+            const vComb = new THREE.Vector3().subVectors(s2.p1, s1.p1);
+            if (vComb.length() > 0.005 && s1.dir.dot(vComb.clone().normalize()) > 0.998) {
+              newStart = s1.p1;
+              newEnd = s2.p1;
+              match = true;
+            }
+          }
+          // Trường hợp 4: s1.p1 chạm s2.p1
+          else if (s1.p1.distanceTo(s2.p1) < 0.01) {
+            const vComb = new THREE.Vector3().subVectors(s2.p2, s1.p2);
+            if (vComb.length() > 0.005 && s1.dir.dot(vComb.clone().normalize()) < -0.998) {
+              newStart = s1.p2;
+              newEnd = s2.p2;
+              match = true;
+            }
+          }
+
+          if (match && newStart && newEnd) {
+            s1.p1 = newStart.clone();
+            s1.p2 = newEnd.clone();
+            s1.dir = new THREE.Vector3().subVectors(s1.p2, s1.p1).normalize();
+            s1.len = s1.p1.distanceTo(s1.p2);
+            s2.merged = true;
+            changed = true;
+            break;
+          }
+        }
+      }
+    }
+
+    // Lưu danh sách cạnh đã được nối liền hoàn hảo
+    for (const s of rawSegments) {
+      if (!s.merged && s.len > 0.005) {
         this.edgesList.push({
-          id: `edge_${i / 2}`,
-          p1,
-          p2,
-          len,
-          mid: new THREE.Vector3().addVectors(p1, p2).multiplyScalar(0.5),
-          dir: new THREE.Vector3().subVectors(p2, p1).normalize()
+          id: `edge_${this.edgesList.length}`,
+          p1: s.p1,
+          p2: s.p2,
+          len: s.len,
+          mid: new THREE.Vector3().addVectors(s.p1, s.p2).multiplyScalar(0.5),
+          dir: s.dir
         });
       }
     }
   }
 
-  // Trích xuất danh sách các mặt phẳng của khối
+  // =========================================================================
+  // PHÂN NHÓM MẶT PHẲNG KẾT NỐI (BFS CONNECTIVITY CLUSTERING)
+  // Khắc phục lỗi chọn mặt không đúng, không gộp nhầm các mặt rời nhau
+  // =========================================================================
   cacheFaces() {
     this.facesList = [];
+    this.triangleToFaceMap = [];
     if (!this.currentBrush || !this.currentBrush.geometry) return;
 
-    const nonIndexed = this.currentBrush.geometry.index
+    const geom = this.currentBrush.geometry.index
       ? this.currentBrush.geometry.toNonIndexed()
       : this.currentBrush.geometry;
-    const pos = nonIndexed.attributes.position;
+    const pos = geom.attributes.position;
     const triCount = Math.floor(pos.count / 3);
+    if (triCount === 0) return;
+
+    // 1. Tính toán normal chính xác và lập chỉ mục đỉnh cho từng tam giác
     const triangles = [];
+    const vKey = (x, y, z) => `${Math.round(x * 100) / 100},${Math.round(y * 100) / 100},${Math.round(z * 100) / 100}`;
+    const vertexToTris = new Map();
 
     for (let i = 0; i < triCount; i++) {
-      const p0 = new THREE.Vector3(pos.getX(i * 3), pos.getY(i * 3), pos.getZ(i * 3));
-      const p1 = new THREE.Vector3(pos.getX(i * 3 + 1), pos.getY(i * 3 + 1), pos.getZ(i * 3 + 1));
-      const p2 = new THREE.Vector3(pos.getX(i * 3 + 2), pos.getY(i * 3 + 2), pos.getZ(i * 3 + 2));
-      const norm = new THREE.Vector3().subVectors(p1, p0).cross(new THREE.Vector3().subVectors(p2, p0));
-      if (norm.length() > 1e-5) {
-        triangles.push({ p0, p1, p2, norm: norm.normalize() });
+      const idx = i * 3;
+      const p0 = new THREE.Vector3(pos.getX(idx), pos.getY(idx), pos.getZ(idx));
+      const p1 = new THREE.Vector3(pos.getX(idx + 1), pos.getY(idx + 1), pos.getZ(idx + 1));
+      const p2 = new THREE.Vector3(pos.getX(idx + 2), pos.getY(idx + 2), pos.getZ(idx + 2));
+
+      const e1 = new THREE.Vector3().subVectors(p1, p0);
+      const e2 = new THREE.Vector3().subVectors(p2, p0);
+      const cross = new THREE.Vector3().crossVectors(e1, e2);
+      const area = cross.length();
+      const norm = (area > 1e-6) ? cross.clone().normalize() : new THREE.Vector3(0, 1, 0);
+
+      const k0 = vKey(p0.x, p0.y, p0.z);
+      const k1 = vKey(p1.x, p1.y, p1.z);
+      const k2 = vKey(p2.x, p2.y, p2.z);
+
+      triangles.push({ i, p0, p1, p2, norm, k0, k1, k2, area });
+
+      for (const k of [k0, k1, k2]) {
+        if (!vertexToTris.has(k)) vertexToTris.set(k, []);
+        vertexToTris.get(k).push(i);
       }
     }
 
-    for (const t of triangles) {
-      let face = this.facesList.find(f =>
-        f.norm.dot(t.norm) > 0.98 &&
-        Math.abs(f.norm.dot(t.p0.clone().sub(f.p0))) < 0.02
-      );
-      if (face) {
-        face.triangles.push(t);
-      } else {
-        this.facesList.push({
-          id: `face_${this.facesList.length}`,
-          norm: t.norm.clone(),
-          p0: t.p0.clone(),
-          triangles: [t]
-        });
-      }
-    }
+    // 2. Gom cụm các tam giác ĐỒNG PHẲNG VÀ KẾT NỐI LIỀN NHAU (Connected Components)
+    const visited = new Uint8Array(triCount);
+    this.triangleToFaceMap = new Array(triCount);
 
-    // Tính tâm mặt phẳng
-    for (const face of this.facesList) {
+    for (let i = 0; i < triCount; i++) {
+      if (visited[i]) continue;
+      const seed = triangles[i];
+      const faceTriangles = [];
+      const queue = [i];
+      visited[i] = 1;
+
+      const baseNorm = seed.norm.clone();
+      const baseP0 = seed.p0.clone();
+      const faceIndex = this.facesList.length;
+
+      while (queue.length > 0) {
+        const currIdx = queue.pop();
+        const currTri = triangles[currIdx];
+        faceTriangles.push(currTri);
+        this.triangleToFaceMap[currIdx] = faceIndex;
+
+        // Loang qua các tam giác lân cận có chung đỉnh
+        for (const vk of [currTri.k0, currTri.k1, currTri.k2]) {
+          const neighbors = vertexToTris.get(vk) || [];
+          for (const nbrIdx of neighbors) {
+            if (visited[nbrIdx]) continue;
+            const nbrTri = triangles[nbrIdx];
+
+            // Tiêu chuẩn đồng phẳng: cùng pháp tuyến và cùng khoảng cách mặt phẳng
+            if (nbrTri.norm.dot(baseNorm) > 0.985) {
+              const dist = Math.abs(baseNorm.dot(nbrTri.p0.clone().sub(baseP0)));
+              if (dist < 0.015) {
+                visited[nbrIdx] = 1;
+                queue.push(nbrIdx);
+              }
+            }
+          }
+        }
+      }
+
+      // Tính trọng tâm centroid của mặt phẳng
       const centroid = new THREE.Vector3();
-      let count = 0;
-      for (const t of face.triangles) {
-        centroid.add(t.p0).add(t.p1).add(t.p2);
-        count += 3;
+      let totalArea = 0;
+      for (const t of faceTriangles) {
+        const triCenter = new THREE.Vector3().add(t.p0).add(t.p1).add(t.p2).multiplyScalar(1 / 3);
+        centroid.addScaledVector(triCenter, t.area);
+        totalArea += t.area;
       }
-      face.centroid = centroid.multiplyScalar(1 / count);
+      if (totalArea > 0) centroid.multiplyScalar(1 / totalArea);
+      else centroid.copy(baseP0);
+
+      this.facesList.push({
+        id: `face_${faceIndex}`,
+        norm: baseNorm,
+        centroid,
+        p0: baseP0,
+        triangles: faceTriangles
+      });
     }
   }
 
@@ -304,7 +461,7 @@ export class InspectionTool {
     const height = rect.height;
 
     let bestEdge = null;
-    let minScreenDist = 18; // Ngưỡng bắt dính: trong vòng 18 pixel
+    let minScreenDist = 18; // Ngưỡng bắt dính: 18 pixel
     let minZ = Infinity;
 
     const p1Screen = new THREE.Vector3();
@@ -314,7 +471,7 @@ export class InspectionTool {
       p1Screen.copy(edge.p1).project(this.camera);
       p2Screen.copy(edge.p2).project(this.camera);
 
-      // Nếu cả 2 điểm nằm phía sau camera
+      // Bỏ qua nếu cả 2 điểm nằm ngoài tầm nhìn
       if (p1Screen.z > 1 && p2Screen.z > 1) continue;
 
       const x1 = (p1Screen.x * 0.5 + 0.5) * width;
@@ -355,7 +512,7 @@ export class InspectionTool {
     return Math.sqrt(ex * ex + ey * ey);
   }
 
-  // Tìm mặt phẳng được raycast trúng
+  // Tìm mặt phẳng được raycast trúng (ánh xạ trực tiếp theo chỉ số tam giác O(1))
   findHitFace(clientX, clientY) {
     if (!this.currentBrush) return null;
     const rect = this.container.getBoundingClientRect();
@@ -367,14 +524,10 @@ export class InspectionTool {
     if (hits.length === 0) return null;
 
     const hit = hits[0];
-    const hitNorm = hit.face.normal.clone().transformDirection(this.currentBrush.matrixWorld).normalize();
-
-    // Tìm mặt phẳng trong facesList tương ứng
-    for (const face of this.facesList) {
-      if (face.norm.dot(hitNorm) > 0.96) {
-        const dist = Math.abs(face.norm.dot(hit.point.clone().sub(face.p0)));
-        if (dist < 0.05) return face;
-      }
+    const triIdx = hit.faceIndex;
+    if (triIdx !== undefined && this.triangleToFaceMap && this.triangleToFaceMap[triIdx] !== undefined) {
+      const faceIdx = this.triangleToFaceMap[triIdx];
+      return this.facesList[faceIdx] || null;
     }
 
     return null;
@@ -411,13 +564,13 @@ export class InspectionTool {
       this.hoveredEdge = edge;
       if (edge) {
         this.renderer.domElement.style.cursor = 'pointer';
-        // Highlight cạnh đang rê chuột: Vàng neon sáng
-        this.previewGroup.add(this.createEdgeHighlight(edge.p1, edge.p2, 0xfbbf24, 4));
+        // Highlight toàn bộ cạnh dài liền mạch: Vàng neon sáng
+        this.previewGroup.add(this.createEdgeHighlight(edge.p1, edge.p2, 0xfbbf24, 4.5));
       } else {
         this.renderer.domElement.style.cursor = 'grab';
       }
 
-      // Giữ highlight cho Cạnh 1 đã chọn trước đó
+      // Giữ highlight cho Cạnh 1 đã chọn: Xanh lục
       if (this.selectedEdge1) {
         this.previewGroup.add(this.createEdgeHighlight(this.selectedEdge1.p1, this.selectedEdge1.p2, 0x10b981, 4.5));
       }
@@ -427,15 +580,15 @@ export class InspectionTool {
       this.hoveredFace = face;
       if (face) {
         this.renderer.domElement.style.cursor = 'pointer';
-        // Highlight mặt phẳng đang hover: Xanh cyan mờ
-        this.previewGroup.add(this.createFaceHighlight(face, 0x38bdf8, 0.4));
+        // Highlight chính xác duy nhất mặt phẳng đang hover: Xanh cyan mờ
+        this.previewGroup.add(this.createFaceHighlight(face, 0x38bdf8, 0.45));
       } else {
         this.renderer.domElement.style.cursor = 'grab';
       }
 
-      // Giữ highlight cho Mặt 1 đã chọn trước đó: Xanh lục
+      // Giữ highlight cho Mặt 1 đã chọn: Xanh lục
       if (this.selectedFace1) {
-        this.previewGroup.add(this.createFaceHighlight(this.selectedFace1, 0x10b981, 0.5));
+        this.previewGroup.add(this.createFaceHighlight(this.selectedFace1, 0x10b981, 0.55));
       }
 
     } else if (this.subMode === 'distance') {
@@ -470,7 +623,6 @@ export class InspectionTool {
         this.selectedEdge1 = edge;
         this.updateInstruction();
       } else {
-        // Đã có Cạnh 1, giờ có Cạnh 2 ➔ Thực hiện đo góc
         const edge1 = this.selectedEdge1;
         const edge2 = edge;
         this.addMeasureAngleEdges(edge1, edge2);
@@ -486,7 +638,6 @@ export class InspectionTool {
         this.selectedFace1 = face;
         this.updateInstruction();
       } else {
-        // Đã có Mặt 1, giờ có Mặt 2 ➔ Thực hiện đo góc giữa 2 mặt
         const face1 = this.selectedFace1;
         const face2 = face;
         this.addMeasureAngleFaces(face1, face2);
@@ -530,16 +681,16 @@ export class InspectionTool {
     const group = new THREE.Group();
     group.name = id;
 
-    // Đường viền sáng trên cạnh
-    group.add(this.createEdgeHighlight(p1, p2, 0x38bdf8, 3));
+    // Đường viền sáng trên toàn bộ cạnh
+    group.add(this.createEdgeHighlight(p1, p2, 0x38bdf8, 3.5));
 
     // Điểm đầu và cuối cạnh
-    group.add(this.createPointHighlight(p1, 0x38bdf8, 0.07));
-    group.add(this.createPointHighlight(p2, 0x38bdf8, 0.07));
+    group.add(this.createPointHighlight(p1, 0x38bdf8, 0.08));
+    group.add(this.createPointHighlight(p2, 0x38bdf8, 0.08));
 
     // Tính hướng gióng kích thước ra ngoài khối
     const mid = new THREE.Vector3().addVectors(p1, p2).multiplyScalar(0.5);
-    const boxCenter = new THREE.Vector3(3, 2, 2); // Khối hộp tham chiếu
+    const boxCenter = new THREE.Vector3(3, 2, 2);
     const outVec = new THREE.Vector3().subVectors(mid, boxCenter);
     const edgeDir = new THREE.Vector3().subVectors(p2, p1).normalize();
     const perp = new THREE.Vector3().subVectors(outVec, edgeDir.clone().multiplyScalar(outVec.dot(edgeDir)));
@@ -574,9 +725,9 @@ export class InspectionTool {
     mainLine.renderOrder = 1024;
     group.add(mainLine);
 
-    // Nhãn số đo sắc nét (Sprite)
+    // Nhãn số đo sắc nét
     const dimMid = new THREE.Vector3().addVectors(dStart, dEnd).multiplyScalar(0.5);
-    const sprite = this.createTextSprite(`L: ${lenStr} ô`, '#38bdf8');
+    const sprite = this.createTextSprite(`L = ${lenStr} ô`, '#38bdf8');
     sprite.position.copy(dimMid);
     group.add(sprite);
 
@@ -600,11 +751,10 @@ export class InspectionTool {
     const group = new THREE.Group();
     group.name = id;
 
-    // Highlight 2 cạnh: Cạnh 1 màu xanh lục, Cạnh 2 màu cam
+    // Highlight 2 cạnh: Cạnh 1 xanh lục, Cạnh 2 cam
     group.add(this.createEdgeHighlight(edge1.p1, edge1.p2, 0x10b981, 3.5));
     group.add(this.createEdgeHighlight(edge2.p1, edge2.p2, 0xf59e0b, 3.5));
 
-    // Kiểm tra xem 2 cạnh có chung đỉnh hay không
     let V = null;
     let dir1 = new THREE.Vector3();
     let dir2 = new THREE.Vector3();
@@ -630,7 +780,7 @@ export class InspectionTool {
     let angleDeg = 0;
 
     if (V) {
-      // 2 CẠNH CẮT NHAU TẠI ĐỈNH V: Vẽ cung tròn đo góc 3D chuẩn xác
+      // 2 CẠNH CHUNG ĐỈNH: Vẽ cung tròn đo góc 3D
       const cosVal = Math.max(-1, Math.min(1, dir1.dot(dir2)));
       const angleRad = Math.acos(cosVal);
       angleDeg = (angleRad * 180) / Math.PI;
@@ -657,7 +807,6 @@ export class InspectionTool {
         arcLine.renderOrder = 1026;
         group.add(arcLine);
 
-        // Vị trí đặt nhãn góc ở chính giữa cung tròn
         const midRad = angleRad / 2;
         const labelPos = V.clone()
           .addScaledVector(dir1, Math.cos(midRad) * (R + 0.4))
@@ -667,20 +816,18 @@ export class InspectionTool {
         sprite.position.copy(labelPos);
         group.add(sprite);
       } else {
-        // 2 cạnh cùng phương
         const sprite = this.createTextSprite(`Góc: ${angleDeg.toFixed(1)}°`, '#fbbf24');
         sprite.position.copy(V.clone().add(new THREE.Vector3(0, 0.4, 0)));
         group.add(sprite);
       }
 
     } else {
-      // 2 CẠNH KHÔNG CHUNG ĐỈNH: Tính góc không gian giữa 2 vector chỉ phương
+      // 2 CẠNH KHÔNG CHUNG ĐỈNH: Tính góc không gian giữa 2 vector
       const d1 = edge1.dir;
       const d2 = edge2.dir;
       const cosVal = Math.abs(d1.dot(d2));
       angleDeg = (Math.acos(Math.max(0, Math.min(1, cosVal))) * 180) / Math.PI;
 
-      // Vẽ đường kết nối 2 trung điểm
       const linePts = [edge1.mid.x, edge1.mid.y, edge1.mid.z, edge2.mid.x, edge2.mid.y, edge2.mid.z];
       const geom = new THREE.BufferGeometry();
       geom.setAttribute('position', new THREE.Float32BufferAttribute(linePts, 3));
@@ -702,7 +849,7 @@ export class InspectionTool {
       id,
       type: 'angle-edges',
       title: `Góc 2 Cạnh: ${angleDeg.toFixed(1)}°`,
-      sub: V ? `Giao đỉnh tại (${V.x.toFixed(1)}, ${V.y.toFixed(1)}, ${V.z.toFixed(1)})` : `2 cạnh chéo/song song`,
+      sub: V ? `Chung đỉnh tại (${V.x.toFixed(1)}, ${V.y.toFixed(1)}, ${V.z.toFixed(1)})` : `2 cạnh song song / chéo`,
       group
     };
 
@@ -710,28 +857,37 @@ export class InspectionTool {
     this.updateUIList();
   }
 
-  // 3. Thêm số đo góc giữa 2 mặt (Dihedral Angle between 2 Faces)
+  // 3. Thêm số đo góc giữa 2 mặt phẳng (Dihedral Angle)
   addMeasureAngleFaces(face1, face2) {
     const id = `angle_face_${this.idCounter++}`;
     const group = new THREE.Group();
     group.name = id;
 
-    // Highlight 2 mặt phẳng: Mặt 1 xanh lục, Mặt 2 cam
-    group.add(this.createFaceHighlight(face1, 0x10b981, 0.45));
-    group.add(this.createFaceHighlight(face2, 0xf59e0b, 0.45));
+    // Highlight 2 mặt phẳng được chọn
+    group.add(this.createFaceHighlight(face1, 0x10b981, 0.5));
+    group.add(this.createFaceHighlight(face2, 0xf59e0b, 0.5));
 
     // Tính góc giữa 2 pháp tuyến
     const dot = Math.max(-1, Math.min(1, face1.norm.dot(face2.norm)));
     const normAngleRad = Math.acos(dot);
     const normAngleDeg = (normAngleRad * 180) / Math.PI;
 
-    // Góc nhị diện (Dihedral Angle): góc giữa 2 bề mặt thực tế
-    let dihedralDeg = 180 - normAngleDeg;
-    if (Math.abs(dot) < 0.01) dihedralDeg = 90.0;
+    // Góc nhị diện giữa 2 mặt
+    const dihedralDeg = 180 - normAngleDeg;
+    let titleStr = '';
+    let subStr = '';
 
-    // Vị trí đặt nhãn tại trung điểm giữa 2 tâm mặt
+    if (Math.abs(dot) < 0.01) {
+      titleStr = 'Góc 2 Mặt: 90.0°';
+      subStr = '2 mặt vuông góc (90.0°)';
+    } else {
+      titleStr = `Góc: ${dihedralDeg.toFixed(1)}° (${normAngleDeg.toFixed(1)}°)`;
+      subStr = `Góc trong: ${dihedralDeg.toFixed(1)}° | Góc nghiêng: ${normAngleDeg.toFixed(1)}°`;
+    }
+
+    // Đặt nhãn tại vị trí trung gian giữa 2 mặt phẳng
     const midPos = new THREE.Vector3().addVectors(face1.centroid, face2.centroid).multiplyScalar(0.5);
-    const sprite = this.createTextSprite(`Góc 2 Mặt: ${dihedralDeg.toFixed(1)}°`, '#a855f7');
+    const sprite = this.createTextSprite(titleStr, '#a855f7');
     sprite.position.copy(midPos);
     group.add(sprite);
 
@@ -740,8 +896,8 @@ export class InspectionTool {
     const item = {
       id,
       type: 'angle-faces',
-      title: `Góc 2 Mặt: ${dihedralDeg.toFixed(1)}°`,
-      sub: `Pháp tuyến N1 ∡ N2 = ${normAngleDeg.toFixed(1)}°`,
+      title: titleStr,
+      sub: subStr,
       group
     };
 
@@ -749,7 +905,7 @@ export class InspectionTool {
     this.updateUIList();
   }
 
-  // 4. Thêm số đo khoảng cách giữa 2 điểm (Distance between 2 Points)
+  // 4. Thêm số đo khoảng cách giữa 2 điểm (Distance)
   addMeasureDistance(p1, p2) {
     const id = `dist_${this.idCounter++}`;
     const group = new THREE.Group();
@@ -760,11 +916,9 @@ export class InspectionTool {
     const dy = Math.abs(p2.y - p1.y);
     const dz = Math.abs(p2.z - p1.z);
 
-    // Điểm đầu và cuối
     group.add(this.createPointHighlight(p1, 0xec4899, 0.08));
     group.add(this.createPointHighlight(p2, 0xec4899, 0.08));
 
-    // Đường nối thẳng đứt đoạn
     const linePts = [p1.x, p1.y, p1.z, p2.x, p2.y, p2.z];
     const geom = new THREE.BufferGeometry();
     geom.setAttribute('position', new THREE.Float32BufferAttribute(linePts, 3));
@@ -773,7 +927,6 @@ export class InspectionTool {
     line.renderOrder = 1024;
     group.add(line);
 
-    // Nhãn số đo
     const mid = new THREE.Vector3().addVectors(p1, p2).multiplyScalar(0.5);
     const sprite = this.createTextSprite(`D = ${dist.toFixed(2)} ô`, '#ec4899');
     sprite.position.copy(mid);
@@ -823,7 +976,7 @@ export class InspectionTool {
     }
   }
 
-  // Sao chép toàn bộ danh sách kết quả đo ra Clipboard
+  // Sao chép kết quả ra Clipboard
   copyToClipboard() {
     if (this.measurements.length === 0) {
       alert('Chưa có số đo nào để sao chép!');
@@ -907,7 +1060,7 @@ export class InspectionTool {
         const itemId = itemEl.getAttribute('data-id');
         const found = this.measurements.find(m => m.id === itemId);
         if (found && found.group) {
-          found.group.scale.set(1.05, 1.05, 1.05);
+          found.group.scale.set(1.04, 1.04, 1.04);
         }
       });
       itemEl.addEventListener('mouseleave', () => {
@@ -925,7 +1078,7 @@ export class InspectionTool {
   // ==========================================
 
   // Highlight một đoạn thẳng cạnh
-  createEdgeHighlight(p1, p2, colorHex = 0xfbbf24, linewidth = 3) {
+  createEdgeHighlight(p1, p2, colorHex = 0xfbbf24, linewidth = 4) {
     const geom = new THREE.BufferGeometry();
     geom.setAttribute('position', new THREE.Float32BufferAttribute([p1.x, p1.y, p1.z, p2.x, p2.y, p2.z], 3));
     const mat = new THREE.LineBasicMaterial({
@@ -958,7 +1111,7 @@ export class InspectionTool {
   }
 
   // Highlight một mặt phẳng (Translucent mesh)
-  createFaceHighlight(face, colorHex = 0x38bdf8, opacity = 0.4) {
+  createFaceHighlight(face, colorHex = 0x38bdf8, opacity = 0.45) {
     const group = new THREE.Group();
     const positions = [];
 
@@ -983,6 +1136,7 @@ export class InspectionTool {
       depthWrite: false
     });
     const mesh = new THREE.Mesh(geom, mat);
+    mesh.position.addScaledVector(face.norm, 0.005);
     mesh.renderOrder = 1020;
     group.add(mesh);
 
@@ -1008,16 +1162,15 @@ export class InspectionTool {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     const dpr = 2;
-    canvas.width = 240 * dpr;
+    canvas.width = 250 * dpr;
     canvas.height = 70 * dpr;
     ctx.scale(dpr, dpr);
 
-    const w = 240, h = 70;
-    const boxW = 160, boxH = 40;
+    const w = 250, h = 70;
+    const boxW = 180, boxH = 40;
     const x = (w - boxW) / 2;
     const y = (h - boxH) / 2;
 
-    // Viên thuốc bo góc
     ctx.fillStyle = bgColor;
     ctx.strokeStyle = borderColor;
     ctx.lineWidth = 2.5;
@@ -1026,8 +1179,7 @@ export class InspectionTool {
     ctx.fill();
     ctx.stroke();
 
-    // Text chữ số đo
-    ctx.font = '600 18px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.font = '600 17px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
     ctx.fillStyle = '#ffffff';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -1043,7 +1195,7 @@ export class InspectionTool {
     });
     const sprite = new THREE.Sprite(mat);
     sprite.renderOrder = 1040;
-    sprite.scale.set(1.3, 0.38, 1);
+    sprite.scale.set(1.4, 0.38, 1);
     return sprite;
   }
 

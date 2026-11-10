@@ -102,6 +102,36 @@ export class InspectionTool {
     if (this.floatingBtn) {
       this.floatingBtn.addEventListener('click', () => this.expandPanel());
     }
+
+    // Nút Bật/Tắt Ô vuông trong bảng Chỉ Xem
+    const btnToggleGrid = document.getElementById('inspect-toggle-grid');
+    if (btnToggleGrid) {
+      btnToggleGrid.addEventListener('click', () => {
+        if (this.callbacks.onToggleGridSquares) this.callbacks.onToggleGridSquares();
+      });
+    }
+
+    // Nút Bật/Tắt Số đo khối trong bảng Chỉ Xem
+    const btnToggleDim = document.getElementById('inspect-toggle-dim');
+    if (btnToggleDim) {
+      btnToggleDim.addEventListener('click', () => {
+        if (this.callbacks.onToggleDim) this.callbacks.onToggleDim();
+      });
+    }
+  }
+
+  syncGridSquaresUI(visible) {
+    const btn = document.getElementById('inspect-toggle-grid');
+    const lbl = document.getElementById('lbl-inspect-grid');
+    if (btn) btn.classList.toggle('active', visible);
+    if (lbl) lbl.textContent = visible ? 'Ô Vuông: BẬT' : 'Ô Vuông: TẮT';
+  }
+
+  syncDimUI(enabled) {
+    const btn = document.getElementById('inspect-toggle-dim');
+    const lbl = document.getElementById('lbl-inspect-dim');
+    if (btn) btn.classList.toggle('active', enabled);
+    if (lbl) lbl.textContent = enabled ? 'Số Đo: BẬT' : 'Số Đo: TẮT';
   }
 
   // Thu gọn bảng đo đạc
@@ -166,6 +196,8 @@ export class InspectionTool {
   // Kích hoạt khi vào tab "Chỉ Xem"
   show() {
     this.active = true;
+    this.measurementsGroup.visible = true;
+    this.previewGroup.visible = true;
     if (this.isCollapsed) {
       if (this.panelElement) this.panelElement.style.display = 'none';
       if (this.floatingBtn) this.floatingBtn.style.display = 'flex';
@@ -177,9 +209,11 @@ export class InspectionTool {
     this.updateUIList();
   }
 
-  // Ẩn khi rời khỏi tab "Chỉ Xem"
+  // Ẩn khi rời khỏi tab "Chỉ Xem" (Cắt gọt hoặc chuyển sang 2D CAD)
   hide() {
     this.active = false;
+    this.measurementsGroup.visible = false;
+    this.previewGroup.visible = false;
     this.resetSelection();
     this.clearPreview();
     if (this.panelElement) this.panelElement.style.display = 'none';
@@ -241,7 +275,7 @@ export class InspectionTool {
 
   // =========================================================================
   // GỘP CÁC ĐOẠN THẲNG CÙNG PHƯƠNG THÀNH CẠNH LIỀN HOÀN CHỈNH (HEAL COLLINEAR EDGES)
-  // Khắc phục triệt để lỗi đoạn chéo nét bị đứt nửa chừng do phân chia tam giác
+  // Khắc phục triệt để lỗi đoạn chéo nét bị đứt nửa chừng do phân chia tam giác CSG
   // =========================================================================
   cacheEdges() {
     this.edgesList = [];
@@ -260,68 +294,57 @@ export class InspectionTool {
       }
     }
 
-    // Thuật toán gộp các đoạn thẳng cùng phương nối tiếp nhau
+    // Thuật toán gộp các đoạn thẳng cùng phương trên cùng đường thẳng 3D (1D Interval Projection)
     let changed = true;
     while (changed) {
       changed = false;
       for (let i = 0; i < rawSegments.length; i++) {
         if (rawSegments[i].merged) continue;
         const s1 = rawSegments[i];
+        const u = s1.dir;
+        const p0 = s1.p1;
 
         for (let j = i + 1; j < rawSegments.length; j++) {
           if (rawSegments[j].merged) continue;
           const s2 = rawSegments[j];
 
-          // Kiểm tra xem 2 đoạn thẳng có cùng phương không
-          const dot = Math.abs(s1.dir.dot(s2.dir));
-          if (dot < 0.999) continue;
+          // 1. Kiểm tra cùng phương (song song hoặc ngược chiều)
+          const dot = Math.abs(u.dot(s2.dir));
+          if (dot < 0.995) continue;
 
-          let match = false;
-          let newStart = null;
-          let newEnd = null;
+          // 2. Kiểm tra s2 có nằm trên cùng đường thẳng 3D đi qua p0 với vector chỉ phương u
+          const v1 = new THREE.Vector3().subVectors(s2.p1, p0);
+          const proj1 = v1.dot(u);
+          const dist1 = new THREE.Vector3().subVectors(v1, u.clone().multiplyScalar(proj1)).length();
+          if (dist1 > 0.035) continue;
 
-          // Trường hợp 1: s1.p2 chạm s2.p1
-          if (s1.p2.distanceTo(s2.p1) < 0.01) {
-            const vComb = new THREE.Vector3().subVectors(s2.p2, s1.p1);
-            if (vComb.length() > 0.005 && s1.dir.dot(vComb.clone().normalize()) > 0.998) {
-              newStart = s1.p1;
-              newEnd = s2.p2;
-              match = true;
-            }
-          }
-          // Trường hợp 2: s1.p1 chạm s2.p2
-          else if (s1.p1.distanceTo(s2.p2) < 0.01) {
-            const vComb = new THREE.Vector3().subVectors(s1.p2, s2.p1);
-            if (vComb.length() > 0.005 && s2.dir.dot(vComb.clone().normalize()) > 0.998) {
-              newStart = s2.p1;
-              newEnd = s1.p2;
-              match = true;
-            }
-          }
-          // Trường hợp 3: s1.p2 chạm s2.p2
-          else if (s1.p2.distanceTo(s2.p2) < 0.01) {
-            const vComb = new THREE.Vector3().subVectors(s2.p1, s1.p1);
-            if (vComb.length() > 0.005 && s1.dir.dot(vComb.clone().normalize()) > 0.998) {
-              newStart = s1.p1;
-              newEnd = s2.p1;
-              match = true;
-            }
-          }
-          // Trường hợp 4: s1.p1 chạm s2.p1
-          else if (s1.p1.distanceTo(s2.p1) < 0.01) {
-            const vComb = new THREE.Vector3().subVectors(s2.p2, s1.p2);
-            if (vComb.length() > 0.005 && s1.dir.dot(vComb.clone().normalize()) < -0.998) {
-              newStart = s1.p2;
-              newEnd = s2.p2;
-              match = true;
-            }
-          }
+          const v2 = new THREE.Vector3().subVectors(s2.p2, p0);
+          const proj2 = v2.dot(u);
+          const dist2 = new THREE.Vector3().subVectors(v2, u.clone().multiplyScalar(proj2)).length();
+          if (dist2 > 0.035) continue;
 
-          if (match && newStart && newEnd) {
-            s1.p1 = newStart.clone();
-            s1.p2 = newEnd.clone();
-            s1.dir = new THREE.Vector3().subVectors(s1.p2, s1.p1).normalize();
-            s1.len = s1.p1.distanceTo(s1.p2);
+          // 3. Tính khoảng 1D (Intervals) của cả 2 đoạn trên trục u
+          const int1Min = 0;
+          const int1Max = s1.len;
+          const int2Min = Math.min(proj1, proj2);
+          const int2Max = Math.max(proj1, proj2);
+
+          // 4. Kiểm tra xem 2 khoảng có giao nhau hoặc tiếp giáp (cho phép khe hở sai số <= 0.045)
+          const overlapMin = Math.max(int1Min, int2Min);
+          const overlapMax = Math.min(int1Max, int2Max);
+          const gap = int2Min - int1Max;
+          const gapRev = int1Min - int2Max;
+
+          const isConnected = (overlapMin <= overlapMax) || (gap > 0 && gap < 0.045) || (gapRev > 0 && gapRev < 0.045);
+
+          if (isConnected) {
+            const newMin = Math.min(int1Min, int2Min);
+            const newMax = Math.max(int1Max, int2Max);
+
+            s1.p1 = p0.clone().addScaledVector(u, newMin);
+            s1.p2 = p0.clone().addScaledVector(u, newMax);
+            s1.len = newMax - newMin;
+            s1.dir = u;
             s2.merged = true;
             changed = true;
             break;
@@ -332,7 +355,7 @@ export class InspectionTool {
 
     // Lưu danh sách cạnh đã được nối liền hoàn hảo
     for (const s of rawSegments) {
-      if (!s.merged && s.len > 0.005) {
+      if (!s.merged && s.len > 0.01) {
         this.edgesList.push({
           id: `edge_${this.edgesList.length}`,
           p1: s.p1,
@@ -461,11 +484,12 @@ export class InspectionTool {
     const height = rect.height;
 
     let bestEdge = null;
-    let minScreenDist = 18; // Ngưỡng bắt dính: 18 pixel
+    let minScreenDist = 20; // Ngưỡng bắt dính: 20 pixel
     let minZ = Infinity;
 
     const p1Screen = new THREE.Vector3();
     const p2Screen = new THREE.Vector3();
+    const occRay = new THREE.Raycaster();
 
     for (const edge of this.edgesList) {
       p1Screen.copy(edge.p1).project(this.camera);
@@ -480,13 +504,26 @@ export class InspectionTool {
       const y2 = (-p2Screen.y * 0.5 + 0.5) * height;
 
       const dist = this.pointToSegmentDistance2D(mouseX, mouseY, x1, y1, x2, y2);
-      const avgZ = (p1Screen.z + p2Screen.z) * 0.5;
+      if (dist >= minScreenDist) continue;
 
-      if (dist < minScreenDist) {
+      // KIỂM TRA CHE KHUẤT HÌNH HỌC: Cạnh có bị mặt khối phía trước che khuất không?
+      if (this.currentBrush) {
+        const midNDC = edge.mid.clone().project(this.camera);
+        if (midNDC.z >= -1 && midNDC.z <= 1) {
+          occRay.setFromCamera({ x: midNDC.x, y: midNDC.y }, this.camera);
+          const hits = occRay.intersectObject(this.currentBrush, false);
+          if (hits.length > 0) {
+            const distToEdge = occRay.ray.origin.distanceTo(edge.mid);
+            if (hits[0].distance < distToEdge - 0.15) {
+              continue; // Bị mặt trước của khối che khuất!
+            }
+          }
+        }
+      }
+
+      const avgZ = (p1Screen.z + p2Screen.z) * 0.5;
+      if (dist < minScreenDist - 2 || avgZ < minZ) {
         minScreenDist = dist;
-        minZ = avgZ;
-        bestEdge = edge;
-      } else if (Math.abs(dist - minScreenDist) < 2 && avgZ < minZ) {
         minZ = avgZ;
         bestEdge = edge;
       }
@@ -512,7 +549,7 @@ export class InspectionTool {
     return Math.sqrt(ex * ex + ey * ey);
   }
 
-  // Tìm mặt phẳng được raycast trúng (ánh xạ trực tiếp theo chỉ số tam giác O(1))
+  // Tìm mặt phẳng được raycast trúng (chỉ nhận mặt trước hướng về phía camera)
   findHitFace(clientX, clientY) {
     if (!this.currentBrush) return null;
     const rect = this.container.getBoundingClientRect();
@@ -520,11 +557,24 @@ export class InspectionTool {
     this.mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
     this.raycaster.setFromCamera(this.mouse, this.camera);
 
-    const hits = this.raycaster.intersectObject(this.currentBrush);
+    const hits = this.raycaster.intersectObject(this.currentBrush, false);
     if (hits.length === 0) return null;
 
-    const hit = hits[0];
-    const triIdx = hit.faceIndex;
+    const camDir = new THREE.Vector3();
+    this.camera.getWorldDirection(camDir);
+
+    // Chỉ chọn mặt trước hướng về camera
+    let frontHit = null;
+    for (const h of hits) {
+      const norm = h.face.normal.clone().transformDirection(this.currentBrush.matrixWorld).normalize();
+      if (norm.dot(camDir) < -0.01) {
+        frontHit = h;
+        break;
+      }
+    }
+    if (!frontHit) return null;
+
+    const triIdx = frontHit.faceIndex;
     if (triIdx !== undefined && this.triangleToFaceMap && this.triangleToFaceMap[triIdx] !== undefined) {
       const faceIdx = this.triangleToFaceMap[triIdx];
       return this.facesList[faceIdx] || null;

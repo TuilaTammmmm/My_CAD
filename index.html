@@ -118,31 +118,24 @@
               </span>
               <span class="tool-text">Chiếu Bằng (Top)</span>
             </button>
-
-            <button class="tool-btn topbar-btn active" id="btn-toggle-dim" title="Bật/Tắt hiển thị số đo kích thước kỹ thuật khi đổi góc nhìn (Phím tắt: D)">
-              <span class="tool-icon">
-                <svg viewBox="0 0 24 24"><path d="M2 12h20M6 8l-4 4 4 4M18 8l4 4-4 4"/></svg>
-              </span>
-              <span class="tool-text" id="lbl-toggle-dim">Số Đo: BẬT</span>
-            </button>
           </div>
         </div>
 
-        <!-- NHÓM 3: TIỆN ÍCH & TẬP TIN 3D -->
+        <!-- NHÓM 3: BƯỚC BẮT DÍNH / CHIA LƯỚI (PHÍM S) -->
+        <div class="sidebar-section">
+          <div class="section-label">BƯỚC BẮT DÍNH (PHÍM S)</div>
+          <div class="subdiv-btn-group" id="snap-subdiv-group">
+            <button class="subdiv-btn active" data-step="1" title="Bước 1 ô (Nguyên ô) - Phím S">1</button>
+            <button class="subdiv-btn" data-step="0.5" title="Bước 1/2 ô (Cắt giữa ô 0.5) - Phím S">1/2</button>
+            <button class="subdiv-btn" data-step="0.25" title="Bước 1/4 ô (Chia tư 0.25) - Phím S">1/4</button>
+            <button class="subdiv-btn" data-step="0.125" title="Bước 1/8 ô (Chia tám 0.125) - Phím S">1/8</button>
+          </div>
+        </div>
+
+        <!-- NHÓM 4: TIỆN ÍCH & TẬP TIN 3D -->
         <div class="sidebar-section">
           <div class="section-label">TIỆN ÍCH 3D</div>
           
-          <div class="sidebar-grid-2">
-            <button class="tool-btn-compact active" id="btn-toggle-grid-squares" title="Bật/Tắt lưới ô vuông trên bề mặt khối (Phím tắt: G)">
-              <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" fill="none" stroke="currentColor" stroke-width="2"/><rect x="14" y="3" width="7" height="7" fill="none" stroke="currentColor" stroke-width="2"/><rect x="3" y="14" width="7" height="7" fill="none" stroke="currentColor" stroke-width="2"/><rect x="14" y="14" width="7" height="7" fill="none" stroke="currentColor" stroke-width="2"/></svg>
-              <span id="lbl-grid-squares">Ô Vuông: BẬT</span>
-            </button>
-            <button class="tool-btn-compact" id="btn-toggle-snap-step" title="Chuyển bước bắt dính: 1.0 (Nguyên ô) ↔ 0.5 (Cắt giữa ô) (Phím tắt: S)">
-              <svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="2.5"/><circle cx="19" cy="12" r="2.5"/><circle cx="12" cy="12" r="1.5" stroke-dasharray="1 1"/><line x1="5" y1="12" x2="19" y2="12" stroke-dasharray="2 2"/></svg>
-              <span id="lbl-snap-step">Giữa Ô: TẮT</span>
-            </button>
-          </div>
-
           <div class="sidebar-grid-2">
             <button class="tool-btn-compact" id="btn-undo" disabled title="Hoàn tác (Ctrl+Z)">
               <svg viewBox="0 0 24 24"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
@@ -386,6 +379,21 @@
       <!-- HƯỚNG DẪN THAO TÁC THEO CHẾ ĐỘ -->
       <div class="measure-instruction" id="measure-instruction">
         👉 <b>Rê chuột vào cạnh</b> để bắt dính, <b>Click</b> để hiển thị chiều dài CAD.
+      </div>
+
+      <!-- BẬT TẮT HIỂN THỊ KỸ THUẬT (3D) -->
+      <div class="measure-tool-group">
+        <div class="measure-section-label">HIỂN THỊ KỸ THUẬT</div>
+        <div class="measure-toggles-grid">
+          <button id="inspect-toggle-grid" class="inspect-toggle-btn active" title="Bật/Tắt hiển thị lưới ô vuông trên bề mặt khối (Phím G)">
+            <span class="m-icon">🔲</span>
+            <span class="m-text" id="lbl-inspect-grid">Ô Vuông: BẬT</span>
+          </button>
+          <button id="inspect-toggle-dim" class="inspect-toggle-btn active" title="Bật/Tắt khung số đo kích thước kỹ thuật khi đổi góc nhìn (Phím D)">
+            <span class="m-icon">📏</span>
+            <span class="m-text" id="lbl-inspect-dim">Số Đo: BẬT</span>
+          </button>
+        </div>
       </div>
 
       <!-- CÁC CHẾ ĐỘ ĐO ĐẠC -->

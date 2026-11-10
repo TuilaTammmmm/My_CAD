@@ -242,13 +242,24 @@ export class InteractivePicker {
     }
 
     const isWhole = (v) => Math.abs(v - Math.round(v)) < 0.02;
-    const nodeGeomWhole = new THREE.SphereGeometry(0.09, 12, 12);
+    let rWhole = 0.085;
+    let rHalf = 0.06;
+    if (step <= 0.25) {
+      rWhole = 0.065;
+      rHalf = 0.04;
+    }
+    if (step <= 0.125) {
+      rWhole = 0.05;
+      rHalf = 0.028;
+    }
+
+    const nodeGeomWhole = new THREE.SphereGeometry(rWhole, 12, 12);
     const nodeMatWhole = new THREE.MeshBasicMaterial({
       color: 0x38bdf8,
       transparent: true,
       opacity: 0.88
     });
-    const nodeGeomHalf = new THREE.SphereGeometry(0.065, 10, 10);
+    const nodeGeomHalf = new THREE.SphereGeometry(rHalf, 10, 10);
     const nodeMatHalf = new THREE.MeshBasicMaterial({
       color: 0x67e8f9,
       transparent: true,
@@ -271,22 +282,46 @@ export class InteractivePicker {
   }
 
   updateVisibleGridNodes() {
-    if (this.mode === 'view' || !this.gridNodesGroup.visible) return;
+    if (this.mode === 'view' || !this.gridNodesGroup || !this.gridNodesGroup.visible) return;
 
     const camDir = new THREE.Vector3();
     this.camera.getWorldDirection(camDir);
+    const testRay = new THREE.Raycaster();
 
     for (const mesh of this.gridNodesGroup.children) {
       if (!mesh.userData || !mesh.userData.normals) continue;
-      // Nếu có ít nhất 1 pháp tuyến của điểm này hướng về phía camera
+      // 1. Nếu không có ít nhất 1 pháp tuyến hướng về camera -> ẩn
       let isFacingCam = false;
       for (const n of mesh.userData.normals) {
-        if (n.dot(camDir) < -0.05) {
+        if (n.dot(camDir) < -0.02) {
           isFacingCam = true;
           break;
         }
       }
-      mesh.visible = isFacingCam;
+      if (!isFacingCam) {
+        mesh.visible = false;
+        continue;
+      }
+
+      // 2. Chống hiển thị xuyên thấu các điểm phía sau lưng bị vách trước che khuất
+      if (this.currentBrush) {
+        const ndc = mesh.position.clone().project(this.camera);
+        if (ndc.z < -1 || ndc.z > 1) {
+          mesh.visible = false;
+          continue;
+        }
+        testRay.setFromCamera({ x: ndc.x, y: ndc.y }, this.camera);
+        const hits = testRay.intersectObject(this.currentBrush, false);
+        if (hits.length > 0) {
+          const distToNode = testRay.ray.origin.distanceTo(mesh.position);
+          if (hits[0].distance < distToNode - 0.12) {
+            mesh.visible = false;
+            continue;
+          }
+        }
+      }
+
+      mesh.visible = true;
     }
   }
 
@@ -448,32 +483,47 @@ export class InteractivePicker {
     const camDir = new THREE.Vector3();
     this.camera.getWorldDirection(camDir);
 
-    // 1. Kiểm tra trực tiếp nếu trỏ chuột chạm vào quả cầu nút lưới (direct hit)
-    if (this.gridNodesGroup && this.gridNodesGroup.visible) {
-      const nodeHits = this.raycaster.intersectObjects(this.gridNodesGroup.children, false);
-      for (const nh of nodeHits) {
-        if (nh.object && nh.object.visible) {
-          return nh.object.position.clone();
-        }
-      }
-    }
-
-    // 2. Bắn tia tới bề mặt khối
+    // 1. Bắn tia tới bề mặt khối trước để xác định khoảng cách mặt trước (frontHit)
+    let frontHit = null;
     let hitPoint = null;
     let hitNormal = null;
 
     if (this.currentBrush) {
       const intersects = this.raycaster.intersectObject(this.currentBrush, false);
-      if (intersects.length > 0) {
-        const hit = intersects[0];
-        // Tính pháp tuyến mặt phẳng va chạm ngoài thế giới thực
+      for (const hit of intersects) {
         const norm = hit.face.normal.clone().transformDirection(this.currentBrush.matrixWorld).normalize();
-
-        // Chỉ chấp nhận nếu mặt phẳng đang hướng về phía camera
-        if (norm.dot(camDir) < -0.02) {
+        if (norm.dot(camDir) < -0.01) {
+          frontHit = hit;
           hitPoint = hit.point;
           hitNormal = norm;
+          break; // intersects đã sắp xếp từ gần đến xa, điểm đầu tiên là mặt trước ngoài cùng
         }
+      }
+    }
+
+    // 2. Kiểm tra trực tiếp nếu trỏ chuột chạm vào quả cầu nút lưới (direct hit)
+    // CHỈ CHẤP NHẬN NÚT NẰM Ở MẶT TRƯỚC (không bị che bởi vách trước, không nằm ở sau lưng)
+    if (this.gridNodesGroup && this.gridNodesGroup.visible) {
+      const nodeHits = this.raycaster.intersectObjects(this.gridNodesGroup.children, false);
+      for (const nh of nodeHits) {
+        if (!nh.object || !nh.object.visible) continue;
+        // Nếu đã có mặt trước của khối, nút lưới không được nằm thụt sâu phía sau khối
+        if (frontHit && nh.distance > frontHit.distance + 0.15) continue;
+
+        let isFacing = false;
+        if (nh.object.userData && nh.object.userData.normals) {
+          for (const n of nh.object.userData.normals) {
+            if (n.dot(camDir) < -0.01) {
+              isFacing = true;
+              break;
+            }
+          }
+        } else {
+          isFacing = true;
+        }
+        if (!isFacing) continue;
+
+        return nh.object.position.clone();
       }
     }
 
@@ -482,14 +532,14 @@ export class InteractivePicker {
     // 3. Tìm nút gần nhất trên bề mặt (trong danh sách surfaceNodesList)
     if (this.surfaceNodesList && this.surfaceNodesList.length > 0) {
       let closestNode = null;
-      let minDistance = Math.max(0.38, this.snapStep * 1.05); // Bán kính bắt dính theo ô lưới
+      let minDistance = Math.max(0.18, this.snapStep * 0.9); // Bán kính bắt dính co giãn theo bước chia
 
       for (const node of this.surfaceNodesList) {
         // Kiểm tra nút có hướng về phía camera
         let facingCam = false;
         if (node.normals && node.normals.length > 0) {
           for (const n of node.normals) {
-            if (n.dot(camDir) < -0.02) {
+            if (n.dot(camDir) < -0.01) {
               facingCam = true;
               break;
             }
@@ -508,21 +558,23 @@ export class InteractivePicker {
 
       if (closestNode) {
         // Kiểm tra xem node này có bị che khuất bởi mặt trước của khối không
-        const testOrigin = closestNode.clone().addScaledVector(camDir, -60);
-        const occRay = new THREE.Raycaster(testOrigin, camDir, 0.1, 120);
-        const occHits = occRay.intersectObject(this.currentBrush, false);
-        if (occHits.length > 0) {
-          const firstHit = occHits[0];
-          const distToCandidate = testOrigin.distanceTo(closestNode);
-          if (firstHit.distance < distToCandidate - 0.25) {
-            return null;
+        const ndc = closestNode.clone().project(this.camera);
+        if (ndc.z >= -1 && ndc.z <= 1) {
+          const occRay = new THREE.Raycaster();
+          occRay.setFromCamera({ x: ndc.x, y: ndc.y }, this.camera);
+          const occHits = occRay.intersectObject(this.currentBrush, false);
+          if (occHits.length > 0) {
+            const distToNode = occRay.ray.origin.distanceTo(closestNode);
+            if (occHits[0].distance < distToNode - 0.15) {
+              return null; // Bị che khuất hình học
+            }
           }
         }
         return closestNode.clone();
       }
     }
 
-    // 4. Fallback cho mặt phẳng trực giao (hỗ trợ snap nửa ô 0.5)
+    // 4. Fallback cho mặt phẳng trực giao (hỗ trợ các bước chia lưới 1, 0.5, 0.25, 0.125)
     const snapVal = (v) => Math.round(v / this.snapStep) * this.snapStep;
     let sx = snapVal(hitPoint.x);
     let sy = snapVal(hitPoint.y);
@@ -543,15 +595,17 @@ export class InteractivePicker {
 
     const snapCandidate = new THREE.Vector3(sx, sy, sz);
 
-    // Kiểm tra xem candidate có bị che khuất bởi mặt trước của khối không (chống bắt xuyên mặt sau)
-    const testOrigin = snapCandidate.clone().addScaledVector(camDir, -60);
-    const occRay = new THREE.Raycaster(testOrigin, camDir, 0.1, 120);
-    const occHits = occRay.intersectObject(this.currentBrush, false);
-    if (occHits.length > 0) {
-      const firstHit = occHits[0];
-      const distToCandidate = testOrigin.distanceTo(snapCandidate);
-      if (firstHit.distance < distToCandidate - 0.25) {
-        return null;
+    // Kiểm tra xem candidate có bị che khuất không
+    const candNDC = snapCandidate.clone().project(this.camera);
+    if (candNDC.z >= -1 && candNDC.z <= 1) {
+      const occRay = new THREE.Raycaster();
+      occRay.setFromCamera({ x: candNDC.x, y: candNDC.y }, this.camera);
+      const occHits = occRay.intersectObject(this.currentBrush, false);
+      if (occHits.length > 0) {
+        const distToCandidate = occRay.ray.origin.distanceTo(snapCandidate);
+        if (occHits[0].distance < distToCandidate - 0.15) {
+          return null;
+        }
       }
     }
 
@@ -1031,14 +1085,23 @@ export class InteractivePicker {
     this.updateHUD();
   }
 
-  toggleSnapStep() {
-    this.snapStep = (this.snapStep === 1.0) ? 0.5 : 1.0;
+  setSnapStep(step) {
+    const num = parseFloat(step) || 1.0;
+    this.snapStep = num;
     this.rebuildSurfaceGridNodes();
     this.updateHUD();
     if (this.callbacks.onSnapStepChange) {
       this.callbacks.onSnapStepChange(this.snapStep);
     }
     return this.snapStep;
+  }
+
+  toggleSnapStep() {
+    const STEPS = [1.0, 0.5, 0.25, 0.125];
+    let idx = STEPS.findIndex(s => Math.abs(s - this.snapStep) < 0.001);
+    if (idx === -1) idx = 0;
+    const nextStep = STEPS[(idx + 1) % STEPS.length];
+    return this.setSnapStep(nextStep);
   }
 
   changeDepth(delta) {
@@ -1226,10 +1289,14 @@ export class InteractivePicker {
 
     const depthText = this.isFullDepth ? `Xuyên suốt (${this.customDepth} ô)` : `${this.customDepth} ô`;
 
-    const stepBadge = (this.snapStep === 0.5) ? '✂️ Giữa Ô (0.5)' : '🎯 1 Ô';
+    let stepBadge = '🎯 1 Ô';
+    if (Math.abs(this.snapStep - 0.5) < 0.01) stepBadge = '✂️ 1/2 Ô';
+    else if (Math.abs(this.snapStep - 0.25) < 0.01) stepBadge = '✂️ 1/4 Ô';
+    else if (Math.abs(this.snapStep - 0.125) < 0.01) stepBadge = '✂️ 1/8 Ô';
+
     const quickControlsHtml = `
       <div style="display:inline-flex; align-items:center; gap:5px; margin-left:6px;">
-        <button class="hud-btn-toggle" id="hud-toggle-step" title="Chuyển bước chia lưới 1.0 (Nguyên ô) ↔ 0.5 (Cắt giữa ô) (Phím tắt: S)">${stepBadge}</button>
+        <button class="hud-btn-toggle" id="hud-toggle-step" title="Đổi bước lưới (1 ➔ 1/2 ➔ 1/4 ➔ 1/8) (Phím tắt: S)">${stepBadge}</button>
         <button class="hud-btn-toggle" id="hud-toggle-grid" title="Bật/Tắt lưới ô vuông trên mặt khối (Phím tắt: G)">🔲 Ô Vuông</button>
       </div>
     `;

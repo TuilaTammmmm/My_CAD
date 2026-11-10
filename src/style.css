@@ -271,6 +271,45 @@ body {
 }
 
 /* ===================================================
+   NHÓM NÚT CHIA BƯỚC BẮT DÍNH (1, 1/2, 1/4, 1/8)
+   =================================================== */
+.subdiv-btn-group {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 5px;
+  background: rgba(15, 23, 42, 0.65);
+  padding: 4px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.subdiv-btn {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 7px;
+  color: #94a3b8;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 7px 0;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.subdiv-btn:hover {
+  background: rgba(56, 189, 248, 0.15);
+  border-color: rgba(56, 189, 248, 0.35);
+  color: #f8fafc;
+}
+
+.subdiv-btn.active {
+  background: linear-gradient(135deg, rgba(2, 132, 199, 0.85), rgba(56, 189, 248, 0.85));
+  border-color: #38bdf8;
+  color: #ffffff;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.4);
+}
+
+/* ===================================================
    POPOVER CÀI ĐẶT KÍCH THƯỚC KHỐI
    =================================================== */
 .dim-popover {
@@ -924,6 +963,46 @@ body {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
+}
+
+/* NÚT BẬT TẮT Ô VUÔNG & SỐ ĐO TRONG BẢNG CHỈ XEM */
+.measure-toggles-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.inspect-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 8px 10px;
+  color: #94a3b8;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.inspect-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: #f1f5f9;
+  transform: translateY(-1px);
+}
+
+.inspect-toggle-btn.active {
+  background: linear-gradient(135deg, rgba(2, 132, 199, 0.35), rgba(56, 189, 248, 0.15));
+  border-color: #38bdf8;
+  color: #38bdf8;
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.25);
+}
+
+.inspect-toggle-btn .m-icon {
+  font-size: 0.95rem;
 }
 
 .measure-mode-btn {

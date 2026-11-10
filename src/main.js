@@ -72,7 +72,10 @@ const cad = new CadEngine();
 const gridOverlay = new GridOverlay(scene);
 const preview = new CutterPreview(scene);
 const dimOverlay = new DimensionOverlay(scene, camera);
-const inspectionTool = new InspectionTool(scene, camera, renderer, controls, cad);
+const inspectionTool = new InspectionTool(scene, camera, renderer, controls, cad, {
+  onToggleGridSquares: () => toggleGridSquaresUI(),
+  onToggleDim: () => toggleDimUI()
+});
 
 let currentBrush = null;
 let currentEdges = null;
@@ -238,13 +241,12 @@ const picker = new InteractivePicker(scene, camera, renderer, controls, cad, pre
   }
 });
 
-// UI helpers cho bước cắt 0.5 (cắt giữa ô), bật/tắt ô vuông và số đo
+// UI helpers cho bước cắt (1, 1/2, 1/4, 1/8), bật/tắt ô vuông và số đo
 function syncSnapStepUI(step) {
-  const btn = document.getElementById('btn-toggle-snap-step');
-  const lbl = document.getElementById('lbl-snap-step');
-  const isHalf = (step === 0.5);
-  if (btn) btn.classList.toggle('active', isHalf);
-  if (lbl) lbl.textContent = isHalf ? 'Giữa Ô: BẬT' : 'Giữa Ô: TẮT';
+  document.querySelectorAll('.subdiv-btn').forEach(btn => {
+    const val = parseFloat(btn.getAttribute('data-step'));
+    btn.classList.toggle('active', Math.abs(val - step) < 0.001);
+  });
 }
 
 function toggleSnapStepUI() {
@@ -257,6 +259,9 @@ function syncGridSquaresUI(visible) {
   const lbl = document.getElementById('lbl-grid-squares');
   if (btn) btn.classList.toggle('active', visible);
   if (lbl) lbl.textContent = visible ? 'Ô Vuông: BẬT' : 'Ô Vuông: TẮT';
+  if (inspectionTool && inspectionTool.syncGridSquaresUI) {
+    inspectionTool.syncGridSquaresUI(visible);
+  }
 }
 
 function toggleGridSquaresUI() {
@@ -269,12 +274,23 @@ function syncDimUI(enabled) {
   const lbl = document.getElementById('lbl-toggle-dim');
   if (btn) btn.classList.toggle('active', enabled);
   if (lbl) lbl.textContent = enabled ? 'Số Đo: BẬT' : 'Số Đo: TẮT';
+  if (inspectionTool && inspectionTool.syncDimUI) {
+    inspectionTool.syncDimUI(enabled);
+  }
 }
 
 function toggleDimUI() {
   const enabled = dimOverlay.toggle();
   syncDimUI(enabled);
 }
+
+document.querySelectorAll('.subdiv-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const step = parseFloat(btn.getAttribute('data-step')) || 1.0;
+    picker.setSnapStep(step);
+    syncSnapStepUI(step);
+  });
+});
 
 document.getElementById('btn-toggle-snap-step')?.addEventListener('click', toggleSnapStepUI);
 document.getElementById('btn-toggle-grid-squares')?.addEventListener('click', toggleGridSquaresUI);
@@ -622,7 +638,7 @@ function switchTo2D() {
 function switchTo3D() {
   gridOverlay.setAllVisible(true);
   gridOverlay.setVisible(picker ? picker.mode !== 'view' : false);
-  const dimBtn = document.getElementById('btn-toggle-dim');
+  const dimBtn = document.getElementById('inspect-toggle-dim') || document.getElementById('btn-toggle-dim');
   const isDimOn = dimBtn ? dimBtn.classList.contains('active') : true;
   dimOverlay.setEnabled(isDimOn);
   appMode = '3d';

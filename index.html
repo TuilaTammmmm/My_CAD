@@ -299,12 +299,23 @@
               <span class="tool-text" id="lbl-frame-mode">Khung CAD: Tắt (Tự Do)</span>
             </button>
 
-            <button class="tool-btn" id="btn-2d-sync-3d" title="Lấy hình chiếu đứng của khối 3D đưa vào mặt phẳng X-Y">
-              <span class="tool-icon">
-                <svg viewBox="0 0 24 24"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.19"/></svg>
-              </span>
-              <span class="tool-text">Lấy Nét Từ 3D</span>
-            </button>
+            <div class="sidebar-sync-group">
+              <div class="sync-group-label">LẤY HÌNH CHIẾU TỪ 3D</div>
+              <div class="sidebar-grid-3">
+                <button class="tool-btn-sync active" id="btn-sync-front" data-view="front" title="Nạp Hình Chiếu Đứng (Front: Mặt X-Y) từ khối 3D">
+                  <span class="sync-icon">🟦</span>
+                  <span>Đứng</span>
+                </button>
+                <button class="tool-btn-sync" id="btn-sync-top" data-view="top" title="Nạp Hình Chiếu Bằng (Top: Mặt X-Z) từ khối 3D">
+                  <span class="sync-icon">🟩</span>
+                  <span>Bằng</span>
+                </button>
+                <button class="tool-btn-sync" id="btn-sync-side" data-view="side" title="Nạp Hình Chiếu Cạnh (Right: Mặt Z-Y) từ khối 3D">
+                  <span class="sync-icon">🟨</span>
+                  <span>Cạnh</span>
+                </button>
+              </div>
+            </div>
 
             <button class="tool-btn" id="btn-2d-clear" title="Xóa toàn bộ bản vẽ trên mặt phẳng">
               <span class="tool-icon">
@@ -393,6 +404,10 @@
             <span class="m-icon">📏</span>
             <span class="m-text" id="lbl-inspect-dim">Số Đo: BẬT</span>
           </button>
+          <button id="inspect-toggle-screens" class="inspect-toggle-btn" title="Bật/Tắt 3 Màn Chiếu Kỹ Thuật 2D (Front, Top, Side) cách các mặt vài ô (Phím P)">
+            <span class="m-icon">📺</span>
+            <span class="m-text" id="lbl-inspect-screens">Màn Chiếu: TẮT</span>
+          </button>
         </div>
       </div>
 
@@ -468,8 +483,8 @@
     <div class="hud-helper">
       👁️ <b>Chỉ xem:</b> Kéo chuột xoay tự do không vướng điểm<br>
       📐 <b>Cắt gọt:</b> Chọn nút công cụ ở menu bên trái để hiện điểm bắt dính<br>
-      📏 <b>Số đo:</b> Tự động hiện số đo khi đổi góc chiếu (Phím D)<br>
-      🔲 <b>Ô vuông:</b> Bật/tắt lưới ô vuông (Phím G) | ✂️ <b>Cắt giữa ô (0.5):</b> Phím S<br>
+      📏 <b>Số đo:</b> Tự động hiện số đo khi đổi góc chiếu (Phím D) | 📺 <b>Màn chiếu 2D:</b> Phím P<br>
+      🔲 <b>Ô vuông:</b> Bật/tắt lưới ô vuông (Phím G) | ✂️ <b>Bước lưới (1, 1/2, 1/4, 1/8):</b> Phím S<br>
       🔍 <b>Phóng to / Thu nhỏ:</b> Cuộn bánh xe chuột | ✋ <b>Pan:</b> Shift + Chuột phải<br>
       ⌨️ <b>Phím tắt:</b> Enter (Cắt), Esc (Hủy), Backspace (Xóa điểm), Ctrl+Z (Undo)
     </div>

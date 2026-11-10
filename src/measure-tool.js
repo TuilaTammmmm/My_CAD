@@ -118,6 +118,14 @@ export class InspectionTool {
         if (this.callbacks.onToggleDim) this.callbacks.onToggleDim();
       });
     }
+
+    // Nút Bật/Tắt Màn Chiếu 2D trong bảng Chỉ Xem
+    const btnToggleScreens = document.getElementById('inspect-toggle-screens');
+    if (btnToggleScreens) {
+      btnToggleScreens.addEventListener('click', () => {
+        if (this.callbacks.onToggleScreens) this.callbacks.onToggleScreens();
+      });
+    }
   }
 
   syncGridSquaresUI(visible) {
@@ -132,6 +140,13 @@ export class InspectionTool {
     const lbl = document.getElementById('lbl-inspect-dim');
     if (btn) btn.classList.toggle('active', enabled);
     if (lbl) lbl.textContent = enabled ? 'Số Đo: BẬT' : 'Số Đo: TẮT';
+  }
+
+  syncScreensUI(enabled) {
+    const btn = document.getElementById('inspect-toggle-screens');
+    const lbl = document.getElementById('lbl-inspect-screens');
+    if (btn) btn.classList.toggle('active', enabled);
+    if (lbl) lbl.textContent = enabled ? 'Màn Chiếu: BẬT' : 'Màn Chiếu: TẮT';
   }
 
   // Thu gọn bảng đo đạc
@@ -189,6 +204,8 @@ export class InspectionTool {
         const modes = ['edge', 'angle-edges', 'angle-faces', 'distance'];
         const nextIdx = (modes.indexOf(this.subMode) + 1) % modes.length;
         this.setSubMode(modes[nextIdx]);
+      } else if (e.key.toLowerCase() === 'p') {
+        if (this.callbacks.onToggleScreens) this.callbacks.onToggleScreens();
       }
     });
   }
@@ -723,10 +740,55 @@ export class InspectionTool {
     const id = `edge_${this.idCounter++}`;
     const p1 = edge.p1.clone();
     const p2 = edge.p2.clone();
-    const len = edge.len;
-    const lenStr = (Math.abs(len - Math.round(len)) < 0.01)
-      ? `${Math.round(len)}`
-      : len.toFixed(2);
+    const len3D = edge.len;
+
+    // Tính hướng nhìn camera
+    const camDir = new THREE.Vector3();
+    this.camera.getWorldDirection(camDir);
+
+    // Vector nối 2 điểm cạnh
+    const vEdge = new THREE.Vector3().subVectors(p2, p1);
+    const vDotCam = vEdge.dot(camDir);
+    // Vector hình chiếu phẳng vuông góc với hướng nhìn camera
+    const vProj = new THREE.Vector3().subVectors(vEdge, camDir.clone().multiplyScalar(vDotCam));
+    const len2D = vProj.length();
+
+    // Nhận biết camera đang ở góc nhìn trực giao 2D (Chiếu Đứng, Chiếu Bằng, Chiếu Cạnh)
+    const isOrthographicView = (this.camera.isOrthographicCamera) && (
+      Math.abs(camDir.x) > 0.92 || Math.abs(camDir.y) > 0.92 || Math.abs(camDir.z) > 0.92
+    );
+
+    const isOblique = Math.abs(len3D - len2D) > 0.03;
+
+    const fmt = (n) => (Math.abs(n - Math.round(n)) < 0.01) ? `${Math.round(n)}` : n.toFixed(2);
+
+    let badgeText = '';
+    let itemTitle = '';
+    let itemSub = '';
+
+    if (isOrthographicView) {
+      // Khi đang xem ở góc chiếu 2D (như trong ảnh screenshot của user)
+      if (isOblique) {
+        badgeText = `L = ${fmt(len2D)} ô (3D: ${fmt(len3D)})`;
+        itemTitle = `Cạnh: ${fmt(len2D)} ô (Chiếu 2D)`;
+        itemSub = `Hình chiếu: ${fmt(len2D)} ô | 3D thực: ${fmt(len3D)} ô (ΔX:${Math.abs(p2.x - p1.x).toFixed(1)}, ΔY:${Math.abs(p2.y - p1.y).toFixed(1)}, ΔZ:${Math.abs(p2.z - p1.z).toFixed(1)})`;
+      } else {
+        badgeText = `L = ${fmt(len3D)} ô`;
+        itemTitle = `Cạnh: ${fmt(len3D)} ô`;
+        itemSub = `P1(${p1.x.toFixed(1)}, ${p1.y.toFixed(1)}, ${p1.z.toFixed(1)}) ➔ P2(${p2.x.toFixed(1)}, ${p2.y.toFixed(1)}, ${p2.z.toFixed(1)})`;
+      }
+    } else {
+      // Khi đang ở Trục đo 3D (ISO)
+      if (isOblique) {
+        badgeText = `L = ${fmt(len3D)} ô`;
+        itemTitle = `Cạnh: ${fmt(len3D)} ô`;
+        itemSub = `Không gian 3D: ${fmt(len3D)} ô (ΔX:${Math.abs(p2.x - p1.x).toFixed(1)}, ΔY:${Math.abs(p2.y - p1.y).toFixed(1)}, ΔZ:${Math.abs(p2.z - p1.z).toFixed(1)})`;
+      } else {
+        badgeText = `L = ${fmt(len3D)} ô`;
+        itemTitle = `Cạnh: ${fmt(len3D)} ô`;
+        itemSub = `P1(${p1.x.toFixed(1)}, ${p1.y.toFixed(1)}, ${p1.z.toFixed(1)}) ➔ P2(${p2.x.toFixed(1)}, ${p2.y.toFixed(1)}, ${p2.z.toFixed(1)})`;
+      }
+    }
 
     const group = new THREE.Group();
     group.name = id;
@@ -739,13 +801,27 @@ export class InspectionTool {
     group.add(this.createPointHighlight(p2, 0x38bdf8, 0.08));
 
     // Tính hướng gióng kích thước ra ngoài khối
+    let perp;
     const mid = new THREE.Vector3().addVectors(p1, p2).multiplyScalar(0.5);
     const boxCenter = new THREE.Vector3(3, 2, 2);
     const outVec = new THREE.Vector3().subVectors(mid, boxCenter);
-    const edgeDir = new THREE.Vector3().subVectors(p2, p1).normalize();
-    const perp = new THREE.Vector3().subVectors(outVec, edgeDir.clone().multiplyScalar(outVec.dot(edgeDir)));
-    if (perp.length() < 0.01) perp.set(0, 1, 0);
-    perp.normalize();
+
+    if (isOrthographicView && vProj.length() > 0.01) {
+      // Ép perp nằm phẳng 100% trên mặt phẳng chiếu vuông góc với camDir để không bị lệch góc
+      outVec.sub(camDir.clone().multiplyScalar(outVec.dot(camDir)));
+      const vProjDir = vProj.clone().normalize();
+      perp = new THREE.Vector3().subVectors(outVec, vProjDir.clone().multiplyScalar(outVec.dot(vProjDir)));
+      perp.sub(camDir.clone().multiplyScalar(perp.dot(camDir)));
+      if (perp.length() < 0.01) {
+        perp.crossVectors(camDir, vProjDir);
+      }
+      perp.normalize();
+    } else {
+      const edgeDir = new THREE.Vector3().subVectors(p2, p1).normalize();
+      perp = new THREE.Vector3().subVectors(outVec, edgeDir.clone().multiplyScalar(outVec.dot(edgeDir)));
+      if (perp.length() < 0.01) perp.set(0, 1, 0);
+      perp.normalize();
+    }
 
     const offsetDist = 0.45;
     const dStart = p1.clone().addScaledVector(perp, offsetDist);
@@ -777,7 +853,7 @@ export class InspectionTool {
 
     // Nhãn số đo sắc nét
     const dimMid = new THREE.Vector3().addVectors(dStart, dEnd).multiplyScalar(0.5);
-    const sprite = this.createTextSprite(`L = ${lenStr} ô`, '#38bdf8');
+    const sprite = this.createTextSprite(badgeText, '#38bdf8');
     sprite.position.copy(dimMid);
     group.add(sprite);
 
@@ -786,8 +862,8 @@ export class InspectionTool {
     const item = {
       id,
       type: 'edge',
-      title: `Cạnh: ${lenStr} ô`,
-      sub: `P1(${p1.x.toFixed(1)}, ${p1.y.toFixed(1)}, ${p1.z.toFixed(1)}) ➔ P2(${p2.x.toFixed(1)}, ${p2.y.toFixed(1)}, ${p2.z.toFixed(1)})`,
+      title: itemTitle,
+      sub: itemSub,
       group
     };
 
@@ -961,10 +1037,34 @@ export class InspectionTool {
     const group = new THREE.Group();
     group.name = id;
 
-    const dist = p1.distanceTo(p2);
+    const dist3D = p1.distanceTo(p2);
     const dx = Math.abs(p2.x - p1.x);
     const dy = Math.abs(p2.y - p1.y);
     const dz = Math.abs(p2.z - p1.z);
+
+    const camDir = new THREE.Vector3();
+    this.camera.getWorldDirection(camDir);
+
+    const vDiff = new THREE.Vector3().subVectors(p2, p1);
+    const vDotCam = vDiff.dot(camDir);
+    const vProj = new THREE.Vector3().subVectors(vDiff, camDir.clone().multiplyScalar(vDotCam));
+    const dist2D = vProj.length();
+
+    const isOrthographicView = (this.camera.isOrthographicCamera) && (
+      Math.abs(camDir.x) > 0.92 || Math.abs(camDir.y) > 0.92 || Math.abs(camDir.z) > 0.92
+    );
+    const isOblique = Math.abs(dist3D - dist2D) > 0.03;
+    const fmt = (n) => (Math.abs(n - Math.round(n)) < 0.01) ? `${Math.round(n)}` : n.toFixed(2);
+
+    let badgeText = `D = ${fmt(dist3D)} ô`;
+    let itemTitle = `Khoảng cách: ${fmt(dist3D)} ô`;
+    let itemSub = `ΔX: ${dx.toFixed(1)} | ΔY: ${dy.toFixed(1)} | ΔZ: ${dz.toFixed(1)}`;
+
+    if (isOrthographicView && isOblique) {
+      badgeText = `D = ${fmt(dist2D)} ô (3D: ${fmt(dist3D)})`;
+      itemTitle = `Khoảng cách: ${fmt(dist2D)} ô (Chiếu 2D)`;
+      itemSub = `Chiếu 2D: ${fmt(dist2D)} ô | 3D thực: ${fmt(dist3D)} ô (ΔX:${dx.toFixed(1)}, ΔY:${dy.toFixed(1)}, ΔZ:${dz.toFixed(1)})`;
+    }
 
     group.add(this.createPointHighlight(p1, 0xec4899, 0.08));
     group.add(this.createPointHighlight(p2, 0xec4899, 0.08));
@@ -978,7 +1078,7 @@ export class InspectionTool {
     group.add(line);
 
     const mid = new THREE.Vector3().addVectors(p1, p2).multiplyScalar(0.5);
-    const sprite = this.createTextSprite(`D = ${dist.toFixed(2)} ô`, '#ec4899');
+    const sprite = this.createTextSprite(badgeText, '#ec4899');
     sprite.position.copy(mid);
     group.add(sprite);
 
@@ -987,8 +1087,8 @@ export class InspectionTool {
     const item = {
       id,
       type: 'distance',
-      title: `Khoảng cách: ${dist.toFixed(2)} ô`,
-      sub: `ΔX: ${dx.toFixed(1)} | ΔY: ${dy.toFixed(1)} | ΔZ: ${dz.toFixed(1)}`,
+      title: itemTitle,
+      sub: itemSub,
       group
     };
 

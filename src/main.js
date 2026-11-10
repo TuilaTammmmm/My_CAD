@@ -12,6 +12,7 @@ import { ProjectionEngine } from './projection-engine.js';
 import { CAD2DEditor } from './cad2d-editor.js';
 import { DimensionOverlay } from './dimension-overlay.js';
 import { InspectionTool } from './measure-tool.js';
+import { ProjectionScreensOverlay } from './projection-screens.js';
 import { inject } from '@vercel/analytics';
 import { injectSpeedInsights } from '@vercel/speed-insights';
 
@@ -69,12 +70,15 @@ scene.add(sideLight);
 
 // --- MODULES & STATE ---
 const cad = new CadEngine();
+const projectionEngine = new ProjectionEngine(cad);
 const gridOverlay = new GridOverlay(scene);
 const preview = new CutterPreview(scene);
 const dimOverlay = new DimensionOverlay(scene, camera);
+const projectionScreens = new ProjectionScreensOverlay(scene, projectionEngine);
 const inspectionTool = new InspectionTool(scene, camera, renderer, controls, cad, {
   onToggleGridSquares: () => toggleGridSquaresUI(),
-  onToggleDim: () => toggleDimUI()
+  onToggleDim: () => toggleDimUI(),
+  onToggleScreens: () => toggleScreensUI()
 });
 
 let currentBrush = null;
@@ -129,6 +133,10 @@ function setModel(brush, recordHistory = true) {
 
   if (inspectionTool) {
     inspectionTool.updateModel(currentBrush, currentEdges);
+  }
+
+  if (projectionScreens) {
+    projectionScreens.update(W, H, D, currentBrush);
   }
 }
 
@@ -238,6 +246,9 @@ const picker = new InteractivePicker(scene, camera, renderer, controls, cad, pre
   },
   onToggleDim: () => {
     toggleDimUI();
+  },
+  onToggleScreens: () => {
+    toggleScreensUI();
   }
 });
 
@@ -284,6 +295,21 @@ function toggleDimUI() {
   syncDimUI(enabled);
 }
 
+function syncScreensUI(enabled) {
+  const btn = document.getElementById('inspect-toggle-screens');
+  const lbl = document.getElementById('lbl-inspect-screens');
+  if (btn) btn.classList.toggle('active', enabled);
+  if (lbl) lbl.textContent = enabled ? 'Màn Chiếu: BẬT' : 'Màn Chiếu: TẮT';
+  if (inspectionTool && inspectionTool.syncScreensUI) {
+    inspectionTool.syncScreensUI(enabled);
+  }
+}
+
+function toggleScreensUI() {
+  const enabled = projectionScreens.toggle();
+  syncScreensUI(enabled);
+}
+
 document.querySelectorAll('.subdiv-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     const step = parseFloat(btn.getAttribute('data-step')) || 1.0;
@@ -295,6 +321,7 @@ document.querySelectorAll('.subdiv-btn').forEach(btn => {
 document.getElementById('btn-toggle-snap-step')?.addEventListener('click', toggleSnapStepUI);
 document.getElementById('btn-toggle-grid-squares')?.addEventListener('click', toggleGridSquaresUI);
 document.getElementById('btn-toggle-dim')?.addEventListener('click', toggleDimUI);
+document.getElementById('inspect-toggle-screens')?.addEventListener('click', toggleScreensUI);
 
 // Đồng bộ trạng thái active của các nút chế độ trên thanh công cụ
 function syncModeUI(mode) {
@@ -599,7 +626,6 @@ window.addEventListener('resize', () => {
 });
 
 // --- KHỞI TẠO 2D CAD VÀ BỘ CHUYỂN ĐỔI 3D <-> 2D ---
-const projectionEngine = new ProjectionEngine(cad);
 const canvas2d = document.getElementById('cad2d-canvas');
 const cad2dEditor = new CAD2DEditor(canvas2d, projectionEngine);
 
@@ -608,6 +634,7 @@ let appMode = '3d'; // '3d' hoặc '2d'
 function switchTo2D() {
   gridOverlay.setAllVisible(false);
   dimOverlay.setEnabled(false);
+  if (projectionScreens) projectionScreens.group.visible = false;
   inspectionTool.hide();
   appMode = '2d';
   document.getElementById('switch-to-3d')?.classList.remove('active');
@@ -641,6 +668,7 @@ function switchTo3D() {
   const dimBtn = document.getElementById('inspect-toggle-dim') || document.getElementById('btn-toggle-dim');
   const isDimOn = dimBtn ? dimBtn.classList.contains('active') : true;
   dimOverlay.setEnabled(isDimOn);
+  if (projectionScreens) projectionScreens.group.visible = projectionScreens.enabled;
   appMode = '3d';
   document.getElementById('switch-to-2d')?.classList.remove('active');
   document.getElementById('switch-to-3d')?.classList.add('active');
@@ -727,9 +755,17 @@ document.getElementById('btn-2d-toggle-frame')?.addEventListener('click', () => 
   cad2dEditor.cycleFrameMode();
 });
 
-// Nút lấy nét từ 3D
+// Các nút nạp hình chiếu 2D (Đứng, Bằng, Cạnh) từ 3D
+document.querySelectorAll('.tool-btn-sync').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const view = btn.getAttribute('data-view') || 'front';
+    cad2dEditor.syncFrom3D(view);
+  });
+});
+
+// Nút lấy nét từ 3D (alias mặc định nạp chiếu đứng)
 document.getElementById('btn-2d-sync-3d')?.addEventListener('click', () => {
-  cad2dEditor.syncFrom3D();
+  cad2dEditor.syncFrom3D('front');
 });
 
 // Nút xóa sạch mặt phẳng 2D hiện tại
@@ -756,6 +792,7 @@ inspectionTool.updateModel(currentBrush, currentEdges);
 inspectionTool.show();
 syncGridSquaresUI(gridOverlay.showGridSquares);
 syncDimUI(dimOverlay.enabled);
+syncScreensUI(projectionScreens.enabled);
 syncSnapStepUI(picker.snapStep);
 
 // Animation loop

@@ -120,7 +120,9 @@ export class CAD2DEditor {
         btn.style.color = '';
       }
     } else if (this.frameMode === 'block') {
-      lbl.innerText = `Khung CAD: Phôi (${this.bounds.w}×${this.bounds.h})`;
+      const curW = this.currentViewW || this.bounds.w;
+      const curH = this.currentViewH || this.bounds.h;
+      lbl.innerText = `Khung CAD: Phôi (${curW}×${curH})`;
       if (btn) {
         btn.classList.add('active');
         btn.style.borderColor = '#38bdf8';
@@ -219,7 +221,8 @@ export class CAD2DEditor {
   centerView() {
     const parent = this.canvas.parentElement;
     const rect = parent.getBoundingClientRect();
-    const { w, h } = this.bounds;
+    const w = this.currentViewW || this.bounds.w;
+    const h = this.currentViewH || this.bounds.h;
 
     // Tính toán scale tự động để khối bao quanh chiếm 60% chiều cao màn hình
     const targetPixelH = rect.height * 0.55;
@@ -230,16 +233,35 @@ export class CAD2DEditor {
     this.offsetY = Math.round(rect.height * 0.72);
   }
 
-  // Nạp nét hình chiếu đứng từ mô hình 3D
-  syncFrom3D() {
+  // Nạp nét hình chiếu (Đứng - Front, Bằng - Top, Cạnh - Side/Right) từ mô hình 3D
+  syncFrom3D(viewType = 'front') {
     if (!this.currentBrush) return;
     const proj = this.projectionEngine.generateProjections(this.currentBrush, this.bounds);
-    const front = proj.front;
+    let viewData = proj[viewType];
+    if (!viewData && (viewType === 'side' || viewType === 'right')) {
+      viewData = proj.right || proj.side;
+    }
+    if (!viewData) viewData = proj.front;
+
+    this.currentViewType = viewType;
+    let viewW = this.bounds.w;
+    let viewH = this.bounds.h;
+
+    if (viewType === 'top') {
+      viewW = this.bounds.w;
+      viewH = this.bounds.d;
+    } else if (viewType === 'side' || viewType === 'right') {
+      viewW = this.bounds.d;
+      viewH = this.bounds.h;
+    }
+
+    this.currentViewW = viewW;
+    this.currentViewH = viewH;
 
     this.elements = [];
 
-    if (front.visible) {
-      for (const line of front.visible) {
+    if (viewData && viewData.visible) {
+      for (const line of viewData.visible) {
         this.elements.push({
           type: 'line',
           style: 'visible',
@@ -248,8 +270,8 @@ export class CAD2DEditor {
         });
       }
     }
-    if (front.hidden) {
-      for (const line of front.hidden) {
+    if (viewData && viewData.hidden) {
+      for (const line of viewData.hidden) {
         this.elements.push({
           type: 'line',
           style: 'hidden',
@@ -259,7 +281,13 @@ export class CAD2DEditor {
       }
     }
 
+    document.querySelectorAll('.tool-btn-sync').forEach(btn => {
+      btn.classList.toggle('active', btn.getAttribute('data-view') === viewType);
+    });
+
+    this.updateFrameButtonUI();
     this.saveHistory();
+    this.resetView();
     this.render();
   }
 
@@ -278,7 +306,8 @@ export class CAD2DEditor {
 
     // 1. Kiểm tra các điểm mốc hình học (Smart OSNAP: Đầu mút, Tâm, Trung điểm, Góc phôi)
     const candidates = [];
-    const { w, h } = this.bounds;
+    const w = this.currentViewW || this.bounds.w;
+    const h = this.currentViewH || this.bounds.h;
     candidates.push({ u: 0, v: 0, type: 'corner', label: 'Gốc O(0,0)' });
     if (this.frameMode === 'block') {
       candidates.push(
@@ -1765,7 +1794,8 @@ export class CAD2DEditor {
     const ctx = this.ctx;
     const parent = this.canvas.parentElement;
     const rect = parent.getBoundingClientRect();
-    const { w, h } = this.bounds;
+    const w = this.currentViewW || this.bounds.w;
+    const h = this.currentViewH || this.bounds.h;
     const s = this.scale;
 
     // 1. Nền không gian vẽ CAD đậm chất kỹ thuật

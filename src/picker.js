@@ -472,6 +472,9 @@ export class InteractivePicker {
       } else if (e.key.toLowerCase() === 'd') {
         e.preventDefault();
         if (this.callbacks.onToggleDim) this.callbacks.onToggleDim();
+      } else if (e.key.toLowerCase() === 'p') {
+        e.preventDefault();
+        if (this.callbacks.onToggleScreens) this.callbacks.onToggleScreens();
       }
     });
   }
@@ -1261,6 +1264,7 @@ export class InteractivePicker {
           <span>Click cạnh hoặc góc để đo kích thước & góc 3D.</span>
           <button class="hud-btn-toggle" id="hud-toggle-grid" title="Bật/Tắt lưới ô vuông hộp ban đầu (Phím tắt: G)">🔲 Ô Vuông</button>
           <button class="hud-btn-toggle" id="hud-toggle-dim" title="Bật/Tắt khung số đo tổng thể (Phím tắt: D)">📏 Khung Số Đo</button>
+          <button class="hud-btn-toggle" id="hud-toggle-screens" title="Bật/Tắt 3 Màn Chiếu Kỹ Thuật 2D cách khối vài ô (Phím tắt: P)">📺 Màn Chiếu 2D</button>
           <button class="hud-btn-toggle" id="hud-toggle-inspect" title="Mở / Thu gọn bảng đo đạc bên phải">🔍 Bảng Đo</button>
           <button class="hud-btn-toggle" id="hud-clear-measures" style="color: #f87171; border-color: rgba(248, 113, 113, 0.4);" title="Xóa toàn bộ các số đo cạnh & góc đã lưu (Phím tắt: Delete)">🗑️ Xóa Số Đo</button>
         </div>
@@ -1272,6 +1276,10 @@ export class InteractivePicker {
       const btnToggleDim = document.getElementById('hud-toggle-dim');
       if (btnToggleDim) btnToggleDim.addEventListener('click', () => {
         if (this.callbacks.onToggleDim) this.callbacks.onToggleDim();
+      });
+      const btnToggleScreens = document.getElementById('hud-toggle-screens');
+      if (btnToggleScreens) btnToggleScreens.addEventListener('click', () => {
+        if (this.callbacks.onToggleScreens) this.callbacks.onToggleScreens();
       });
       const btnToggleInspect = document.getElementById('hud-toggle-inspect');
       if (btnToggleInspect) btnToggleInspect.addEventListener('click', () => {

@@ -34,8 +34,9 @@ export class ProjectionEngine {
     const front = this.projectOrthographic(edgeSegments, brush, 'front', bounds);
     const top = this.projectOrthographic(edgeSegments, brush, 'top', bounds);
     const side = this.projectOrthographic(edgeSegments, brush, 'side', bounds);
+    const right = this.projectOrthographic(edgeSegments, brush, 'right', bounds);
 
-    return { front, top, side, bounds };
+    return { front, top, side, right, bounds };
   }
 
   /**
@@ -102,6 +103,13 @@ export class ProjectionEngine {
       // 2D: u = Z, v = Y
       rayDir = new THREE.Vector3(1, 0, 0);
       rayOriginFn = (pt) => new THREE.Vector3(-50, pt.y, pt.z);
+      map2DFn = (pt) => ({ u: Number(pt.z.toFixed(3)), v: Number(pt.y.toFixed(3)) });
+
+    } else if (viewType === 'right') {
+      // Chiếu Cạnh Phải: Nhìn theo trục -X (từ X > w về X = 0)
+      // 2D: u = Z, v = Y
+      rayDir = new THREE.Vector3(-1, 0, 0);
+      rayOriginFn = (pt) => new THREE.Vector3(bounds.w + 50, pt.y, pt.z);
       map2DFn = (pt) => ({ u: Number(pt.z.toFixed(3)), v: Number(pt.y.toFixed(3)) });
     }
 

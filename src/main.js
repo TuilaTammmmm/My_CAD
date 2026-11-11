@@ -397,6 +397,7 @@ document.getElementById('btn-undo').addEventListener('click', performUndo);
 document.getElementById('btn-redo').addEventListener('click', performRedo);
 
 window.addEventListener('keydown', (e) => {
+  if (appMode !== '3d') return;
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
     e.preventDefault();
@@ -624,6 +625,9 @@ window.addEventListener('resize', () => {
   camera.bottom = -frustumSize / 2;
   camera.updateProjectionMatrix();
   renderer.setSize(w, h);
+  if (typeof cad2dEditor !== 'undefined' && cad2dEditor && cad2dEditor.isVisible) {
+    cad2dEditor.resize();
+  }
 });
 
 // --- KHỞI TẠO 2D CAD VÀ BỘ CHUYỂN ĐỔI 3D <-> 2D ---
@@ -684,11 +688,10 @@ function switchTo3D() {
   if (sidebar3d) sidebar3d.style.display = 'flex';
   if (sidebar2d) sidebar2d.style.display = 'none';
 
-  // Hiện lại HUD và helper 3D
-  const hud = document.getElementById('interactive-hud');
+  // Hiện lại HUD và helper 3D theo trạng thái mode hiện tại
   const helper = document.querySelector('.hud-helper');
-  if (hud) hud.style.display = 'block';
-  if (helper) helper.style.display = 'block';
+  if (helper) helper.style.display = '';
+  if (picker && picker.updateHUD) picker.updateHUD();
 
   if (picker && picker.mode === 'view') {
     inspectionTool.show();
@@ -710,14 +713,59 @@ document.getElementById('btn-toggle-app-mode')?.addEventListener('click', toggle
 document.getElementById('switch-to-3d')?.addEventListener('click', switchTo3D);
 document.getElementById('switch-to-2d')?.addEventListener('click', switchTo2D);
 
-// Lắng nghe các nút chọn mặt phẳng 2D trong sidebar
-document.querySelectorAll('.cad2d-plane-btn').forEach(btn => {
+// --- THU GỌN SIDEBAR THÀNH TAB ICON & ĐÓNG MỞ TAB PHỤ (ACCORDION) ---
+const cadSidebar = document.getElementById('cad-sidebar');
+const btnToggleCompact = document.getElementById('btn-toggle-sidebar-compact');
+
+function setSidebarCompact(compact) {
+  if (!cadSidebar) return;
+  cadSidebar.classList.toggle('compact', compact);
+  document.body.classList.toggle('sidebar-compact', compact);
+  if (btnToggleCompact) {
+    btnToggleCompact.title = compact
+      ? 'Mở rộng thanh công cụ'
+      : 'Thu gọn thành tab Icon';
+  }
+  // Trên điện thoại: không để bảng đo đạc và sidebar mở rộng đè lên nhau
+  if (!compact && window.innerWidth <= 768 && inspectionTool && !inspectionTool.isCollapsed) {
+    inspectionTool.collapsePanel();
+  }
+}
+
+btnToggleCompact?.addEventListener('click', (e) => {
+  e.stopPropagation();
+  const isCompact = cadSidebar?.classList.contains('compact');
+  setSidebarCompact(!isCompact);
+});
+
+// Khi nhấn vào tab phụ (View, Khung CAD, Nhập/Xuất): tự mở rộng nếu đang thu gọn icon
+document.querySelectorAll('.accordion-toggle').forEach(btn => {
   btn.addEventListener('click', () => {
-    document.querySelectorAll('.cad2d-plane-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    const plane = btn.getAttribute('data-plane');
-    cad2dEditor.setPlane(plane);
+    const acc = btn.closest('.sidebar-accordion');
+    if (!acc) return;
+    const isSidebarCompact = cadSidebar?.classList.contains('compact');
+    const containerGroup = acc.parentElement;
+
+    if (isSidebarCompact) {
+      setSidebarCompact(false);
+      containerGroup?.querySelectorAll('.sidebar-accordion').forEach(el => {
+        el.classList.toggle('open', el === acc);
+      });
+    } else {
+      const willOpen = !acc.classList.contains('open');
+      containerGroup?.querySelectorAll('.sidebar-accordion').forEach(el => {
+        el.classList.remove('open');
+      });
+      if (willOpen) acc.classList.add('open');
+    }
   });
+});
+
+// Trên mobile: mở bảng kiểm tra đo đạc sẽ tự thu gọn sidebar thành icon rail
+document.getElementById('btn-floating-open-inspect')?.addEventListener('click', () => {
+  if (window.innerWidth <= 768) {
+    setSidebarCompact(true);
+  }
 });
 
 // Lắng nghe các nút công cụ nét vẽ 2D trong sidebar
@@ -738,13 +786,16 @@ document.getElementById('btn-2d-redo')?.addEventListener('click', () => {
   cad2dEditor.redo();
 });
 
-// Cài đặt bán kính bo cung / đường tròn
-document.getElementById('input-2d-radius')?.addEventListener('input', (e) => {
+// Cài đặt bán kính bo cung / góc 2D (Fillet R)
+const radiusInput = document.getElementById('input-2d-radius');
+const handleRadiusInput = (e) => {
   const r = parseFloat(e.target.value);
   if (!isNaN(r) && r > 0) {
     cad2dEditor.setFilletRadius(r);
   }
-});
+};
+radiusInput?.addEventListener('input', handleRadiusInput);
+radiusInput?.addEventListener('change', handleRadiusInput);
 
 // Nút chuyển đổi bắt dính Lưới 0.5 <-> Tự do Freeform
 document.getElementById('btn-2d-toggle-snap')?.addEventListener('click', () => {
@@ -756,17 +807,12 @@ document.getElementById('btn-2d-toggle-frame')?.addEventListener('click', () => 
   cad2dEditor.cycleFrameMode();
 });
 
-// Các nút nạp hình chiếu 2D (Đứng, Bằng, Cạnh) từ 3D
+// Các nút nạp hình chiếu 2D (All, Front, Top, Right) từ 3D
 document.querySelectorAll('.tool-btn-sync').forEach(btn => {
   btn.addEventListener('click', () => {
     const view = btn.getAttribute('data-view') || 'front';
     cad2dEditor.syncFrom3D(view);
   });
-});
-
-// Nút lấy nét từ 3D (alias mặc định nạp chiếu đứng)
-document.getElementById('btn-2d-sync-3d')?.addEventListener('click', () => {
-  cad2dEditor.syncFrom3D('front');
 });
 
 // Nút xóa sạch mặt phẳng 2D hiện tại
@@ -791,6 +837,10 @@ resetBaseBlock();
 picker.setMode('view');
 inspectionTool.updateModel(currentBrush, currentEdges);
 inspectionTool.show();
+if (window.innerWidth <= 768) {
+  setSidebarCompact(true);
+  inspectionTool.collapsePanel();
+}
 syncGridSquaresUI(gridOverlay.showGridSquares);
 syncDimUI(dimOverlay.enabled);
 syncScreensUI(projectionScreens.enabled);

@@ -81,7 +81,7 @@ export class CAD2DEditor {
     const lbl = document.getElementById('lbl-snap-mode');
     const btn = document.getElementById('btn-2d-toggle-snap');
     if (lbl) {
-      lbl.innerText = (this.snapMode === 'grid') ? 'Bắt Dính: Lưới (0.5)' : 'Bắt Dính: Tự Do (Free)';
+      lbl.innerText = (this.snapMode === 'grid') ? 'Snap: Grid (0.5)' : 'Snap: Free';
     }
     if (btn) {
       if (this.snapMode === 'free') {
@@ -113,7 +113,7 @@ export class CAD2DEditor {
     const btn = document.getElementById('btn-2d-toggle-frame');
     if (!lbl) return;
     if (this.frameMode === 'none') {
-      lbl.innerText = 'Khung CAD: Tắt (Tự Do)';
+      lbl.innerText = 'Frame: Off (Free)';
       if (btn) {
         btn.classList.remove('active');
         btn.style.borderColor = '';
@@ -122,14 +122,14 @@ export class CAD2DEditor {
     } else if (this.frameMode === 'block') {
       const curW = this.currentViewW || this.bounds.w;
       const curH = this.currentViewH || this.bounds.h;
-      lbl.innerText = `Khung CAD: Phôi (${curW}×${curH})`;
+      lbl.innerText = `Frame: Stock (${curW}×${curH})`;
       if (btn) {
         btn.classList.add('active');
         btn.style.borderColor = '#38bdf8';
         btn.style.color = '#38bdf8';
       }
     } else if (this.frameMode === 'a4') {
-      lbl.innerText = 'Khung CAD: Khung A4 (ISO)';
+      lbl.innerText = 'Frame: A4 (ISO)';
       if (btn) {
         btn.classList.add('active');
         btn.style.borderColor = '#10b981';
@@ -150,6 +150,9 @@ export class CAD2DEditor {
       this.historyIndex--;
       this.elements = JSON.parse(JSON.stringify(this.history[this.historyIndex]));
       this.pendingPoints = [];
+      this.filletFirst = null;
+      this.tangentStartVec = null;
+      this.updateHUDHint();
       this.render();
       this.updateUndoButtons();
     }
@@ -160,6 +163,9 @@ export class CAD2DEditor {
       this.historyIndex++;
       this.elements = JSON.parse(JSON.stringify(this.history[this.historyIndex]));
       this.pendingPoints = [];
+      this.filletFirst = null;
+      this.tangentStartVec = null;
+      this.updateHUDHint();
       this.render();
       this.updateUndoButtons();
     }
@@ -175,6 +181,8 @@ export class CAD2DEditor {
   setTool(toolName) {
     this.tool = toolName;
     this.pendingPoints = [];
+    this.filletFirst = null;
+    this.tangentStartVec = null;
     if (this.tool === 'pan') {
       this.canvas.style.cursor = 'grab';
     } else if (this.tool === 'toggle-style') {
@@ -386,7 +394,7 @@ export class CAD2DEditor {
       btn.classList.toggle('active', btn.getAttribute('data-view') === viewType);
     });
 
-    this.updateFrameButtonUI();
+    this.updateFrameButton();
     this.saveHistory();
     this.centerView();
     this.render();
@@ -395,6 +403,9 @@ export class CAD2DEditor {
   clearPlane() {
     this.elements = [];
     this.pendingPoints = [];
+    this.filletFirst = null;
+    this.tangentStartVec = null;
+    this.updateHUDHint();
     this.saveHistory();
     this.render();
   }
@@ -644,6 +655,118 @@ export class CAD2DEditor {
       this.scale = newScale;
 
       this.render();
+    }, { passive: false });
+
+    // Hỗ trợ cảm ứng trên điện thoại (1 ngón tap/pan + 2 ngón pinch-zoom & pan)
+    let touchState = {
+      mode: 'none', // 'tap' | 'pan' | 'pinch'
+      startX: 0,
+      startY: 0,
+      moved: false,
+      pinchDist: 0,
+      pinchMidX: 0,
+      pinchMidY: 0
+    };
+
+    const getTouchPoint = (t) => {
+      const rect = this.canvas.getBoundingClientRect();
+      return { x: t.clientX - rect.left, y: t.clientY - rect.top };
+    };
+
+    this.canvas.addEventListener('touchstart', (e) => {
+      if (!this.isVisible) return;
+      e.preventDefault();
+
+      if (e.touches.length === 1) {
+        const pt = getTouchPoint(e.touches[0]);
+        touchState.startX = pt.x;
+        touchState.startY = pt.y;
+        touchState.moved = false;
+        if (this.tool === 'pan') {
+          touchState.mode = 'pan';
+          this.panStart = { x: pt.x - this.offsetX, y: pt.y - this.offsetY };
+        } else {
+          touchState.mode = 'tap';
+          this.hoverSnap = this.getSnapPoint(pt.x, pt.y, false);
+          this.render();
+        }
+      } else if (e.touches.length === 2) {
+        const p1 = getTouchPoint(e.touches[0]);
+        const p2 = getTouchPoint(e.touches[1]);
+        touchState.mode = 'pinch';
+        touchState.moved = true;
+        touchState.pinchDist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+        touchState.pinchMidX = (p1.x + p2.x) / 2;
+        touchState.pinchMidY = (p1.y + p2.y) / 2;
+      }
+    }, { passive: false });
+
+    this.canvas.addEventListener('touchmove', (e) => {
+      if (!this.isVisible) return;
+      e.preventDefault();
+
+      if (e.touches.length === 1 && touchState.mode !== 'pinch') {
+        const pt = getTouchPoint(e.touches[0]);
+        const moveDist = Math.hypot(pt.x - touchState.startX, pt.y - touchState.startY);
+        if (moveDist > 8) touchState.moved = true;
+
+        if (touchState.mode === 'pan') {
+          this.offsetX = pt.x - this.panStart.x;
+          this.offsetY = pt.y - this.panStart.y;
+          this.render();
+        } else {
+          this.hoverSnap = this.getSnapPoint(pt.x, pt.y, false);
+          this.render();
+        }
+      } else if (e.touches.length === 2) {
+        const p1 = getTouchPoint(e.touches[0]);
+        const p2 = getTouchPoint(e.touches[1]);
+        const newDist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+        const newMidX = (p1.x + p2.x) / 2;
+        const newMidY = (p1.y + p2.y) / 2;
+
+        if (touchState.pinchDist > 5) {
+          const factor = newDist / touchState.pinchDist;
+          const newScale = Math.max(2.0, Math.min(300, this.scale * factor));
+          const ratio = newScale / this.scale;
+
+          this.offsetX = newMidX - (touchState.pinchMidX - this.offsetX) * ratio;
+          this.offsetY = newMidY - (touchState.pinchMidY - this.offsetY) * ratio;
+          this.scale = newScale;
+        } else {
+          this.offsetX += newMidX - touchState.pinchMidX;
+          this.offsetY += newMidY - touchState.pinchMidY;
+        }
+
+        touchState.mode = 'pinch';
+        touchState.moved = true;
+        touchState.pinchDist = newDist;
+        touchState.pinchMidX = newMidX;
+        touchState.pinchMidY = newMidY;
+        this.render();
+      }
+    }, { passive: false });
+
+    this.canvas.addEventListener('touchend', (e) => {
+      if (!this.isVisible) return;
+      e.preventDefault();
+
+      if (e.touches.length === 0) {
+        if (touchState.mode === 'tap' && !touchState.moved && e.changedTouches.length > 0) {
+          const pt = getTouchPoint(e.changedTouches[0]);
+          const rawU = Number(((pt.x - this.offsetX) / this.scale).toFixed(3));
+          const rawV = Number((-(pt.y - this.offsetY) / this.scale).toFixed(3));
+          const snap = this.getSnapPoint(pt.x, pt.y, false);
+          if (snap) {
+            this.handleToolClick(snap, { u: rawU, v: rawV });
+          }
+        }
+        touchState.mode = 'none';
+      } else if (e.touches.length === 1) {
+        // Tránh chạm nhầm click sau khi nhả 1 trong 2 ngón pinch
+        touchState.mode = (this.tool === 'pan') ? 'pan' : 'none';
+        touchState.moved = true;
+      }
     }, { passive: false });
 
     // Phím tắt thao tác 2D
@@ -1020,7 +1143,7 @@ export class CAD2DEditor {
       }
 
       const threshold = Math.max(0.4, 20 / this.scale);
-      if (bestElem && bestDist <= threshold && bestElem.type !== 'dim') {
+      if (bestElem && bestDist <= threshold && bestElem.type !== 'dim' && bestElem.type !== 'dim-radial' && bestElem.type !== 'label' && bestElem.style !== 'guide') {
         bestElem.style = (bestElem.style === 'hidden') ? 'visible' : 'hidden';
         this.saveHistory();
         this.render();
@@ -1195,6 +1318,7 @@ export class CAD2DEditor {
 
     for (let i = 0; i < this.elements.length; i++) {
       const elem = this.elements[i];
+      if (elem.style === 'guide' || elem.type === 'label') continue;
       let d = Infinity;
       if (elem.type === 'line') {
         d = this.pointToSegmentDistance(clickPoint, elem.p1, elem.p2);
@@ -1212,6 +1336,10 @@ export class CAD2DEditor {
         }
       } else if (elem.type === 'dim') {
         d = this.pointToSegmentDistance(clickPoint, elem.p1, elem.p2);
+      } else if (elem.type === 'dim-radial') {
+        const endU = elem.cx + (elem.r + 0.8) * Math.cos(elem.angle);
+        const endV = elem.cy + (elem.r + 0.8) * Math.sin(elem.angle);
+        d = this.pointToSegmentDistance(clickPoint, { u: elem.cx, v: elem.cy }, { u: endU, v: endV });
       }
 
       if (d < bestDist) {
@@ -1224,7 +1352,7 @@ export class CAD2DEditor {
     const clickThreshold = Math.max(0.45, 24 / this.scale);
     if (!bestElem || bestDist > clickThreshold) return;
 
-    if (bestElem.type === 'dim') {
+    if (bestElem.type === 'dim' || bestElem.type === 'dim-radial') {
       this.elements.splice(bestIndex, 1);
       this.saveHistory();
       this.render();
@@ -1586,6 +1714,7 @@ export class CAD2DEditor {
 
     for (let i = 0; i < this.elements.length; i++) {
       const elem = this.elements[i];
+      if (elem.style === 'guide' || elem.type === 'dim' || elem.type === 'dim-radial' || elem.type === 'label') continue;
       let d = Infinity;
       if (elem.type === 'line') {
         d = this.pointToSegmentDistance(clickPoint, elem.p1, elem.p2);
@@ -1719,6 +1848,11 @@ export class CAD2DEditor {
       } else {
         elemB.p2 = TB;
       }
+
+      // Loại bỏ đoạn thẳng bị thu gọn thành điểm (độ dài ~ 0)
+      this.elements = this.elements.filter(el =>
+        el.type !== 'line' || Math.hypot(el.p2.u - el.p1.u, el.p2.v - el.p1.v) > 1e-4
+      );
 
       return true;
     }

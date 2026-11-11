@@ -11,13 +11,16 @@ body {
   background-color: #0b0f19;
   color: #f1f5f9;
   height: 100vh;
+  height: 100dvh;
   width: 100vw;
+  overscroll-behavior: none;
 }
 
 /* MAIN VIEWPORT FULLSCREEN */
 #viewport-container {
   width: 100vw;
   height: 100vh;
+  height: 100dvh;
   position: relative;
   overflow: hidden;
   background-color: #0b0f19;
@@ -30,6 +33,7 @@ body {
   width: 100%;
   height: 100%;
   outline: none;
+  touch-action: none;
 }
 
 /* ===================================================
@@ -704,6 +708,7 @@ body {
   left: 0;
   width: 100vw;
   height: 100vh;
+  height: 100dvh;
   z-index: 20;
   background: #090d16;
   overflow: hidden;
@@ -713,6 +718,7 @@ body {
   width: 100%;
   height: 100%;
   cursor: crosshair;
+  touch-action: none;
 }
 
 .cad2d-hint {
@@ -1268,5 +1274,412 @@ body {
   color: #ef4444;
   background: rgba(239, 68, 68, 0.15);
 }
+
+/* ===================================================
+   COMPACT ICON-ONLY SIDEBAR & ACCORDION TABS
+   =================================================== */
+.sidebar-top-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sidebar-top-row .sidebar-brand {
+  flex: 1;
+  min-width: 0;
+}
+
+.sidebar-compact-btn {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  background: rgba(30, 41, 59, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  color: #94a3b8;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.sidebar-compact-btn:hover {
+  background: rgba(56, 189, 248, 0.18);
+  border-color: rgba(56, 189, 248, 0.45);
+  color: #38bdf8;
+}
+
+.sidebar-compact-btn svg {
+  width: 15px;
+  height: 15px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 0.2s ease;
+}
+
+.cad-sidebar {
+  transition: width 0.22s cubic-bezier(0.16, 1, 0.3, 1), padding 0.22s ease;
+}
+
+.cad-sidebar.compact {
+  width: 60px;
+  padding: 12px 6px;
+  gap: 10px;
+}
+
+.cad-sidebar.compact .sidebar-top-row {
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cad-sidebar.compact .sidebar-brand {
+  padding: 4px;
+  border-bottom: none;
+  justify-content: center;
+}
+
+.cad-sidebar.compact .brand-info {
+  display: none;
+}
+
+.cad-sidebar.compact .sidebar-compact-btn {
+  width: 100%;
+  height: 24px;
+}
+
+.cad-sidebar.compact .sidebar-compact-btn svg {
+  transform: rotate(180deg);
+}
+
+.cad-sidebar.compact .mode-switcher-bar {
+  grid-template-columns: 1fr;
+  gap: 4px;
+  padding: 3px;
+}
+
+.cad-sidebar.compact .switcher-btn {
+  padding: 6px 4px;
+  font-size: 0.72rem;
+}
+
+.cad-sidebar.compact .switcher-btn .sw-text {
+  display: none;
+}
+
+.cad-sidebar.compact .section-label {
+  display: none;
+}
+
+.cad-sidebar.compact .tool-btn {
+  justify-content: center;
+  padding: 8px;
+}
+
+.cad-sidebar.compact .tool-text {
+  display: none;
+}
+
+.cad-sidebar.compact .tool-icon {
+  width: 24px;
+  height: 24px;
+}
+
+.cad-sidebar.compact .quick-history-row {
+  grid-template-columns: 1fr;
+  gap: 5px;
+}
+
+.cad-sidebar.compact .tool-btn-compact {
+  padding: 7px 4px;
+  justify-content: center;
+}
+
+.cad-sidebar.compact .tool-btn-compact span {
+  display: none;
+}
+
+.cad-sidebar.compact .fillet-radius-bar {
+  flex-direction: column;
+  padding: 4px 3px;
+  gap: 3px;
+}
+
+.cad-sidebar.compact .fillet-label {
+  font-size: 0.62rem;
+}
+
+.cad-sidebar.compact .fillet-input {
+  width: 100%;
+  text-align: center;
+  padding: 3px 2px;
+  font-size: 0.72rem;
+}
+
+.cad-sidebar.compact .accordion-label,
+.cad-sidebar.compact .accordion-chevron {
+  display: none;
+}
+
+.cad-sidebar.compact .accordion-toggle {
+  justify-content: center;
+  padding: 8px;
+}
+
+.cad-sidebar.compact .sidebar-accordion.open .accordion-body {
+  display: none;
+}
+
+/* ===================================================
+   COLLAPSIBLE ACCORDION TABS (VIEW / KHUNG / NHẬP XUẤT)
+   =================================================== */
+.sidebar-accordion {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.55);
+  overflow: hidden;
+}
+
+.accordion-toggle {
+  width: 100%;
+  background: rgba(30, 41, 59, 0.45);
+  border: none;
+  color: #cbd5e1;
+  padding: 9px 11px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  transition: all 0.2s ease;
+}
+
+.accordion-toggle:hover {
+  background: rgba(56, 189, 248, 0.12);
+  color: #f8fafc;
+}
+
+.sidebar-accordion.open .accordion-toggle {
+  background: rgba(2, 132, 199, 0.2);
+  color: #38bdf8;
+  border-bottom: 1px solid rgba(56, 189, 248, 0.2);
+}
+
+.accordion-label {
+  flex: 1;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.accordion-chevron {
+  font-size: 0.78rem;
+  opacity: 0.8;
+  transition: transform 0.2s ease;
+}
+
+.sidebar-accordion.open .accordion-chevron {
+  transform: rotate(180deg);
+}
+
+.accordion-body {
+  display: none;
+  padding: 9px;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sidebar-accordion.open .accordion-body {
+  display: flex;
+}
+
+/* ===================================================
+   FILLET RADIUS BAR (BÁN KÍNH BO GÓC R)
+   =================================================== */
+.fillet-radius-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: rgba(30, 41, 59, 0.55);
+  border: 1px solid rgba(56, 189, 248, 0.22);
+}
+
+.fillet-label {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #94a3b8;
+  white-space: nowrap;
+}
+
+.fillet-input {
+  width: 68px;
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid rgba(56, 189, 248, 0.45);
+  border-radius: 7px;
+  color: #38bdf8;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 4px 8px;
+  text-align: right;
+  outline: none;
+}
+
+.fillet-input:focus {
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+}
+
+/* ===================================================
+   MOBILE & TABLET RESPONSIVE LAYOUT
+   =================================================== */
+@media (max-width: 900px) {
+  .hud-helper {
+    display: none !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .cad-sidebar {
+    left: 8px;
+    top: 8px;
+    bottom: 8px;
+    border-radius: 16px;
+    z-index: 65;
+  }
+
+  .cad-sidebar:not(.compact) {
+    width: min(250px, calc(100vw - 16px));
+    padding: 12px 10px;
+    gap: 10px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+  }
+
+  .cad-sidebar.compact {
+    width: 52px;
+    padding: 8px 4px;
+    gap: 8px;
+  }
+
+  .cad-sidebar.compact .tool-btn {
+    padding: 7px 4px;
+  }
+
+  .view-dim-badge {
+    left: 68px !important;
+    top: 8px !important;
+    transform: none !important;
+    animation: none !important;
+    padding: 5px 10px;
+    border-radius: 12px;
+    max-width: calc(100vw - 175px);
+    gap: 7px;
+  }
+
+  .view-dim-badge .badge-icon {
+    display: none;
+  }
+
+  .view-dim-badge .badge-title {
+    font-size: 0.62rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .view-dim-badge .badge-dims {
+    font-size: 0.72rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .floating-inspect-btn {
+    right: 8px;
+    top: 8px;
+    padding: 8px 11px;
+    font-size: 0.76rem;
+    border-radius: 10px;
+  }
+
+  .inspection-panel {
+    left: 68px;
+    right: 8px;
+    top: 8px;
+    bottom: auto;
+    max-height: calc(100dvh - 16px);
+    width: auto;
+    padding: 12px;
+    border-radius: 16px;
+    z-index: 60;
+  }
+
+  .dim-popover {
+    left: 68px !important;
+    right: 8px !important;
+    top: 56px !important;
+    width: auto !important;
+    max-width: none;
+    z-index: 70;
+  }
+
+  .interactive-hud {
+    left: 68px !important;
+    right: 8px !important;
+    bottom: 10px !important;
+    transform: none !important;
+    max-width: none !important;
+    width: auto !important;
+    padding: 8px 10px;
+    border-radius: 14px;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    font-size: 0.76rem;
+  }
+
+  .cad2d-hint {
+    left: 68px !important;
+    right: 8px !important;
+    bottom: 8px !important;
+    transform: none !important;
+    white-space: normal;
+    text-align: center;
+    padding: 6px 10px;
+    border-radius: 12px;
+    font-size: 0.72rem;
+    line-height: 1.35;
+  }
+}
+
+@media (max-width: 480px) {
+  .view-dim-badge {
+    max-width: calc(100vw - 160px);
+    padding: 4px 8px;
+  }
+
+  .hud-actions {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+}
+
+@media (min-width: 769px) {
+  body.sidebar-compact .view-dim-badge {
+    left: calc(50% + 20px);
+  }
+  body.sidebar-compact .cad2d-hint {
+    left: calc(50% + 20px);
+  }
+}
+
 
 

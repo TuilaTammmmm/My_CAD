@@ -21,24 +21,35 @@
     <!-- THANH CÔNG CỤ DỌC DÙNG CHUNG DUY NHẤT (UNIFIED CAD SIDEBAR) -->
     <aside class="cad-sidebar" id="cad-sidebar">
       
-      <!-- LOGO BRANDING / BẤM ĐỂ ĐỔI 3D BLOCK CAD <-> 2D CAD -->
-      <div class="sidebar-brand clickable-brand" id="btn-toggle-app-mode" title="Nhấn để chuyển đổi giữa 3D Block CAD và Vẽ 2D">
-        <div class="brand-logo-glow">
-          <svg class="brand-svg" viewBox="0 0 32 32" fill="none">
-            <path d="M16 2L28 8.5V23.5L16 30L4 23.5V8.5L16 2Z" stroke="#38bdf8" stroke-width="2.2" stroke-linejoin="round"/>
-            <path d="M16 30V15.5M28 8.5L16 15.5M4 8.5L16 15.5" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/>
-          </svg>
+      <!-- HEADER SIDEBAR: LOGO ĐỔI CHẾ ĐỘ + NÚT THU GỌN THÀNH TAB ICON -->
+      <div class="sidebar-top-row">
+        <div class="sidebar-brand clickable-brand" id="btn-toggle-app-mode" title="Nhấn để chuyển đổi giữa 3D Block CAD và Vẽ 2D">
+          <div class="brand-logo-glow">
+            <svg class="brand-svg" viewBox="0 0 32 32" fill="none">
+              <path d="M16 2L28 8.5V23.5L16 30L4 23.5V8.5L16 2Z" stroke="#38bdf8" stroke-width="2.2" stroke-linejoin="round"/>
+              <path d="M16 30V15.5M28 8.5L16 15.5M4 8.5L16 15.5" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div class="brand-info">
+            <span class="brand-title" id="app-mode-title">My CAD</span>
+            <span class="brand-badge" id="app-mode-sub">⚡ ĐỔI SANG 2D CAD</span>
+          </div>
         </div>
-        <div class="brand-info">
-          <span class="brand-title" id="app-mode-title">My CAD</span>
-          <span class="brand-badge" id="app-mode-sub">⚡ ĐỔI SANG 2D CAD</span>
-        </div>
+        <button class="sidebar-compact-btn" id="btn-toggle-sidebar-compact" title="Thu gọn / Mở rộng thanh công cụ (Tab Icon)">
+          <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
       </div>
 
       <!-- THANH CHUYỂN CHẾ ĐỘ 3D / 2D TRỰC TIẾP -->
       <div class="mode-switcher-bar">
-        <button class="switcher-btn active" id="switch-to-3d">🧊 3D Block</button>
-        <button class="switcher-btn" id="switch-to-2d">📐 2D CAD</button>
+        <button class="switcher-btn active" id="switch-to-3d" title="Chế độ 3D Block CAD">
+          <span class="sw-icon">🧊</span>
+          <span class="sw-text">3D Block</span>
+        </button>
+        <button class="switcher-btn" id="switch-to-2d" title="Chế độ 2D CAD">
+          <span class="sw-icon">📐</span>
+          <span class="sw-text">2D CAD</span>
+        </button>
       </div>
 
       <!-- ============================================== -->
@@ -94,77 +105,90 @@
           </div>
         </div>
 
-        <!-- NHÓM 2: GÓC CHIẾU KỸ THUẬT 3D -->
-        <div class="sidebar-section">
-          <div class="section-label">GÓC CHIẾU 3D</div>
-          <div class="tool-list">
-            <button class="tool-btn topbar-btn active" id="view-iso" title="Phối cảnh trục đo 3D">
-              <span class="tool-icon">
-                <svg viewBox="0 0 24 24"><path d="M12 2l9 5v10l-9 5-9-5V7l9-5z"/><line x1="12" y1="22" x2="12" y2="12"/><line x1="21" y1="7" x2="12" y2="12"/><line x1="3" y1="7" x2="12" y2="12"/></svg>
-              </span>
-              <span class="tool-text">Trục Đo (3D)</span>
-            </button>
-
-            <button class="tool-btn topbar-btn" id="view-horizontal" title="Chiếu ngang 90°: Nhấn để xoay góc nhìn 90° (Đứng -> Cạnh phải -> Sau -> Cạnh trái)">
-              <span class="tool-icon">
-                <svg viewBox="0 0 24 24"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.19"/></svg>
-              </span>
-              <span class="tool-text">Chiếu Ngang (90°)</span>
-            </button>
-
-            <button class="tool-btn topbar-btn" id="view-top" title="Hình chiếu bằng (Nhìn từ trên xuống)">
-              <span class="tool-icon">
-                <svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><circle cx="12" cy="12" r="2"/></svg>
-              </span>
-              <span class="tool-text">Chiếu Bằng (Top)</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- NHÓM 3: BƯỚC BẮT DÍNH / CHIA LƯỚI (PHÍM S) -->
-        <div class="sidebar-section">
-          <div class="section-label">BƯỚC BẮT DÍNH (PHÍM S)</div>
-          <div class="subdiv-btn-group" id="snap-subdiv-group">
-            <button class="subdiv-btn active" data-step="1" title="Bước 1 ô (Nguyên ô) - Phím S">1</button>
-            <button class="subdiv-btn" data-step="0.5" title="Bước 1/2 ô (Cắt giữa ô 0.5) - Phím S">1/2</button>
-            <button class="subdiv-btn" data-step="0.25" title="Bước 1/4 ô (Chia tư 0.25) - Phím S">1/4</button>
-            <button class="subdiv-btn" data-step="0.125" title="Bước 1/8 ô (Chia tám 0.125) - Phím S">1/8</button>
-          </div>
-        </div>
-
-        <!-- NHÓM 4: TIỆN ÍCH & TẬP TIN 3D -->
-        <div class="sidebar-section">
-          <div class="section-label">TIỆN ÍCH 3D</div>
-          
-          <div class="sidebar-grid-2">
-            <button class="tool-btn-compact" id="btn-undo" disabled title="Hoàn tác (Ctrl+Z)">
-              <svg viewBox="0 0 24 24"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
-              <span>Undo</span>
-            </button>
-            <button class="tool-btn-compact" id="btn-redo" disabled title="Làm lại (Ctrl+Y)">
-              <svg viewBox="0 0 24 24"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"/></svg>
-              <span>Redo</span>
-            </button>
-          </div>
-
-          <button class="tool-btn" id="btn-open-dim" title="Cài đặt kích thước ô lưới khối ban đầu">
-            <span class="tool-icon">
-              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-            </span>
-            <span class="tool-text">Kích Thước Khối</span>
+        <!-- NHÓM 2: UNDO / REDO NHANH KHI CHỈNH SỬA -->
+        <div class="sidebar-grid-2 quick-history-row">
+          <button class="tool-btn-compact" id="btn-undo" disabled title="Hoàn tác (Ctrl+Z)">
+            <svg viewBox="0 0 24 24"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
+            <span>Undo</span>
           </button>
+          <button class="tool-btn-compact" id="btn-redo" disabled title="Làm lại (Ctrl+Y)">
+            <svg viewBox="0 0 24 24"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"/></svg>
+            <span>Redo</span>
+          </button>
+        </div>
 
-          <div class="sidebar-grid-2">
-            <button class="tool-btn-compact" id="btn-import-obj" title="Nhập mô hình 3D từ file (.OBJ)">
-              <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-              <span>Nhập OBJ</span>
-            </button>
-            <button class="tool-btn-compact" id="btn-export-obj" title="Xuất mô hình 3D (.OBJ)">
-              <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              <span>Xuất OBJ</span>
-            </button>
+        <!-- TAB ĐÓNG MỞ: GÓC CHIẾU & BƯỚC LƯỚI (VIEW) -->
+        <div class="sidebar-accordion" id="acc-3d-view">
+          <button class="accordion-toggle" type="button" title="Mở / Đóng tab Góc Chiếu & Bước Lưới (View)">
+            <span class="tool-icon">
+              <svg viewBox="0 0 24 24"><path d="M12 2l9 5v10l-9 5-9-5V7l9-5z"/><line x1="12" y1="22" x2="12" y2="12"/><line x1="21" y1="7" x2="12" y2="12"/><line x1="3" y1="7" x2="12" y2="12"/></svg>
+            </span>
+            <span class="accordion-label">View & Bước Lưới</span>
+            <span class="accordion-chevron">▾</span>
+          </button>
+          <div class="accordion-body">
+            <div class="tool-list">
+              <button class="tool-btn topbar-btn active" id="view-iso" title="Phối cảnh trục đo 3D">
+                <span class="tool-icon">
+                  <svg viewBox="0 0 24 24"><path d="M12 2l9 5v10l-9 5-9-5V7l9-5z"/><line x1="12" y1="22" x2="12" y2="12"/><line x1="21" y1="7" x2="12" y2="12"/><line x1="3" y1="7" x2="12" y2="12"/></svg>
+                </span>
+                <span class="tool-text">Trục Đo (3D)</span>
+              </button>
+
+              <button class="tool-btn topbar-btn" id="view-horizontal" title="Chiếu ngang 90°: Nhấn để xoay góc nhìn 90° (Đứng -> Cạnh phải -> Sau -> Cạnh trái)">
+                <span class="tool-icon">
+                  <svg viewBox="0 0 24 24"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.19"/></svg>
+                </span>
+                <span class="tool-text">Chiếu Ngang (90°)</span>
+              </button>
+
+              <button class="tool-btn topbar-btn" id="view-top" title="Hình chiếu bằng (Nhìn từ trên xuống)">
+                <span class="tool-icon">
+                  <svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><circle cx="12" cy="12" r="2"/></svg>
+                </span>
+                <span class="tool-text">Chiếu Bằng (Top)</span>
+              </button>
+            </div>
+
+            <div class="section-label" style="margin-top: 8px;">BƯỚC BẮT DÍNH (PHÍM S)</div>
+            <div class="subdiv-btn-group" id="snap-subdiv-group">
+              <button class="subdiv-btn active" data-step="1" title="Bước 1 ô (Nguyên ô) - Phím S">1</button>
+              <button class="subdiv-btn" data-step="0.5" title="Bước 1/2 ô (Cắt giữa ô 0.5) - Phím S">1/2</button>
+              <button class="subdiv-btn" data-step="0.25" title="Bước 1/4 ô (Chia tư 0.25) - Phím S">1/4</button>
+              <button class="subdiv-btn" data-step="0.125" title="Bước 1/8 ô (Chia tám 0.125) - Phím S">1/8</button>
+            </div>
           </div>
-          <input type="file" id="input-import-obj" accept=".obj" style="display: none;">
+        </div>
+
+        <!-- TAB ĐÓNG MỞ: KHỐI PHÔI & NHẬP / XUẤT 3D -->
+        <div class="sidebar-accordion" id="acc-3d-file">
+          <button class="accordion-toggle" type="button" title="Mở / Đóng tab Khối Phôi & Nhập/Xuất OBJ">
+            <span class="tool-icon">
+              <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            </span>
+            <span class="accordion-label">Khối & Nhập / Xuất</span>
+            <span class="accordion-chevron">▾</span>
+          </button>
+          <div class="accordion-body">
+            <button class="tool-btn" id="btn-open-dim" title="Cài đặt kích thước ô lưới khối ban đầu">
+              <span class="tool-icon">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+              </span>
+              <span class="tool-text">Kích Thước Khối</span>
+            </button>
+
+            <div class="sidebar-grid-2">
+              <button class="tool-btn-compact" id="btn-import-obj" title="Nhập mô hình 3D từ file (.OBJ)">
+                <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                <span>Nhập OBJ</span>
+              </button>
+              <button class="tool-btn-compact" id="btn-export-obj" title="Xuất mô hình 3D (.OBJ)">
+                <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                <span>Xuất OBJ</span>
+              </button>
+            </div>
+            <input type="file" id="input-import-obj" accept=".obj" style="display: none;">
+          </div>
         </div>
 
       </div>
@@ -199,6 +223,20 @@
               <span class="tool-text">Rectangle</span>
             </button>
 
+            <button class="tool-btn cad2d-tool-btn" data-tool="arc" title="3-Point Arc: Click 3 points on arc">
+              <span class="tool-icon">
+                <svg viewBox="0 0 24 24"><path d="M4 17a8 8 0 0 1 16 0" fill="none" stroke-width="2.2"/></svg>
+              </span>
+              <span class="tool-text">3-Point Arc</span>
+            </button>
+
+            <button class="tool-btn cad2d-tool-btn" data-tool="tangent-arc" title="Tangent Arc: Click line/arc endpoint ➔ end point">
+              <span class="tool-icon">
+                <svg viewBox="0 0 24 24"><path d="M4 18h6a8 8 0 0 0 8-8V5" fill="none" stroke-width="2.2"/></svg>
+              </span>
+              <span class="tool-text">Tangent Arc</span>
+            </button>
+
             <button class="tool-btn cad2d-tool-btn" data-tool="circle" title="Circle: Click Center ➔ Radius">
               <span class="tool-icon">
                 <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/></svg>
@@ -206,21 +244,42 @@
               <span class="tool-text">Circle</span>
             </button>
 
-            <button class="tool-btn cad2d-tool-btn" data-tool="dim" title="Measure Tool: Click any edge to measure length, click 2 edges to measure angle, or click 2 points">
+            <button class="tool-btn cad2d-tool-btn" data-tool="fillet" title="Corner Fillet (Bo Góc 2D): Click Line 1 ➔ Line 2 (uses Radius R)">
+              <span class="tool-icon">
+                <svg viewBox="0 0 24 24"><path d="M4 19V11a7 7 0 0 1 7-7h8" fill="none" stroke-width="2.4"/><path d="M4 4h4M4 4v4" stroke-dasharray="2 2" stroke-width="1.4" opacity="0.6"/></svg>
+              </span>
+              <span class="tool-text">Fillet (Bo Góc)</span>
+            </button>
+
+            <button class="tool-btn cad2d-tool-btn" data-tool="dim" title="Linear Dim: Click any edge or 2 points to measure length">
               <span class="tool-icon">
                 <svg viewBox="0 0 24 24"><path d="M2 12h20M6 8l-4 4 4 4M18 8l4 4-4 4"/></svg>
               </span>
               <span class="tool-text">Measure (Dim)</span>
             </button>
 
-            <button class="tool-btn cad2d-tool-btn" data-tool="erase" title="Trim / Erase: Click edge to trim or erase">
+            <button class="tool-btn cad2d-tool-btn" data-tool="dim-radial" title="Radial Dim (R / Ø): Click an Arc or Circle">
+              <span class="tool-icon">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7" fill="none" stroke-width="2"/><line x1="12" y1="12" x2="17" y2="7" stroke-width="2"/><polyline points="13 7 17 7 17 11" fill="none" stroke-width="2"/></svg>
+              </span>
+              <span class="tool-text">Radial Dim (R)</span>
+            </button>
+
+            <button class="tool-btn cad2d-tool-btn" data-tool="erase" title="Trim / Erase: Click segment between intersections to trim or erase">
               <span class="tool-icon">
                 <svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
               </span>
               <span class="tool-text">Trim / Erase</span>
             </button>
 
-            <button class="tool-btn cad2d-tool-btn" data-tool="pan" title="Pan / Move: Drag with left click to pan viewport">
+            <button class="tool-btn cad2d-tool-btn" data-tool="toggle-style" title="Toggle Line Style: Switch Visible (solid) ↔ Hidden (dashed)">
+              <span class="tool-icon">
+                <svg viewBox="0 0 24 24"><line x1="3" y1="8" x2="21" y2="8" stroke-width="2.5"/><line x1="3" y1="16" x2="21" y2="16" stroke-dasharray="3 3" stroke-width="2.2"/></svg>
+              </span>
+              <span class="tool-text">Visible / Hidden</span>
+            </button>
+
+            <button class="tool-btn cad2d-tool-btn" data-tool="pan" title="Pan / Move: Drag canvas to pan viewport">
               <span class="tool-icon">
                 <svg viewBox="0 0 24 24"><path d="M12 2v20M2 12h20M7 7l10 10M17 7L7 17"/></svg>
               </span>
@@ -229,38 +288,34 @@
           </div>
         </div>
 
-        <!-- NHÓM 2: HISTORY & CONTROLS -->
-        <div class="sidebar-section">
-          <div class="section-label">HISTORY & CONTROLS</div>
-          
-          <div class="sidebar-grid-2">
-            <button class="tool-btn-compact" id="btn-2d-undo" disabled title="Undo (Ctrl+Z)">
-              <svg viewBox="0 0 24 24"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
-              <span>Undo</span>
-            </button>
-            <button class="tool-btn-compact" id="btn-2d-redo" disabled title="Redo (Ctrl+Y)">
-              <svg viewBox="0 0 24 24"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"/></svg>
-              <span>Redo</span>
-            </button>
-          </div>
+        <!-- BÁN KÍNH BO GÓC (R) & UNDO / REDO NHANH KHI VẼ -->
+        <div class="fillet-radius-bar" id="fillet-radius-bar" title="Bán kính Bo Góc (Fillet Radius R)">
+          <span class="fillet-label">Fillet R:</span>
+          <input type="number" id="input-2d-radius" class="fillet-input" value="1.0" min="0.1" max="50" step="0.1">
+        </div>
 
-          <div class="tool-list">
-            <button class="tool-btn" id="btn-2d-toggle-snap" title="Toggle Snap: Grid (0.5) ↔ Freeform (Shortcut: G or hold Alt)">
-              <span class="tool-icon">
-                <svg viewBox="0 0 24 24"><path d="M4 4h4v4H4zM16 4h4v4h-4zM4 16h4v4H4zM16 16h4v4h-4z"/></svg>
-              </span>
-              <span class="tool-text" id="lbl-snap-mode">Snap: Grid (0.5)</span>
-            </button>
+        <div class="sidebar-grid-2 quick-history-row">
+          <button class="tool-btn-compact" id="btn-2d-undo" disabled title="Undo (Ctrl+Z)">
+            <svg viewBox="0 0 24 24"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
+            <span>Undo</span>
+          </button>
+          <button class="tool-btn-compact" id="btn-2d-redo" disabled title="Redo (Ctrl+Y)">
+            <svg viewBox="0 0 24 24"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"/></svg>
+            <span>Redo</span>
+          </button>
+        </div>
 
-            <button class="tool-btn" id="btn-2d-toggle-frame" title="Toggle CAD Frame: Off (Free) ➔ Part Stock Box ➔ A4 Drawing Sheet (ISO)">
-              <span class="tool-icon">
-                <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" fill="none" stroke-width="2" stroke-dasharray="4 2"/></svg>
-              </span>
-              <span class="tool-text" id="lbl-frame-mode">Frame: Stock Box</span>
-            </button>
-
+        <!-- TAB ĐÓNG MỞ: HÌNH CHIẾU 2D (VIEWS) -->
+        <div class="sidebar-accordion" id="acc-2d-views">
+          <button class="accordion-toggle" type="button" title="Open / Close 3D Projection Views">
+            <span class="tool-icon">
+              <svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/></svg>
+            </span>
+            <span class="accordion-label">View (Projections)</span>
+            <span class="accordion-chevron">▾</span>
+          </button>
+          <div class="accordion-body">
             <div class="sidebar-sync-group">
-              <div class="sync-group-label">ORTHOGRAPHIC 2D VIEWS</div>
               <div class="sidebar-grid-2" style="margin-bottom: 6px;">
                 <button class="tool-btn-sync" id="btn-sync-all" data-view="all" title="Display All 3 Views (Front + Top + Right) together in CAD sheet">
                   <span class="sync-icon">📑</span>
@@ -282,24 +337,64 @@
                 </button>
               </div>
             </div>
-
-            <button class="tool-btn" id="btn-2d-clear" title="Clear all drawings on plane">
-              <span class="tool-icon">
-                <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14H7L5 6"/></svg>
-              </span>
-              <span class="tool-text">Clear Plane</span>
-            </button>
           </div>
+        </div>
 
-          <div class="sidebar-grid-2" style="margin-top: 2px;">
-            <button class="tool-btn-compact btn-export-png" id="btn-2d-export-png" title="Xuất hình ảnh bản vẽ kỹ thuật (.PNG) chuẩn A4 độ nét cao">
-              <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-              <span>Xuất PNG</span>
-            </button>
-            <button class="tool-btn-compact btn-export-dxf" id="btn-2d-export-dxf" title="Xuất mặt phẳng X-Y thành file .DXF mở trực tiếp bằng AutoCAD">
+        <!-- TAB ĐÓNG MỞ: KHUNG CAD & BẮT DÍNH -->
+        <div class="sidebar-accordion" id="acc-2d-frame">
+          <button class="accordion-toggle" type="button" title="Open / Close Snap & CAD Frame Options">
+            <span class="tool-icon">
+              <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" stroke-dasharray="4 2"/></svg>
+            </span>
+            <span class="accordion-label">Khung CAD & Snap</span>
+            <span class="accordion-chevron">▾</span>
+          </button>
+          <div class="accordion-body">
+            <div class="tool-list">
+              <button class="tool-btn" id="btn-2d-toggle-snap" title="Toggle Snap: Grid (0.5) ↔ Freeform (Shortcut: G or hold Alt)">
+                <span class="tool-icon">
+                  <svg viewBox="0 0 24 24"><path d="M4 4h4v4H4zM16 4h4v4h-4zM4 16h4v4H4zM16 16h4v4h-4z"/></svg>
+                </span>
+                <span class="tool-text" id="lbl-snap-mode">Snap: Grid (0.5)</span>
+              </button>
+
+              <button class="tool-btn" id="btn-2d-toggle-frame" title="Toggle CAD Frame: Off (Free) ➔ Part Stock Box ➔ A4 Drawing Sheet (ISO)">
+                <span class="tool-icon">
+                  <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" fill="none" stroke-width="2" stroke-dasharray="4 2"/></svg>
+                </span>
+                <span class="tool-text" id="lbl-frame-mode">Frame: Off (Free)</span>
+              </button>
+
+              <button class="tool-btn" id="btn-2d-clear" title="Clear all drawings on plane">
+                <span class="tool-icon">
+                  <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14H7L5 6"/></svg>
+                </span>
+                <span class="tool-text">Clear Plane</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB ĐÓNG MỞ: NHẬP / XUẤT BẢN VẼ 2D -->
+        <div class="sidebar-accordion" id="acc-2d-export">
+          <button class="accordion-toggle" type="button" title="Open / Close Export PNG / DXF">
+            <span class="tool-icon">
               <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              <span>Xuất DXF</span>
-            </button>
+            </span>
+            <span class="accordion-label">Xuất PNG / DXF</span>
+            <span class="accordion-chevron">▾</span>
+          </button>
+          <div class="accordion-body">
+            <div class="sidebar-grid-2">
+              <button class="tool-btn-compact btn-export-png" id="btn-2d-export-png" title="Export Technical Drawing (.PNG)">
+                <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                <span>Xuất PNG</span>
+              </button>
+              <button class="tool-btn-compact btn-export-dxf" id="btn-2d-export-dxf" title="Export AutoCAD Drawing (.DXF)">
+                <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                <span>Xuất DXF</span>
+              </button>
+            </div>
           </div>
         </div>
 

@@ -401,19 +401,32 @@ export class InteractivePicker {
 
   bindEvents() {
     const dom = this.renderer.domElement;
+    const activePointers = new Set();
+
+    const updateMouseFromEvent = (e) => {
+      const rect = dom.getBoundingClientRect();
+      this.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      this.mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    };
 
     dom.addEventListener('pointerdown', (e) => {
+      activePointers.add(e.pointerId);
+      if (activePointers.size > 1) {
+        // Đa chạm (pinch zoom / pan 2 ngón) -> hủy click đơn điểm
+        this.isPointerDown = false;
+        return;
+      }
       this.isPointerDown = true;
+      this.pointerDownId = e.pointerId;
       this.pointerDownPos = { x: e.clientX, y: e.clientY };
+      updateMouseFromEvent(e);
       if (this.mode === 'view') {
         dom.style.cursor = 'grabbing';
       }
     });
 
     dom.addEventListener('pointermove', (e) => {
-      const rect = dom.getBoundingClientRect();
-      this.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-      this.mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      updateMouseFromEvent(e);
 
       if (!this.isPointerDown && this.mode !== 'view') {
         this.handleHover(e);
@@ -421,16 +434,27 @@ export class InteractivePicker {
     });
 
     window.addEventListener('pointerup', (e) => {
-      if (!this.isPointerDown) return;
+      activePointers.delete(e.pointerId);
+      if (!this.isPointerDown || e.pointerId !== this.pointerDownId) return;
       this.isPointerDown = false;
       this.updateCursor();
 
       if (this.mode === 'view') return;
 
+      const maxMove = (e.pointerType === 'touch') ? 12 : 6;
       const dist = Math.hypot(e.clientX - this.pointerDownPos.x, e.clientY - this.pointerDownPos.y);
-      if (dist > 6) return;
+      if (dist > maxMove) return;
 
+      updateMouseFromEvent(e);
       this.handleClick(e);
+    });
+
+    window.addEventListener('pointercancel', (e) => {
+      activePointers.delete(e.pointerId);
+      if (e.pointerId === this.pointerDownId) {
+        this.isPointerDown = false;
+        this.updateCursor();
+      }
     });
 
     // Khi người dùng xoay hoặc phóng to camera, cập nhật lại các nút lưới nhìn thấy

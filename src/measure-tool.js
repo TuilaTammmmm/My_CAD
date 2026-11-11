@@ -175,10 +175,18 @@ export class InspectionTool {
   // Khởi tạo lắng nghe tương tác chuột trên viewport 3D
   initEvents() {
     const dom = this.renderer.domElement;
+    const activePointers = new Set();
 
     dom.addEventListener('pointerdown', (e) => {
+      activePointers.add(e.pointerId);
       if (!this.active) return;
+      if (activePointers.size > 1) {
+        // Đa chạm (pinch zoom / pan) -> không tính click đo
+        this.isPointerDown = false;
+        return;
+      }
       this.isPointerDown = true;
+      this.pointerDownId = e.pointerId;
       this.pointerDownPos = { x: e.clientX, y: e.clientY };
     });
 
@@ -188,14 +196,23 @@ export class InspectionTool {
     });
 
     window.addEventListener('pointerup', (e) => {
-      if (!this.active || !this.isPointerDown) return;
+      activePointers.delete(e.pointerId);
+      if (!this.active || !this.isPointerDown || e.pointerId !== this.pointerDownId) return;
       this.isPointerDown = false;
 
-      // Phân biệt nhấp chuột (click) và kéo xoay camera (drag)
+      // Phân biệt chạm/nhấp chuột (click) và kéo xoay camera (drag)
+      const maxMove = (e.pointerType === 'touch') ? 12 : 6;
       const dist = Math.hypot(e.clientX - this.pointerDownPos.x, e.clientY - this.pointerDownPos.y);
-      if (dist > 6) return; // Người dùng vừa kéo xoay góc nhìn, không tính là click
+      if (dist > maxMove) return;
 
       this.handleClick(e);
+    });
+
+    window.addEventListener('pointercancel', (e) => {
+      activePointers.delete(e.pointerId);
+      if (e.pointerId === this.pointerDownId) {
+        this.isPointerDown = false;
+      }
     });
 
     // Phím tắt nhanh
@@ -788,6 +805,15 @@ export class InspectionTool {
     }
 
     this.clearPreview();
+    if (this.selectedEdge1) {
+      this.previewGroup.add(this.createEdgeHighlight(this.selectedEdge1.p1, this.selectedEdge1.p2, 0x10b981, 4.5));
+    }
+    if (this.selectedFace1) {
+      this.previewGroup.add(this.createFaceHighlight(this.selectedFace1, 0x10b981, 0.35));
+    }
+    if (this.selectedPoint1) {
+      this.previewGroup.add(this.createPointHighlight(this.selectedPoint1, 0x10b981));
+    }
   }
 
   // ==========================================

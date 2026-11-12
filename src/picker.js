@@ -84,7 +84,7 @@ export class InteractivePicker {
     const mat = new THREE.MeshBasicMaterial({
       color: 0xffffff,
       transparent: true,
-      opacity: 0.9
+      opacity: 0.68
     });
     this.localNodesMesh = new THREE.InstancedMesh(geom, mat, this.MAX_LOCAL_NODES);
     this.localNodesMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -302,7 +302,7 @@ export class InteractivePicker {
 
     const { w, h, d } = this.bounds;
     const step = this.snapStep;
-    const radiusSteps = 10;
+    const radiusSteps = 4;
     const radiusWorld = radiusSteps * step;
     const radiusSq = radiusWorld * radiusWorld + 1e-4;
 
@@ -315,17 +315,10 @@ export class InteractivePicker {
     const absX = Math.abs(N.x), absY = Math.abs(N.y), absZ = Math.abs(N.z);
     const refP0 = matchingFaces.length > 0 ? matchingFaces[0].p0 : hitPoint;
 
-    const scaleK = Math.max(1, Math.max(w, h, d) / 14);
-    let rWhole = 0.085 * scaleK;
-    let rHalf = 0.06 * scaleK;
-    if (step <= 0.25) {
-      rWhole = Math.min(0.065 * scaleK, step * 0.28);
-      rHalf = Math.min(0.04 * scaleK, step * 0.18);
-    }
-    if (step <= 0.125) {
-      rWhole = Math.min(0.05 * scaleK, step * 0.28);
-      rHalf = Math.min(0.028 * scaleK, step * 0.18);
-    }
+    const zoomInv = this.camera && this.camera.zoom ? Math.max(0.25, Math.min(2.5, 1 / this.camera.zoom)) : 1;
+    const scaleK = Math.max(1, Math.min(2.2, (Math.max(w, h, d) / 24) * zoomInv));
+    const rWhole = Math.min(0.085 * scaleK, step * 0.16);
+    const rHalf = Math.min(0.055 * scaleK, step * 0.11);
 
     const isWhole = (v) => Math.abs(v - Math.round(v)) < 0.02;
     const snapAxis = (v) => Math.round(v / step) * step;
@@ -740,7 +733,8 @@ export class InteractivePicker {
 
     this.updateLocalNodesAroundCursor(this._lastHit.point, this._lastHit.normal);
 
-    const scaleK = Math.max(1, Math.max(this.bounds.w, this.bounds.h, this.bounds.d) / 14);
+    const zoomInv = this.camera && this.camera.zoom ? Math.max(0.25, Math.min(2.5, 1 / this.camera.zoom)) : 1;
+    const scaleK = Math.max(0.85, Math.min(2.2, (Math.max(this.bounds.w, this.bounds.h, this.bounds.d) / 24) * zoomInv));
     this.hoverMarker.scale.setScalar(scaleK);
     this.hoverRing.scale.setScalar(scaleK);
 

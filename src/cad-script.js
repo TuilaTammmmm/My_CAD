@@ -217,17 +217,19 @@ const pipe  = move(13, 0, 15, cylinder(6, 15));
 const hole  = move(13, -1, 15, cylinder(5, 17));
 return cut(union(cut(outer, inner), pipe), hole);`,
 
-  horiz_cyl_mount: `// Mẫu 2: Gối đỡ trụ ngang Ø50x90 + Thân 35x50 + Rãnh 18x45
-const cyl = move(25, 55, 0, cylinder(25, 90, 'z'));
-const cylFlat = move(-5, 68, -2, box(60, 20, 94));
-const cylSlotted = cut(cyl, cylFlat);
+  horiz_cyl_mount: `// Mẫu 2: Gối đỡ trụ ngang Ø50x90 + Thân 50x35 + Rãnh 18x45 (hướng mặt chính diện ra trước)
+const cyl = move(0, 55, 0, cylinder(25, 90, 'x'));
+const cylFlat = move(-2, 68, 10, box(94, 20, 20));
+const cylTop = cut(cyl, cylFlat);
 
-const web = move(15, 0, 20, box(35, 55, 50));
-const webCut = move(14, 20, 36, box(37, 45, 18));
-const baseSlot = move(14, 11, 37, box(17, 10, 16));
-const body = cut(web, webCut, baseSlot);
+const web = move(20, 0, 0, box(50, 55, 15));
+const base = move(20, 0, 0, box(50, 20, 35));
+const body = union(cylTop, web, base);
 
-return union(cylSlotted, body);`,
+const webSlot = move(36, -1, -1, box(18, 46, 17));
+const baseSlot = move(37, 11, 14, box(16, 11, 23));
+
+return cut(body, webSlot, baseSlot);`,
 
   starter_block: `// Mẫu 3: Khối bo góc + Khoan lỗ tâm
 const base = roundBox(20, 8, 16, 3);

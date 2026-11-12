@@ -55,7 +55,11 @@ export class CutterPreview {
       return;
     }
 
-    if (currentBrush && cadEngine && cadEngine.evaluator) {
+    const triCount = currentBrush?.geometry?.index
+      ? currentBrush.geometry.index.count / 3
+      : (currentBrush?.geometry?.attributes?.position?.count || 0) / 3;
+
+    if (currentBrush && !currentBrush.userData?.isBRep && triCount <= 2500 && cadEngine && cadEngine.evaluator) {
       try {
         const cutter = new Brush(cutterGeom);
         cutter.updateMatrixWorld();

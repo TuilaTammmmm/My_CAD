@@ -178,12 +178,18 @@ export class InteractivePicker {
       }
     }
 
+    const faceMap = new Map();
     for (const t of triangles) {
-      const f = this.cachedFaces.find(
-        item => item.norm.dot(t.norm) > 0.99 && Math.abs(item.norm.dot(t.p0.clone().sub(item.p0))) < 0.02
-      );
-      if (f) f.triangles.push(t);
-      else this.cachedFaces.push({ norm: t.norm, p0: t.p0, triangles: [t] });
+      const planeD = t.norm.dot(t.p0);
+      const fKey = `${Math.round(t.norm.x * 20)}_${Math.round(t.norm.y * 20)}_${Math.round(t.norm.z * 20)}_${Math.round(planeD * 10)}`;
+      let f = faceMap.get(fKey);
+      if (f) {
+        f.triangles.push(t);
+      } else {
+        f = { norm: t.norm, p0: t.p0, triangles: [t] };
+        faceMap.set(fKey, f);
+        this.cachedFaces.push(f);
+      }
     }
 
     // Trích xuất cạnh sắc (giao bởi 2 mặt có góc gập > 25°) cho công cụ Bo Tròn Cạnh (Fillet 3D)
@@ -223,38 +229,42 @@ export class InteractivePicker {
       }
     }
 
-    // Gộp các đoạn cạnh sắc thẳng hàng có cùng cặp pháp tuyến (n1, n2)
-    for (const seg of rawSharp) {
-      const dir = new THREE.Vector3().subVectors(seg.p2, seg.p1).normalize();
-      let merged = false;
-      for (const existing of this.cachedSharpEdges) {
-        const eDir = new THREE.Vector3().subVectors(existing.p2, existing.p1).normalize();
-        if (Math.abs(dir.dot(eDir)) < 0.999) continue;
-        const sameNormals =
-          (existing.n1.dot(seg.n1) > 0.98 && existing.n2.dot(seg.n2) > 0.98) ||
-          (existing.n1.dot(seg.n2) > 0.98 && existing.n2.dot(seg.n1) > 0.98);
-        if (!sameNormals) continue;
+    // Gộp các đoạn cạnh sắc thẳng hàng có cùng cặp pháp tuyến (n1, n2) - giới hạn O(N) khi lưới cong mịn
+    if (rawSharp.length > 600) {
+      this.cachedSharpEdges = rawSharp;
+    } else {
+      for (const seg of rawSharp) {
+        const dir = new THREE.Vector3().subVectors(seg.p2, seg.p1).normalize();
+        let merged = false;
+        for (const existing of this.cachedSharpEdges) {
+          const eDir = new THREE.Vector3().subVectors(existing.p2, existing.p1).normalize();
+          if (Math.abs(dir.dot(eDir)) < 0.999) continue;
+          const sameNormals =
+            (existing.n1.dot(seg.n1) > 0.98 && existing.n2.dot(seg.n2) > 0.98) ||
+            (existing.n1.dot(seg.n2) > 0.98 && existing.n2.dot(seg.n1) > 0.98);
+          if (!sameNormals) continue;
 
-        if (existing.p2.distanceTo(seg.p1) < 0.02) {
-          existing.p2.copy(seg.p2);
-          merged = true;
-          break;
-        } else if (existing.p2.distanceTo(seg.p2) < 0.02) {
-          existing.p2.copy(seg.p1);
-          merged = true;
-          break;
-        } else if (existing.p1.distanceTo(seg.p1) < 0.02) {
-          existing.p1.copy(seg.p2);
-          merged = true;
-          break;
-        } else if (existing.p1.distanceTo(seg.p2) < 0.02) {
-          existing.p1.copy(seg.p1);
-          merged = true;
-          break;
+          if (existing.p2.distanceTo(seg.p1) < 0.02) {
+            existing.p2.copy(seg.p2);
+            merged = true;
+            break;
+          } else if (existing.p2.distanceTo(seg.p2) < 0.02) {
+            existing.p2.copy(seg.p1);
+            merged = true;
+            break;
+          } else if (existing.p1.distanceTo(seg.p1) < 0.02) {
+            existing.p1.copy(seg.p2);
+            merged = true;
+            break;
+          } else if (existing.p1.distanceTo(seg.p2) < 0.02) {
+            existing.p1.copy(seg.p1);
+            merged = true;
+            break;
+          }
         }
-      }
-      if (!merged) {
-        this.cachedSharpEdges.push(seg);
+        if (!merged) {
+          this.cachedSharpEdges.push(seg);
+        }
       }
     }
 

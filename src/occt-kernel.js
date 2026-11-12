@@ -1,8 +1,15 @@
 import * as THREE from 'three';
 import { Brush } from 'three-bvh-csg';
+import { computeBoundsTree, disposeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
 import * as replicad from 'replicad';
 import opencascade from 'replicad-opencascadejs';
 import opencascadeWasm from 'replicad-opencascadejs/wasm?url';
+
+if (!THREE.BufferGeometry.prototype.computeBoundsTree) {
+  THREE.BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
+  THREE.BufferGeometry.prototype.disposeBoundsTree = disposeBoundsTree;
+  THREE.Mesh.prototype.raycast = acceleratedRaycast;
+}
 
 let initPromise = null;
 let ocInstance = null;
@@ -54,8 +61,8 @@ export { replicad };
  * into a Three.js Brush with exact B-Rep mesh + exact B-Rep edge polylines.
  */
 export function replicadToBrush(shape3d, material, options = {}) {
-  const tolerance = options.tolerance ?? 0.05;
-  const angularTolerance = options.angularTolerance ?? 0.1;
+  const tolerance = options.tolerance ?? 0.2;
+  const angularTolerance = options.angularTolerance ?? 0.25;
 
   const meshData = shape3d.mesh({ tolerance, angularTolerance });
   const edgeData = shape3d.meshEdges({ tolerance, angularTolerance });
@@ -71,6 +78,9 @@ export function replicadToBrush(shape3d, material, options = {}) {
   geom.setIndex(meshData.triangles);
   geom.computeBoundingBox();
   geom.computeBoundingSphere();
+  try {
+    geom.computeBoundsTree();
+  } catch (e) {}
 
   const brush = new Brush(geom, material);
   brush.updateMatrixWorld();

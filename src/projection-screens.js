@@ -35,6 +35,10 @@ export class ProjectionScreensOverlay {
   setEnabled(enabled) {
     this.enabled = enabled;
     this.group.visible = enabled;
+    if (enabled && this._dirty) {
+      this._dirty = false;
+      this.rebuild();
+    }
     if (this.onUpdate) this.onUpdate();
   }
 
@@ -46,7 +50,11 @@ export class ProjectionScreensOverlay {
   setOffsetDist(dist) {
     const val = Math.max(2, Math.min(10, Number(dist) || 2));
     this.offsetDist = val;
-    this.rebuild();
+    if (this.enabled) {
+      this.rebuild();
+    } else {
+      this._dirty = true;
+    }
     if (this.onUpdate) this.onUpdate();
   }
 
@@ -55,6 +63,11 @@ export class ProjectionScreensOverlay {
     this.h = h;
     this.d = d;
     this.currentBrush = brush;
+    if (!this.enabled) {
+      this._dirty = true;
+      return;
+    }
+    this._dirty = false;
     this.rebuild();
     if (this.onUpdate) this.onUpdate();
   }

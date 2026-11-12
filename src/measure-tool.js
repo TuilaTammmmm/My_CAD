@@ -239,6 +239,12 @@ export class InspectionTool {
     this.active = true;
     this.measurementsGroup.visible = true;
     this.previewGroup.visible = true;
+    if (this._cacheDirty) {
+      this._cacheDirty = false;
+      this.cacheEdges();
+      this.cacheCircles();
+      this.cacheFaces();
+    }
     if (this.isCollapsed) {
       if (this.panelElement) this.panelElement.style.display = 'none';
       if (this.floatingBtn) this.floatingBtn.style.display = 'flex';
@@ -310,6 +316,13 @@ export class InspectionTool {
   updateModel(brush, edges) {
     this.currentBrush = brush;
     this.currentEdges = edges;
+    if (!this.active) {
+      this._cacheDirty = true;
+      this.resetSelection();
+      this.clearPreview();
+      return;
+    }
+    this._cacheDirty = false;
     this.cacheEdges();
     this.cacheCircles();
     this.cacheFaces();

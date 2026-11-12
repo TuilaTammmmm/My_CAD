@@ -137,12 +137,7 @@ export class ProjectionScreensOverlay {
       screenGroup.add(new THREE.LineSegments(gridGeom, gridMat));
     }
 
-    // 4. Nhãn tiêu đề màn chiếu
-    const titleSprite = this.createTextSprite(`🖼️ HÌNH CHIẾU ĐỨNG (${w}×${h})`, '#38bdf8');
-    titleSprite.position.set(w / 2, h + 0.45, zPos);
-    screenGroup.add(titleSprite);
-
-    // 5. Nét hình chiếu từ 3D (u = X, v = Y)
+    // 4. Nét hình chiếu từ 3D (u = X, v = Y)
     if (frontData) {
       this.addProjectionLines(screenGroup, frontData, (u, v) => new THREE.Vector3(u, v, zPos + 0.03), 0x38bdf8, 'Front');
     }
@@ -214,12 +209,7 @@ export class ProjectionScreensOverlay {
       screenGroup.add(new THREE.LineSegments(gridGeom, gridMat));
     }
 
-    // 4. Nhãn tiêu đề màn chiếu
-    const titleSprite = this.createTextSprite(`🖼️ HÌNH CHIẾU BẰNG (${w}×${d})`, '#10b981');
-    titleSprite.position.set(w / 2, yPos + 0.45, -0.45);
-    screenGroup.add(titleSprite);
-
-    // 5. Nét hình chiếu Top (u = X, v = d - Z -> Z = d - v)
+    // 4. Nét hình chiếu Top (u = X, v = d - Z -> Z = d - v)
     if (topData) {
       this.addProjectionLines(screenGroup, topData, (u, v) => new THREE.Vector3(u, yPos + 0.03, d - v), 0x10b981, 'Top');
     }
@@ -291,12 +281,7 @@ export class ProjectionScreensOverlay {
       screenGroup.add(new THREE.LineSegments(gridGeom, gridMat));
     }
 
-    // 4. Nhãn tiêu đề màn chiếu
-    const titleSprite = this.createTextSprite(`🖼️ HÌNH CHIẾU CẠNH (${d}×${h})`, '#f59e0b');
-    titleSprite.position.set(xPos, h + 0.45, d / 2);
-    screenGroup.add(titleSprite);
-
-    // 5. Nét hình chiếu Side/Right (u = d - Z -> Z = d - u, v = Y)
+    // 4. Nét hình chiếu Side/Right (u = d - Z -> Z = d - u, v = Y)
     if (sideData) {
       this.addProjectionLines(screenGroup, sideData, (u, v) => new THREE.Vector3(xPos + 0.03, v, d - u), 0xf59e0b, 'Right');
     }

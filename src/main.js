@@ -13,7 +13,6 @@ import { CAD2DEditor } from './cad2d-editor.js';
 import { DimensionOverlay } from './dimension-overlay.js';
 import { InspectionTool } from './measure-tool.js';
 import { ProjectionScreensOverlay } from './projection-screens.js';
-import { Reconstruct3DEngine } from './reconstruct-3d.js';
 import { inject } from '@vercel/analytics';
 import { injectSpeedInsights } from '@vercel/speed-insights';
 
@@ -698,9 +697,7 @@ function switchTo3D() {
     inspectionTool.show();
   }
 
-  // Ẩn 2D canvas & popover chuyển 3D
-  const convPopover = document.getElementById('convert-3d-popover');
-  if (convPopover) convPopover.style.display = 'none';
+  // Ẩn 2D canvas
   cad2dEditor.hide();
 }
 
@@ -833,139 +830,6 @@ document.getElementById('btn-2d-export-png')?.addEventListener('click', () => {
 // Nút xuất file AutoCAD (.DXF)
 document.getElementById('btn-2d-export-dxf')?.addEventListener('click', () => {
   cad2dEditor.exportDXF();
-});
-
-// --- CHUYỂN ĐỔI / NHẬP 3D TỪ BẢN VẼ 2D (EXTRUDE / CUT / GHÉP 3 HÌNH CHIẾU) ---
-const reconstruct3d = new Reconstruct3DEngine(cad);
-const convert3dPopover = document.getElementById('convert-3d-popover');
-const convStatusMsg = document.getElementById('conv-status-msg');
-const convDepthInput = document.getElementById('input-conv-depth');
-
-let convMode = 'single'; // 'single' | '3view'
-let convPlane = 'front'; // 'front' | 'top' | 'right'
-let convOp = 'new';      // 'new' | 'cut' | 'add'
-
-function showConvStatus(msg, type = 'error') {
-  if (!convStatusMsg) return;
-  if (!msg) {
-    convStatusMsg.style.display = 'none';
-    convStatusMsg.textContent = '';
-    return;
-  }
-  convStatusMsg.className = `conv-status-msg ${type}`;
-  convStatusMsg.textContent = msg;
-  convStatusMsg.style.display = 'block';
-}
-
-function updateDefaultDepthForPlane(plane) {
-  if (!convDepthInput) return;
-  if (plane === 'front') convDepthInput.value = D;
-  else if (plane === 'top') convDepthInput.value = H;
-  else if (plane === 'right') convDepthInput.value = W;
-}
-
-document.getElementById('btn-open-2d-to-3d')?.addEventListener('click', (e) => {
-  e.stopPropagation();
-  if (!convert3dPopover) return;
-  const isOpen = convert3dPopover.style.display === 'block';
-  if (isOpen) {
-    convert3dPopover.style.display = 'none';
-    return;
-  }
-  showConvStatus('');
-  updateDefaultDepthForPlane(convPlane);
-  convert3dPopover.style.display = 'block';
-});
-
-document.getElementById('btn-close-convert-3d')?.addEventListener('click', () => {
-  if (convert3dPopover) convert3dPopover.style.display = 'none';
-});
-
-document.querySelectorAll('.convert-tab-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.convert-tab-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    convMode = btn.getAttribute('data-conv-mode') || 'single';
-    const pSingle = document.getElementById('conv-panel-single');
-    const p3View = document.getElementById('conv-panel-3view');
-    if (pSingle) pSingle.style.display = (convMode === 'single') ? 'flex' : 'none';
-    if (p3View) p3View.style.display = (convMode === '3view') ? 'flex' : 'none';
-    showConvStatus('');
-  });
-});
-
-document.querySelectorAll('#conv-plane-group .conv-seg-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('#conv-plane-group .conv-seg-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    convPlane = btn.getAttribute('data-plane') || 'front';
-    updateDefaultDepthForPlane(convPlane);
-  });
-});
-
-document.querySelectorAll('#conv-op-group .conv-seg-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('#conv-op-group .conv-seg-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    convOp = btn.getAttribute('data-op') || 'new';
-  });
-});
-
-document.getElementById('btn-conv-3view-template')?.addEventListener('click', () => {
-  cad2dEditor.setupThreeViewTemplate();
-  if (convert3dPopover) convert3dPopover.style.display = 'none';
-  if (window.innerWidth <= 768) {
-    setSidebarCompact(true);
-  }
-});
-
-document.getElementById('btn-execute-2d-to-3d')?.addEventListener('click', () => {
-  showConvStatus('');
-  const depth = Math.max(0.2, parseFloat(convDepthInput?.value) || 4);
-
-  let res;
-  if (convMode === '3view') {
-    res = reconstruct3d.reconstructThreeViews(cad2dEditor.elements, { w: W, h: H, d: D });
-  } else {
-    res = reconstruct3d.reconstructSingleView(cad2dEditor.elements, {
-      viewPlane: convPlane,
-      operation: convOp,
-      depth,
-      bounds: { w: W, h: H, d: D },
-      targetBrush: currentBrush
-    });
-  }
-
-  if (res.error || !res.brush) {
-    showConvStatus(res.error || 'Không thể dựng khối 3D từ nét vẽ hiện tại.', 'error');
-    return;
-  }
-
-  // Đồng bộ kích thước khung lưới W, H, D nếu tạo khối mới
-  if (convMode === '3view' || convOp === 'new') {
-    const box = new THREE.Box3().setFromObject(res.brush);
-    if (!box.isEmpty()) {
-      const bw = Math.max(1, Math.ceil(box.max.x - 1e-3));
-      const bh = Math.max(1, Math.ceil(box.max.y - 1e-3));
-      const bd = Math.max(1, Math.ceil(box.max.z - 1e-3));
-      W = bw; H = bh; D = bd;
-      const dimW = document.getElementById('dim-w');
-      const dimH = document.getElementById('dim-h');
-      const dimD = document.getElementById('dim-d');
-      if (dimW) dimW.value = W;
-      if (dimH) dimH.value = H;
-      if (dimD) dimD.value = D;
-    }
-  }
-
-  setModel(res.brush, true);
-  if (convert3dPopover) convert3dPopover.style.display = 'none';
-  switchTo3D();
-  centerCamera();
-
-  if (res.warning) {
-    setTimeout(() => alert(res.warning), 150);
-  }
 });
 
 // --- KHỞI CHẠY LẦN ĐẦU ---

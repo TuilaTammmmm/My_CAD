@@ -305,14 +305,6 @@
           </button>
         </div>
 
-        <!-- NÚT CHUYỂN / NHẬP 2D -> 3D -->
-        <button class="tool-btn btn-2d-to-3d" id="btn-open-2d-to-3d" title="Chuyển bản vẽ 2D thành mô hình 3D (Extrude / Cắt / Ghép 3 hình chiếu)">
-          <span class="tool-icon">
-            <svg viewBox="0 0 24 24"><path d="M12 2l8 4.5v11L12 22l-8-4.5v-11L12 2z"/><path d="M12 22V11M20 6.5L12 11M4 6.5L12 11"/></svg>
-          </span>
-          <span class="tool-text">2D ➔ 3D (Dựng Khối)</span>
-        </button>
-
         <!-- TAB ĐÓNG MỞ: HÌNH CHIẾU 2D (VIEWS) -->
         <div class="sidebar-accordion" id="acc-2d-views">
           <button class="accordion-toggle" type="button" title="Open / Close 3D Projection Views">
@@ -416,61 +408,6 @@
       <div class="cad2d-hint">
         💡 <b>Click 2 điểm</b> trên lưới để vẽ nét | <b>Cuộn chuột</b> để phóng to/thu nhỏ | <b>Kéo chuột phải</b> để di chuyển
       </div>
-    </div>
-
-    <!-- POPOVER CHUYỂN BẢN VẼ 2D -> KHỐI 3D -->
-    <div id="convert-3d-popover" class="dim-popover convert-3d-popover" style="display: none;">
-      <div class="popover-header">
-        <span>🧊 Chuyển Bản Vẽ 2D ➔ 3D</span>
-        <button id="btn-close-convert-3d" class="close-x">✖️</button>
-      </div>
-
-      <div class="convert-tabs">
-        <button class="convert-tab-btn active" id="tab-conv-single" data-conv-mode="single">1 Mặt (Extrude / Cắt)</button>
-        <button class="convert-tab-btn" id="tab-conv-3view" data-conv-mode="3view">3 Hình Chiếu</button>
-      </div>
-
-      <!-- CHẾ ĐỘ 1: ĐÙN / CẮT TỪ 1 MẶT 2D -->
-      <div id="conv-panel-single" class="conv-panel">
-        <div class="conv-field">
-          <label>Mặt chiếu 2D đang vẽ:</label>
-          <div class="conv-seg-group" id="conv-plane-group">
-            <button class="conv-seg-btn active" data-plane="front">Front (X-Y)</button>
-            <button class="conv-seg-btn" data-plane="top">Top (X-Z)</button>
-            <button class="conv-seg-btn" data-plane="right">Right (Z-Y)</button>
-          </div>
-        </div>
-
-        <div class="conv-field">
-          <label>Thao tác vào 3D:</label>
-          <div class="conv-seg-group" id="conv-op-group">
-            <button class="conv-seg-btn active" data-op="new">Tạo khối mới</button>
-            <button class="conv-seg-btn" data-op="cut">Cắt vào 3D</button>
-            <button class="conv-seg-btn" data-op="add">Ghép thêm</button>
-          </div>
-        </div>
-
-        <div class="conv-depth-row">
-          <label for="input-conv-depth">Chiều dày / Độ sâu:</label>
-          <input type="number" id="input-conv-depth" value="4" min="0.2" max="50" step="0.5">
-        </div>
-      </div>
-
-      <!-- CHẾ ĐỘ 2: GHÉP 3 HÌNH CHIẾU (FRONT ∩ TOP ∩ RIGHT) -->
-      <div id="conv-panel-3view" class="conv-panel" style="display: none;">
-        <div class="conv-info-box">
-          Vẽ các <b>vòng kín</b> trong 3 vùng <b>Top</b>, <b>Front</b>, <b>Right</b> (theo bố cục <b>All 3-View</b>), hệ thống sẽ tự giao 3 khối để dựng thành 3D.
-        </div>
-        <button class="conv-template-btn" id="btn-conv-3view-template" type="button">
-          📐 Tạo Khung Mẫu 3 Vùng (Top / Front / Right)
-        </button>
-      </div>
-
-      <div id="conv-status-msg" class="conv-status-msg" style="display: none;"></div>
-
-      <button class="btn-primary-reset" id="btn-execute-2d-to-3d">
-        🚀 DỰNG KHỐI 3D NGAY
-      </button>
     </div>
 
     <!-- POPOVER CÀI ĐẶT KÍCH THƯỚC KHỐI BAN ĐẦU -->

@@ -410,47 +410,6 @@ export class CAD2DEditor {
     this.render();
   }
 
-  // Tạo khung hướng dẫn 3 vùng (Top / Front / Right) để vẽ 2D -> ghép 3D
-  setupThreeViewTemplate() {
-    const W = this.bounds.w;
-    const H = this.bounds.h;
-    const D = this.bounds.d;
-    const GAP = 2.0;
-    const frontYOffset = D + GAP;
-    const rightXOffset = W + GAP;
-
-    this.currentViewType = 'all';
-    this.currentViewW = W + GAP + D;
-    this.currentViewH = D + GAP + H;
-
-    // Giữ lại nét vẽ hiện tại nếu có, chỉ xóa guide/label cũ rồi thêm khung hướng dẫn mới
-    this.elements = this.elements.filter(el => el.style !== 'guide' && el.type !== 'label');
-
-    const addGuideBox = (u0, v0, bw, bh) => {
-      this.elements.push(
-        { type: 'line', style: 'guide', p1: { u: u0, v: v0 }, p2: { u: u0 + bw, v: v0 } },
-        { type: 'line', style: 'guide', p1: { u: u0 + bw, v: v0 }, p2: { u: u0 + bw, v: v0 + bh } },
-        { type: 'line', style: 'guide', p1: { u: u0 + bw, v: v0 + bh }, p2: { u: u0, v: v0 + bh } },
-        { type: 'line', style: 'guide', p1: { u: u0, v: v0 + bh }, p2: { u: u0, v: v0 } }
-      );
-    };
-
-    addGuideBox(0, 0, W, D);
-    addGuideBox(0, frontYOffset, W, H);
-    addGuideBox(rightXOffset, frontYOffset, D, H);
-
-    this.elements.push(
-      { type: 'label', text: `TOP VIEW (${W}×${D})`, color: '#10b981', p: { u: W / 2, v: -0.45 } },
-      { type: 'label', text: `FRONT VIEW (${W}×${H})`, color: '#38bdf8', p: { u: W / 2, v: frontYOffset + H + 0.45 } },
-      { type: 'label', text: `RIGHT VIEW (${D}×${H})`, color: '#f59e0b', p: { u: rightXOffset + D / 2, v: frontYOffset + H + 0.45 } }
-    );
-
-    this.updateFrameButton();
-    this.saveHistory();
-    this.centerView();
-    this.render();
-  }
-
   // --- TỌA ĐỘ VÀ BẮT DÍNH THÔNG MINH (SMART OSNAP & GRID SNAP) ---
   getSnapPoint(screenX, screenY, isAltOrFree = false) {
     const s = this.scale;

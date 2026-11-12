@@ -191,6 +191,13 @@
               <span class="tool-text">Kích Thước Khối</span>
             </button>
 
+            <button class="tool-btn" id="btn-open-script" title="Viết hoặc dán code CAD Script để tự động dựng khối 3D phức tạp">
+              <span class="tool-icon">
+                <svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+              </span>
+              <span class="tool-text">Code → 3D (Script)</span>
+            </button>
+
             <div class="sidebar-grid-2">
               <button class="tool-btn-compact" id="btn-import-obj" title="Nhập mô hình 3D từ file (.OBJ)">
                 <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
@@ -447,6 +454,31 @@
       <button class="btn-primary-reset" id="btn-reset-block">
         🔄 TẠO LẠI KHỐI MỚI (RESET)
       </button>
+    </div>
+
+    <!-- MODAL CODE -> 3D (CAD SCRIPT) -->
+    <div id="script-modal" class="script-modal" style="display: none;">
+      <div class="popover-header">
+        <span>💻 Code → 3D (CAD Script)</span>
+        <button id="btn-close-script" class="close-x">✖️</button>
+      </div>
+      <div class="script-toolbar">
+        <label for="script-preset-select">Mẫu có sẵn:</label>
+        <select id="script-preset-select">
+          <option value="u_shell_pipe">Mẫu 1: Vỏ chữ U (2-R8 / 2-R7) + Trụ Ø12/Ø10</option>
+          <option value="horiz_cyl_mount">Mẫu 2: Gối đỡ trụ ngang Ø50×90 + Rãnh 18×45</option>
+          <option value="starter_block">Mẫu 3: Khối bo góc + Lỗ tâm</option>
+        </select>
+      </div>
+      <div class="script-cheatsheet">
+        <code>box(w,h,d)</code> · <code>roundBox(w,h,d,r)</code> · <code>cylinder(r,h,axis)</code> · <code>tube(rO,rI,h,axis)</code> · <code>poly([[u,v],...],d,axis)</code> · <code>move(x,y,z,o)</code> · <code>rotate(rx,ry,rz,o)</code> · <code>union</code> / <code>cut</code> / <code>intersect</code>
+      </div>
+      <textarea id="cad-script-input" spellcheck="false" placeholder="// Viết code CAD và return khối cuối cùng..."></textarea>
+      <div id="cad-script-error" class="script-error" style="display: none;"></div>
+      <div class="script-footer">
+        <span class="script-hint">Ctrl + Enter để chạy nhanh</span>
+        <button class="btn-primary-reset" id="btn-run-script" style="width:auto; padding:8px 16px;">▶ Chạy Code → Tạo 3D</button>
+      </div>
     </div>
 
     <!-- BẢNG CÔNG CỤ ĐO ĐẠC & KIỂM TRA BÊN PHẢI (CHỈ XUẤT HIỆN KHI Ở TAB CHỈ XEM) -->

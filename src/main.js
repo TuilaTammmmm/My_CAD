@@ -13,6 +13,7 @@ import { CAD2DEditor } from './cad2d-editor.js';
 import { DimensionOverlay } from './dimension-overlay.js';
 import { InspectionTool } from './measure-tool.js';
 import { ProjectionScreensOverlay } from './projection-screens.js';
+import { executeCadScript, CAD_SCRIPT_PRESETS } from './cad-script.js';
 import { inject } from '@vercel/analytics';
 import { injectSpeedInsights } from '@vercel/speed-insights';
 
@@ -858,6 +859,70 @@ screenDistSlider?.addEventListener('input', (e) => {
   if (!isNaN(val)) {
     if (lblScreenDist) lblScreenDist.textContent = val.toFixed(1);
     projectionScreens.setOffsetDist(val);
+  }
+});
+
+// --- CODE -> 3D (CAD SCRIPT) ---
+const scriptModal = document.getElementById('script-modal');
+const scriptInput = document.getElementById('cad-script-input');
+const scriptPreset = document.getElementById('script-preset-select');
+const scriptError = document.getElementById('cad-script-error');
+
+if (scriptInput && !scriptInput.value.trim()) {
+  scriptInput.value = CAD_SCRIPT_PRESETS.u_shell_pipe;
+}
+
+document.getElementById('btn-open-script')?.addEventListener('click', () => {
+  if (scriptModal) {
+    scriptModal.style.display = scriptModal.style.display === 'none' ? 'flex' : 'none';
+  }
+});
+
+document.getElementById('btn-close-script')?.addEventListener('click', () => {
+  if (scriptModal) scriptModal.style.display = 'none';
+});
+
+scriptPreset?.addEventListener('change', (e) => {
+  const code = CAD_SCRIPT_PRESETS[e.target.value];
+  if (code && scriptInput) {
+    scriptInput.value = code;
+    if (scriptError) scriptError.style.display = 'none';
+  }
+});
+
+function runCadScriptFromModal() {
+  if (!scriptInput) return;
+  if (scriptError) scriptError.style.display = 'none';
+  try {
+    const { brush, w, h, d } = executeCadScript(scriptInput.value, cad);
+    W = w;
+    H = h;
+    D = d;
+    const dimW = document.getElementById('dim-w');
+    const dimH = document.getElementById('dim-h');
+    const dimD = document.getElementById('dim-d');
+    if (dimW) dimW.value = W;
+    if (dimH) dimH.value = H;
+    if (dimD) dimD.value = D;
+
+    setModel(brush, true);
+    gridOverlay.update(W, H, D, currentBrush, picker.snapStep);
+    dimOverlay.updateBounds(W, H, D, picker.snapStep);
+    centerCamera();
+    if (scriptModal) scriptModal.style.display = 'none';
+  } catch (err) {
+    if (scriptError) {
+      scriptError.textContent = `Lỗi Script: ${err.message || err}`;
+      scriptError.style.display = 'block';
+    }
+  }
+}
+
+document.getElementById('btn-run-script')?.addEventListener('click', runCadScriptFromModal);
+scriptInput?.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    e.preventDefault();
+    runCadScriptFromModal();
   }
 });
 

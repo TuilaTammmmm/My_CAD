@@ -32,15 +32,12 @@ let res = union(uBody, pipeL, pipeR);
 res = cut(res, holeL, holeR);
 return res;`,
 
-  horiz_cyl_mount: `// Đề bài: Trụ nằm ngang Ø50 dài 90 + Đế 50x35 cắt rãnh (OpenCascade B-Rep)
+  horiz_cyl_mount: `// Đề bài: Trụ nằm ngang Ø50 dài 90 (tâm cao 55) + Hộp đế 50×55×35
+// Chỉ tạo phôi cơ bản (trụ + hộp) để tự cắt gọt các rãnh bằng tay
 const cyl = move(cylinder(25, 90, 'x'), 0, 55, 0);
-const topSlot = move(box(50, 14, 12), 0, 55 + 25 - 5, 0);
+const base = move(box(50, 55, 35), 0, 27.5, 17.5);
 
-const base = move(box(50, 45, 35), 0, 22.5, 0);
-const frontCut = move(box(16, 15, 38), 0, 20 - 9 + 7.5, 0);
-const backCut = move(box(18, 45, 16), 0, 22.5, -10);
-
-return cut(union(cyl, base), topSlot, frontCut, backCut);`,
+return union(cyl, base);`,
 
   starter_block: `// Phôi hộp 60x40x50 bo cạnh R3 + khoan lỗ Ø20 (OpenCascade B-Rep)
 const block = fillet(box(60, 40, 50), 3);

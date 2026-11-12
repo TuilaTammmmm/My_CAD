@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { isOCCTReady, replicad } from './occt-kernel.js';
 
 /**
  * ProjectionEngine
@@ -43,6 +44,14 @@ export class ProjectionEngine {
    * Chiếu trực giao một hướng nhìn cụ thể
    */
   projectOrthographic(brush, viewType, bounds) {
+    if (isOCCTReady() && brush?.userData?.replicadShape) {
+      try {
+        return this.projectWithOCCT(brush.userData.replicadShape, viewType, bounds);
+      } catch (err) {
+        console.warn('OCCT HLR projection fallback:', err);
+      }
+    }
+
     const { w, h, d } = bounds;
     let viewDir, rayOriginFn, map2DFn;
 
@@ -323,5 +332,50 @@ export class ProjectionEngine {
     }
 
     return result;
+  }
+
+  /**
+   * True B-Rep Hidden Line Removal (HLR) via OpenCascade / replicad
+   */
+  projectWithOCCT(shape, viewType, bounds) {
+    const { w, h, d } = bounds;
+    let camera;
+    let offsetU = 0;
+    let offsetV = 0;
+
+    if (viewType === 'front') {
+      camera = new replicad.ProjectionCamera([0, 0, d + 50], [0, 0, 1], [1, 0, 0]);
+    } else if (viewType === 'top') {
+      camera = new replicad.ProjectionCamera([0, h + 50, 0], [0, 1, 0], [1, 0, 0]);
+      offsetV = d;
+    } else {
+      camera = new replicad.ProjectionCamera([w + 50, 0, 0], [1, 0, 0], [0, 0, -1]);
+      offsetU = d;
+    }
+
+    const { visible } = replicad.makeProjectedEdges(shape, camera, false);
+    if (!visible || visible.length === 0) {
+      return { visible: [], hidden: [] };
+    }
+
+    const compound = replicad.compoundShapes(visible);
+    const edgeMesh = compound.meshEdges({ tolerance: 0.05, angularTolerance: 0.1 });
+    const linesArr = edgeMesh.lines;
+
+    const visibleLines = [];
+    for (let i = 0; i < linesArr.length; i += 6) {
+      const u1 = Number((linesArr[i] + offsetU).toFixed(3));
+      const v1 = Number((linesArr[i + 1] + offsetV).toFixed(3));
+      const u2 = Number((linesArr[i + 3] + offsetU).toFixed(3));
+      const v2 = Number((linesArr[i + 4] + offsetV).toFixed(3));
+      if (Math.hypot(u2 - u1, v2 - v1) > 0.005) {
+        visibleLines.push({ p1: { u: u1, v: v1 }, p2: { u: u2, v: v2 } });
+      }
+    }
+
+    return {
+      visible: this.mergeCollinear2DLines(visibleLines),
+      hidden: []
+    };
   }
 }

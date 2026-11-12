@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { Brush, Evaluator, SUBTRACTION } from 'three-bvh-csg';
 import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { ConvexGeometry } from 'three/addons/geometries/ConvexGeometry.js';
+import { isOCCTReady, replicad, replicadToBrush } from './occt-kernel.js';
 
 export class CadEngine {
   constructor() {
@@ -22,6 +23,14 @@ export class CadEngine {
   }
 
   createBaseBlock(w, h, d) {
+    if (isOCCTReady()) {
+      try {
+        const shape = replicad.makeBox([0, 0, 0], [w, h, d]);
+        return replicadToBrush(shape, this.material);
+      } catch (err) {
+        console.warn('OCCT createBaseBlock fallback:', err);
+      }
+    }
     const geom = new THREE.BoxGeometry(w, h, d);
     geom.translate(w / 2, h / 2, d / 2);
     const brush = new Brush(geom, this.material);
@@ -45,6 +54,16 @@ export class CadEngine {
     const h = maxY - minY;
     const d = maxZ - minZ;
     if (w <= 0.0001 || h <= 0.0001 || d <= 0.0001) return targetBrush;
+
+    if (isOCCTReady() && targetBrush.userData?.replicadShape) {
+      try {
+        const cutter = replicad.makeBox([minX, minY, minZ], [maxX, maxY, maxZ]);
+        const nextShape = targetBrush.userData.replicadShape.cut(cutter);
+        return replicadToBrush(nextShape, this.material);
+      } catch (err) {
+        console.warn('OCCT cutBox fallback:', err);
+      }
+    }
 
     const geom = new THREE.BoxGeometry(w, h, d);
     geom.translate(minX + w / 2, minY + h / 2, minZ + d / 2);
@@ -591,6 +610,25 @@ export class CadEngine {
   }
 
   cutHole(targetBrush, hitPoint, hitNormal, radius, depth = 0, isThrough = true, maxSpan = 100) {
+    if (isOCCTReady() && targetBrush.userData?.replicadShape) {
+      try {
+        const n = hitNormal.clone().normalize();
+        const len = isThrough ? (maxSpan * 2 + 2) : (depth + 0.08);
+        const startOffset = isThrough ? maxSpan : 0.04;
+        const start = hitPoint.clone().addScaledVector(n, startOffset);
+        const cutter = replicad.makeCylinder(
+          radius,
+          len,
+          [start.x, start.y, start.z],
+          [-n.x, -n.y, -n.z]
+        );
+        const nextShape = targetBrush.userData.replicadShape.cut(cutter);
+        return replicadToBrush(nextShape, this.material);
+      } catch (err) {
+        console.warn('OCCT cutHole fallback:', err);
+      }
+    }
+
     const geom = this.createHoleCutterGeometry(hitPoint, hitNormal, radius, depth, isThrough, maxSpan);
     const cutter = new Brush(geom);
     cutter.updateMatrixWorld();
@@ -681,6 +719,21 @@ export class CadEngine {
   }
 
   cutFilletEdge(targetBrush, edgeStart, edgeEnd, n1, n2, radius, segments = 20) {
+    if (isOCCTReady() && targetBrush.userData?.replicadShape && radius > 1e-4) {
+      try {
+        const midTarget = new THREE.Vector3().addVectors(edgeStart, edgeEnd).multiplyScalar(0.5);
+        const nextShape = targetBrush.userData.replicadShape.fillet(radius, (ef) =>
+          ef.inBox(
+            [midTarget.x - 0.5, midTarget.y - 0.5, midTarget.z - 0.5],
+            [midTarget.x + 0.5, midTarget.y + 0.5, midTarget.z + 0.5]
+          )
+        );
+        return replicadToBrush(nextShape, this.material);
+      } catch (err) {
+        console.warn('OCCT cutFilletEdge fallback:', err);
+      }
+    }
+
     const geom = this.createFilletCutterGeometry(edgeStart, edgeEnd, n1, n2, radius, segments);
     if (!geom) return targetBrush;
     const cutter = new Brush(geom);
@@ -694,6 +747,9 @@ export class CadEngine {
 
       // TẠO ĐƯỜNG VIỀN KỸ THUẬT SẠCH SẼ (LỌC NÉT CHÉO NỘI BỘ & NÉT DƯ APEX RÃNH V)
   createEdges(mesh) {
+    if (mesh?.userData?.occtEdges) {
+      return new THREE.LineSegments(mesh.userData.occtEdges, this.edgeMaterial);
+    }
     const nonIndexedGeom = mesh.geometry.index ? mesh.geometry.toNonIndexed() : mesh.geometry;
     const cleanGeom = mergeVertices(nonIndexedGeom, 0.001);
     const rawEdges = new THREE.EdgesGeometry(cleanGeom, 25);

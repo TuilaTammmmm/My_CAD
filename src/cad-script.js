@@ -1,295 +1,189 @@
-import * as THREE from 'three';
-import { Brush, Evaluator, ADDITION, SUBTRACTION, INTERSECTION } from 'three-bvh-csg';
-
-const evaluator = new Evaluator();
-evaluator.useGroups = false;
-
-function ensureBrush(obj) {
-  if (!obj) throw new Error('Đối tượng hình học bị rỗng (null/undefined).');
-  if (obj instanceof Brush) {
-    const cloned = new Brush(obj.geometry.clone());
-    cloned.updateMatrixWorld();
-    return cloned;
-  }
-  if (obj instanceof THREE.BufferGeometry) {
-    const b = new Brush(obj.clone());
-    b.updateMatrixWorld();
-    return b;
-  }
-  throw new Error('Tham số không phải là khối 3D hợp lệ.');
-}
-
-function finalizeGeometry(geom) {
-  const nonIndexed = geom.index ? geom.toNonIndexed() : geom;
-  if (!nonIndexed.attributes.uv) {
-    const count = nonIndexed.attributes.position.count;
-    nonIndexed.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(count * 2), 2));
-  }
-  nonIndexed.computeVertexNormals();
-  return nonIndexed;
-}
-
-// Khối hộp từ (0, 0, 0) đến (w, h, d)
-function box(w, h, d) {
-  const geom = new THREE.BoxGeometry(w, h, d);
-  geom.translate(w / 2, h / 2, d / 2);
-  return new Brush(finalizeGeometry(geom));
-}
-
-// Khối hộp bo góc: r có thể là 1 số hoặc mảng 4 góc [r(0,0), r(w,0), r(w,d), r(0,d)]
-function roundBox(w, h, d, r = 1, axis = 'y', segments = 24) {
-  const radii = Array.isArray(r) ? r : [r, r, r, r];
-  const r0 = Math.max(0, radii[0] || 0);
-  const r1 = Math.max(0, radii[1] || 0);
-  const r2 = Math.max(0, radii[2] || 0);
-  const r3 = Math.max(0, radii[3] || 0);
-
-  let uMax = w, vMax = d, depth = h;
-  if (axis === 'z') {
-    uMax = w; vMax = h; depth = d;
-  } else if (axis === 'x') {
-    uMax = d; vMax = h; depth = w;
-  }
-
-  const shape = new THREE.Shape();
-  shape.moveTo(r0, 0);
-  shape.lineTo(uMax - r1, 0);
-  if (r1 > 0) shape.absarc(uMax - r1, r1, r1, -Math.PI / 2, 0, false);
-  shape.lineTo(uMax, vMax - r2);
-  if (r2 > 0) shape.absarc(uMax - r2, vMax - r2, r2, 0, Math.PI / 2, false);
-  shape.lineTo(r3, vMax);
-  if (r3 > 0) shape.absarc(r3, vMax - r3, r3, Math.PI / 2, Math.PI, false);
-  shape.lineTo(0, r0);
-  if (r0 > 0) shape.absarc(r0, r0, r0, Math.PI, Math.PI * 1.5, false);
-  shape.closePath();
-
-  const geom = new THREE.ExtrudeGeometry(shape, {
-    depth,
-    bevelEnabled: false,
-    curveSegments: segments
-  });
-
-  if (axis === 'y') {
-    // Extrude dọc +Z -> xoay để mặt 2D nằm trên XZ (X: 0..w, Z: 0..d) và đùn lên +Y (0..h)
-    geom.rotateX(Math.PI / 2);
-    geom.translate(0, depth, 0);
-  } else if (axis === 'x') {
-    geom.rotateY(Math.PI / 2);
-  }
-
-  return new Brush(finalizeGeometry(geom));
-}
-
-// Khối trụ đặc: mặc định dọc trục Y từ 0..h, tâm XZ tại (0, 0)
-function cylinder(r, h, axis = 'y', segments = 48) {
-  const geom = new THREE.CylinderGeometry(r, r, h, segments);
-  if (axis === 'x') {
-    geom.rotateZ(-Math.PI / 2);
-    geom.translate(h / 2, 0, 0);
-  } else if (axis === 'z') {
-    geom.rotateX(Math.PI / 2);
-    geom.translate(0, 0, h / 2);
-  } else {
-    geom.translate(0, h / 2, 0);
-  }
-  return new Brush(finalizeGeometry(geom));
-}
-
-// Ống trụ rỗng
-function tube(rOut, rIn, h, axis = 'y', segments = 48) {
-  const outer = cylinder(rOut, h, axis, segments);
-  const inner = move(
-    axis === 'x' ? -0.2 : 0,
-    axis === 'y' ? -0.2 : 0,
-    axis === 'z' ? -0.2 : 0,
-    cylinder(rIn, h + 0.4, axis, segments)
-  );
-  return cut(outer, inner);
-}
-
-// Đùn đa giác 2D: points = [[u1, v1], [u2, v2], ...]
-function poly(points, depth, axis = 'y') {
-  if (!Array.isArray(points) || points.length < 3) {
-    throw new Error('poly() cần ít nhất 3 điểm [u, v].');
-  }
-  const s = new THREE.Shape();
-  s.moveTo(points[0][0], points[0][1]);
-  for (let i = 1; i < points.length; i++) {
-    s.lineTo(points[i][0], points[i][1]);
-  }
-  s.closePath();
-
-  const geom = new THREE.ExtrudeGeometry(s, { depth, bevelEnabled: false });
-  if (axis === 'y') {
-    geom.rotateX(Math.PI / 2);
-    geom.translate(0, depth, 0);
-  } else if (axis === 'x') {
-    geom.rotateY(Math.PI / 2);
-  }
-  return new Brush(finalizeGeometry(geom));
-}
-
-// Đùn biên dạng THREE.Shape tùy chỉnh
-function shape(buildFn, depth, axis = 'y', segments = 32) {
-  const s = new THREE.Shape();
-  buildFn(s);
-  const geom = new THREE.ExtrudeGeometry(s, {
-    depth,
-    bevelEnabled: false,
-    curveSegments: segments
-  });
-  if (axis === 'y') {
-    geom.rotateX(Math.PI / 2);
-    geom.translate(0, depth, 0);
-  } else if (axis === 'x') {
-    geom.rotateY(Math.PI / 2);
-  }
-  return new Brush(finalizeGeometry(geom));
-}
-
-function move(x, y, z, obj) {
-  const b = ensureBrush(obj);
-  b.geometry.translate(x, y, z);
-  b.updateMatrixWorld();
-  return b;
-}
-
-function rotate(rxDeg, ryDeg, rzDeg, obj) {
-  const b = ensureBrush(obj);
-  const m = new THREE.Matrix4().makeRotationFromEuler(
-    new THREE.Euler(
-      THREE.MathUtils.degToRad(rxDeg),
-      THREE.MathUtils.degToRad(ryDeg),
-      THREE.MathUtils.degToRad(rzDeg)
-    )
-  );
-  b.geometry.applyMatrix4(m);
-  b.geometry.computeVertexNormals();
-  b.updateMatrixWorld();
-  return b;
-}
-
-function scale(sx, sy, sz, obj) {
-  const b = ensureBrush(obj);
-  b.geometry.scale(sx, sy, sz);
-  b.geometry.computeVertexNormals();
-  b.updateMatrixWorld();
-  return b;
-}
-
-function union(...objs) {
-  if (objs.length === 0) throw new Error('union() cần ít nhất 1 khối.');
-  let acc = ensureBrush(objs[0]);
-  for (let i = 1; i < objs.length; i++) {
-    const next = ensureBrush(objs[i]);
-    acc = evaluator.evaluate(acc, next, ADDITION);
-    acc.updateMatrixWorld();
-  }
-  return acc;
-}
-
-function cut(base, ...cutters) {
-  let acc = ensureBrush(base);
-  for (const c of cutters) {
-    const next = ensureBrush(c);
-    acc = evaluator.evaluate(acc, next, SUBTRACTION);
-    acc.updateMatrixWorld();
-  }
-  return acc;
-}
-
-function intersect(...objs) {
-  if (objs.length === 0) throw new Error('intersect() cần ít nhất 1 khối.');
-  let acc = ensureBrush(objs[0]);
-  for (let i = 1; i < objs.length; i++) {
-    const next = ensureBrush(objs[i]);
-    acc = evaluator.evaluate(acc, next, INTERSECTION);
-    acc.updateMatrixWorld();
-  }
-  return acc;
-}
+import { initOCCT, replicad, replicadToBrush } from './occt-kernel.js';
 
 export const CAD_SCRIPT_PRESETS = {
-  u_shell_pipe: `// Mẫu 1: Vỏ chữ U bo góc 2-R8 / 2-R7 + Trụ rỗng Ø12/Ø10
-const outer = roundBox(25, 15, 30, [8, 0, 0, 8]);
-const inner = move(1, 1, 1, roundBox(24, 15, 28, [7, 0, 0, 7]));
-const pipe  = move(13, 0, 15, cylinder(6, 15));
-const hole  = move(13, -1, 15, cylinder(5, 17));
-return cut(union(cut(outer, inner), pipe), hole);`,
+  u_shell_pipe: `// Khối chữ U bo tròn + 2 ống trụ ngang (OpenCascade B-Rep)
+const uOuter = roundBox(50, 50, 50, 8);
+const uInner = move(roundBox(34, 42, 56, 4), 0, 8, 0);
+const uBody = cut(uOuter, uInner);
 
-  horiz_cyl_mount: `// Mẫu 2: Gối đỡ trụ ngang Ø50x90 + Thân 50x35 + Rãnh 18x45 (hướng mặt chính diện ra trước)
-const cyl = move(0, 55, 0, cylinder(25, 90, 'x'));
-const cylFlat = move(-2, 68, 10, box(94, 20, 20));
-const cylTop = cut(cyl, cylFlat);
+// 2 ống trụ ngang xuyên suốt (B-Rep mặt cong thật)
+const pipeL = move(tube(12, 6, 30, 'x'), -25, 8, 0);
+const pipeR = move(tube(12, 6, 30, 'x'),  25, 8, 0);
 
-const web = move(20, 0, 0, box(50, 55, 15));
-const base = move(20, 0, 0, box(50, 20, 35));
-const body = union(cylTop, web, base);
+// Cắt thông lòng ống vào thân U
+const holeL = move(cylinder(6, 36, 'x'), -22, 8, 0);
+const holeR = move(cylinder(6, 36, 'x'),  22, 8, 0);
 
-const webSlot = move(36, -1, -1, box(18, 46, 17));
-const baseSlot = move(37, 11, 14, box(16, 11, 23));
+let res = union(uBody, pipeL, pipeR);
+res = cut(res, holeL, holeR);
+return res;`,
 
-return cut(body, webSlot, baseSlot);`,
+  horiz_cyl_mount: `// Đề bài: Trụ nằm ngang Ø50 dài 90 + Đế 50x35 cắt rãnh (OpenCascade B-Rep)
+const cyl = move(cylinder(25, 90, 'x'), 0, 55, 0);
+const topSlot = move(box(50, 14, 12), 0, 55 + 25 - 5, 0);
 
-  starter_block: `// Mẫu 3: Khối bo góc + Khoan lỗ tâm
-const base = roundBox(20, 8, 16, 3);
-const hole = move(10, -1, 8, cylinder(3, 10));
-return cut(base, hole);`
+const base = move(box(50, 45, 35), 0, 22.5, 0);
+const frontCut = move(box(16, 15, 38), 0, 20 - 9 + 7.5, 0);
+const backCut = move(box(18, 45, 16), 0, 22.5, -10);
+
+return cut(union(cyl, base), topSlot, frontCut, backCut);`,
+
+  starter_block: `// Phôi hộp 60x40x50 bo cạnh R3 + khoan lỗ Ø20 (OpenCascade B-Rep)
+const block = fillet(box(60, 40, 50), 3);
+const hole = cylinder(10, 60, 'y');
+return cut(block, hole);`
 };
 
-export function executeCadScript(code, cadEngine) {
-  const fn = new Function(
-    'THREE',
-    'box',
-    'roundBox',
-    'cylinder',
-    'tube',
-    'poly',
-    'shape',
-    'move',
-    'rotate',
-    'scale',
-    'union',
-    'cut',
-    'intersect',
-    `"use strict";\n${code}`
-  );
+function box(w, h, d) {
+  return replicad.makeBox([-w / 2, -h / 2, -d / 2], [w / 2, h / 2, d / 2]);
+}
 
-  const rawResult = fn(
-    THREE,
+function roundBox(w, h, d, r = 4) {
+  const b = box(w, h, d);
+  const maxR = Math.min(w, h, d) * 0.45;
+  const rad = Math.max(0.05, Math.min(r, maxR));
+  return b.fillet(rad);
+}
+
+function cylinder(r, h, axis = 'y') {
+  const ax = axis.toLowerCase();
+  if (ax === 'x') {
+    return replicad.makeCylinder(r, h, [-h / 2, 0, 0], [1, 0, 0]);
+  }
+  if (ax === 'z') {
+    return replicad.makeCylinder(r, h, [0, 0, -h / 2], [0, 0, 1]);
+  }
+  return replicad.makeCylinder(r, h, [0, -h / 2, 0], [0, 1, 0]);
+}
+
+function tube(rOuter, rInner, h, axis = 'y') {
+  const outer = cylinder(rOuter, h, axis);
+  const inner = cylinder(rInner, h + 1, axis);
+  return outer.cut(inner);
+}
+
+function poly(points2D, depth, axis = 'z') {
+  if (!points2D || points2D.length < 3) {
+    throw new Error('poly() cần ít nhất 3 điểm [x, y]');
+  }
+  const pen = replicad.draw(points2D[0]);
+  for (let i = 1; i < points2D.length; i++) {
+    pen.lineTo(points2D[i]);
+  }
+  const drawing = pen.close();
+  const ax = axis.toLowerCase();
+  if (ax === 'x') {
+    return drawing.sketchOnPlane('YZ', -depth / 2).extrude(depth);
+  }
+  if (ax === 'y') {
+    return drawing.sketchOnPlane('XZ', -depth / 2).extrude(depth);
+  }
+  return drawing.sketchOnPlane('XY', -depth / 2).extrude(depth);
+}
+
+function move(target, x = 0, y = 0, z = 0) {
+  return target.clone().translate(x, y, z);
+}
+
+function rotate(target, rxDeg = 0, ryDeg = 0, rzDeg = 0) {
+  let res = target.clone();
+  if (rxDeg) res = res.rotate(rxDeg, [0, 0, 0], [1, 0, 0]);
+  if (ryDeg) res = res.rotate(ryDeg, [0, 0, 0], [0, 1, 0]);
+  if (rzDeg) res = res.rotate(rzDeg, [0, 0, 0], [0, 0, 1]);
+  return res;
+}
+
+function scale(target, sx = 1) {
+  return target.clone().scale(sx, [0, 0, 0]);
+}
+
+function union(...items) {
+  const flat = items.flat().filter(Boolean);
+  if (flat.length === 0) throw new Error('union() cần ít nhất 1 khối');
+  let res = flat[0].clone();
+  for (let i = 1; i < flat.length; i++) {
+    res = res.fuse(flat[i]);
+  }
+  return res;
+}
+
+function cut(target, ...cutters) {
+  const flat = cutters.flat().filter(Boolean);
+  if (!target) throw new Error('cut() cần khối gốc');
+  let res = target.clone();
+  for (const c of flat) {
+    res = res.cut(c);
+  }
+  return res;
+}
+
+function intersect(target, ...others) {
+  const flat = others.flat().filter(Boolean);
+  if (!target) throw new Error('intersect() cần khối gốc');
+  let res = target.clone();
+  for (const o of flat) {
+    res = res.intersect(o);
+  }
+  return res;
+}
+
+function fillet(target, radius, filter) {
+  return filter ? target.fillet(radius, filter) : target.fillet(radius);
+}
+
+function chamfer(target, dist, filter) {
+  return filter ? target.chamfer(dist, filter) : target.chamfer(dist);
+}
+
+function shell(target, thickness, faceFilter) {
+  return target.shell(thickness, faceFilter);
+}
+
+/**
+ * Compile and run a user CAD script on the OpenCascade (replicad) B-Rep kernel.
+ * Returns { brush, w, h, d } aligned to [0..W, 0..H, 0..D].
+ */
+export async function executeCadScript(code, cadEngine) {
+  await initOCCT();
+
+  const helpers = {
     box,
     roundBox,
     cylinder,
     tube,
     poly,
-    shape,
+    shape: poly,
     move,
     rotate,
     scale,
     union,
+    fuse: union,
     cut,
-    intersect
-  );
+    intersect,
+    fillet,
+    chamfer,
+    shell,
+    replicad
+  };
 
-  const result = ensureBrush(rawResult);
-  result.geometry.computeBoundingBox();
-  const bb = result.geometry.boundingBox;
-  if (!bb || bb.isEmpty()) {
-    throw new Error('Khối 3D kết quả bị rỗng!');
+  const argNames = Object.keys(helpers);
+  const argVals = Object.values(helpers);
+  const fn = new Function(...argNames, `"use strict";\n${code}`);
+  const result = fn(...argVals);
+
+  if (!result || typeof result.mesh !== 'function' || !result.boundingBox) {
+    throw new Error('Script phải trả về 1 khối 3D replicad (ví dụ: return cut(a, b);)');
   }
 
-  // Đưa góc nhỏ nhất về (0, 0, 0) để khớp hệ tọa độ lưới của app
-  result.geometry.translate(-bb.min.x, -bb.min.y, -bb.min.z);
-  result.geometry.computeBoundingBox();
-  const nb = result.geometry.boundingBox;
+  const bounds = result.boundingBox.bounds;
+  const minX = bounds[0][0], minY = bounds[0][1], minZ = bounds[0][2];
+  const maxX = bounds[1][0], maxY = bounds[1][1], maxZ = bounds[1][2];
 
-  const w = Math.max(1, Math.round(nb.max.x * 100) / 100);
-  const h = Math.max(1, Math.round(nb.max.y * 100) / 100);
-  const d = Math.max(1, Math.round(nb.max.z * 100) / 100);
+  const alignedShape = result.clone().translate(-minX, -minY, -minZ);
+  const w = Math.max(1, Math.round((maxX - minX) * 100) / 100);
+  const h = Math.max(1, Math.round((maxY - minY) * 100) / 100);
+  const d = Math.max(1, Math.round((maxZ - minZ) * 100) / 100);
 
-  result.material = cadEngine.material;
-  result.geometry.computeVertexNormals();
-  result.updateMatrixWorld();
-
-  return { brush: result, w, h, d };
+  const brush = replicadToBrush(alignedShape, cadEngine.material);
+  return { brush, w, h, d };
 }

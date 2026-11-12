@@ -14,6 +14,7 @@ import { DimensionOverlay } from './dimension-overlay.js';
 import { InspectionTool } from './measure-tool.js';
 import { ProjectionScreensOverlay } from './projection-screens.js';
 import { executeCadScript, CAD_SCRIPT_PRESETS } from './cad-script.js';
+import { initOCCT } from './occt-kernel.js';
 import { inject } from '@vercel/analytics';
 import { injectSpeedInsights } from '@vercel/speed-insights';
 
@@ -890,11 +891,17 @@ scriptPreset?.addEventListener('change', (e) => {
   }
 });
 
-function runCadScriptFromModal() {
+async function runCadScriptFromModal() {
   if (!scriptInput) return;
   if (scriptError) scriptError.style.display = 'none';
+  const runBtn = document.getElementById('btn-run-script');
+  const prevLabel = runBtn ? runBtn.textContent : '';
+  if (runBtn) {
+    runBtn.disabled = true;
+    runBtn.textContent = '⏳ Đang dựng B-Rep...';
+  }
   try {
-    const { brush, w, h, d } = executeCadScript(scriptInput.value, cad);
+    const { brush, w, h, d } = await executeCadScript(scriptInput.value, cad);
     W = w;
     H = h;
     D = d;
@@ -915,6 +922,11 @@ function runCadScriptFromModal() {
       scriptError.textContent = `Lỗi Script: ${err.message || err}`;
       scriptError.style.display = 'block';
     }
+  } finally {
+    if (runBtn) {
+      runBtn.disabled = false;
+      runBtn.textContent = prevLabel || '▶ Chạy Code → Tạo 3D';
+    }
   }
 }
 
@@ -925,6 +937,28 @@ scriptInput?.addEventListener('keydown', (e) => {
     runCadScriptFromModal();
   }
 });
+
+// Initialize OpenCascade (replicad) B-Rep WASM kernel
+const occtStatusEl = document.getElementById('occt-kernel-status');
+initOCCT()
+  .then(() => {
+    if (occtStatusEl) {
+      occtStatusEl.textContent = '✓ OpenCascade B-Rep';
+      occtStatusEl.style.color = '#34d399';
+    }
+    if (typeof history !== 'undefined' && history.length <= 1 && currentBrush && !currentBrush.userData?.isBRep) {
+      const brepBlock = cad.createBaseBlock(W, H, D);
+      history[0] = brepBlock;
+      setModel(brepBlock, false);
+    }
+  })
+  .catch((err) => {
+    if (occtStatusEl) {
+      occtStatusEl.textContent = '⚠ B-Rep fallback (CSG)';
+      occtStatusEl.style.color = '#f87171';
+    }
+    console.warn('OCCT init failed, using mesh CSG fallback:', err);
+  });
 
 // Animation loop
 function animate() {

@@ -33,6 +33,7 @@
           <div class="brand-info">
             <span class="brand-title" id="app-mode-title">My CAD</span>
             <span class="brand-badge" id="app-mode-sub">⚡ ĐỔI SANG 2D CAD</span>
+            <span id="occt-kernel-status" style="font-size:10px; color:#f59e0b; margin-top:2px; display:block;">⏳ Đang nạp OpenCascade B-Rep...</span>
           </div>
         </div>
         <button class="sidebar-compact-btn" id="btn-toggle-sidebar-compact" title="Thu gọn / Mở rộng thanh công cụ (Tab Icon)">
@@ -471,7 +472,7 @@
         </select>
       </div>
       <div class="script-cheatsheet">
-        <code>box(w,h,d)</code> · <code>roundBox(w,h,d,r)</code> · <code>cylinder(r,h,axis)</code> · <code>tube(rO,rI,h,axis)</code> · <code>poly([[u,v],...],d,axis)</code> · <code>move(x,y,z,o)</code> · <code>rotate(rx,ry,rz,o)</code> · <code>union</code> / <code>cut</code> / <code>intersect</code>
+        <code>box(w,h,d)</code> · <code>roundBox(w,h,d,r)</code> · <code>cylinder(r,h,axis)</code> · <code>tube(rO,rI,h,axis)</code> · <code>poly([[u,v],...],d,axis)</code> · <code>move(s,x,y,z)</code> · <code>rotate(s,rx,ry,rz)</code> · <code>fillet(s,r)</code> · <code>chamfer(s,d)</code> · <code>shell(s,t,fn)</code> · <code>union</code> / <code>cut</code> / <code>intersect</code> · <code>replicad</code>
       </div>
       <textarea id="cad-script-input" spellcheck="false" placeholder="// Viết code CAD và return khối cuối cùng..."></textarea>
       <div id="cad-script-error" class="script-error" style="display: none;"></div>

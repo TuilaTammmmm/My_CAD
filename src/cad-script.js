@@ -1,6 +1,20 @@
 import { initOCCT, replicad, replicadToBrush } from './occt-kernel.js';
 
 export const CAD_SCRIPT_PRESETS = {
+  new_box_cut: `// 1. Tạo sẵn phôi hộp mới theo kích thước W x H x D hiện tại
+let phoi = box(W, H, D);
+
+// 2. Tạo dao cắt mẫu (bạn có thể sửa/xóa để giữ nguyên hộp hoặc cắt thêm)
+const rHole = Math.max(0.5, Number((Math.min(W, D) * 0.18).toFixed(2)));
+const loTam = cylinder(rHole, H + 4, 'y');
+const ranh = move(box(W * 0.35, H * 0.25, D + 4), 0, H * 0.38, 0);
+
+return cut(phoi, loTam, ranh);`,
+
+  empty_box: `// Tạo sẵn 1 phôi hộp mới tinh (W x H x D) để cắt gọt tiếp
+const phoi = box(W, H, D);
+return phoi;`,
+
   u_shell_pipe: `// Khối chữ U bo tròn + 2 ống trụ ngang (OpenCascade B-Rep)
 const uOuter = roundBox(50, 50, 50, 8);
 const uInner = move(roundBox(34, 42, 56, 4), 0, 8, 0);
@@ -143,10 +157,18 @@ function shell(target, thickness, faceFilter) {
  * Compile and run a user CAD script on the OpenCascade (replicad) B-Rep kernel.
  * Returns { brush, w, h, d } aligned to [0..W, 0..H, 0..D].
  */
-export async function executeCadScript(code, cadEngine) {
+export async function executeCadScript(code, cadEngine, dims = { w: 6, h: 4, d: 4 }) {
   await initOCCT();
 
+  const W = Number(dims?.w) > 0 ? Number(dims.w) : 6;
+  const H = Number(dims?.h) > 0 ? Number(dims.h) : 4;
+  const D = Number(dims?.d) > 0 ? Number(dims.d) : 4;
+
   const helpers = {
+    W,
+    H,
+    D,
+    baseBox: (w = W, h = H, d = D) => box(w, h, d),
     box,
     roundBox,
     cylinder,

@@ -466,13 +466,15 @@
       <div class="script-toolbar">
         <label for="script-preset-select">Mẫu có sẵn:</label>
         <select id="script-preset-select">
-          <option value="u_shell_pipe">Mẫu 1: Vỏ chữ U (2-R8 / 2-R7) + Trụ Ø12/Ø10</option>
-          <option value="horiz_cyl_mount">Mẫu 2: Gối đỡ trụ ngang Ø50×90 + Rãnh 18×45</option>
-          <option value="starter_block">Mẫu 3: Khối bo góc + Lỗ tâm</option>
+          <option value="new_box_cut">Mẫu 1: Tạo sẵn phôi hộp mới (W×H×D) + Cắt mẫu</option>
+          <option value="empty_box">Mẫu 2: Phôi hộp mới tinh (W×H×D)</option>
+          <option value="u_shell_pipe">Mẫu 3: Vỏ chữ U (2-R8 / 2-R7) + Trụ Ø12/Ø10</option>
+          <option value="horiz_cyl_mount">Mẫu 4: Gối đỡ trụ ngang Ø50×90 + Rãnh 18×45</option>
+          <option value="starter_block">Mẫu 5: Khối bo góc + Lỗ tâm</option>
         </select>
       </div>
       <div class="script-cheatsheet">
-        <code>box(w,h,d)</code> · <code>roundBox(w,h,d,r)</code> · <code>cylinder(r,h,axis)</code> · <code>tube(rO,rI,h,axis)</code> · <code>poly([[u,v],...],d,axis)</code> · <code>move(s,x,y,z)</code> · <code>rotate(s,rx,ry,rz)</code> · <code>fillet(s,r)</code> · <code>chamfer(s,d)</code> · <code>shell(s,t,fn)</code> · <code>union</code> / <code>cut</code> / <code>intersect</code> · <code>replicad</code>
+        <code>W, H, D</code> · <code>baseBox()</code> · <code>box(w,h,d)</code> · <code>roundBox(w,h,d,r)</code> · <code>cylinder(r,h,axis)</code> · <code>tube(rO,rI,h,axis)</code> · <code>poly([[u,v],...],d,axis)</code> · <code>move(s,x,y,z)</code> · <code>rotate(s,rx,ry,rz)</code> · <code>fillet(s,r)</code> · <code>chamfer(s,d)</code> · <code>shell(s,t,fn)</code> · <code>union</code> / <code>cut</code> / <code>intersect</code> · <code>replicad</code>
       </div>
       <textarea id="cad-script-input" spellcheck="false" placeholder="// Viết code CAD và return khối cuối cùng..."></textarea>
       <div id="cad-script-error" class="script-error" style="display: none;"></div>

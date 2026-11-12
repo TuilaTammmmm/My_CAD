@@ -870,7 +870,7 @@ const scriptPreset = document.getElementById('script-preset-select');
 const scriptError = document.getElementById('cad-script-error');
 
 if (scriptInput && !scriptInput.value.trim()) {
-  scriptInput.value = CAD_SCRIPT_PRESETS.u_shell_pipe;
+  scriptInput.value = CAD_SCRIPT_PRESETS.new_box_cut;
 }
 
 document.getElementById('btn-open-script')?.addEventListener('click', () => {
@@ -901,7 +901,7 @@ async function runCadScriptFromModal() {
     runBtn.textContent = '⏳ Đang dựng B-Rep...';
   }
   try {
-    const { brush, w, h, d } = await executeCadScript(scriptInput.value, cad);
+    const { brush, w, h, d } = await executeCadScript(scriptInput.value, cad, { w: W, h: H, d: D });
     W = w;
     H = h;
     D = d;

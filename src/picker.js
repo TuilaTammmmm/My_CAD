@@ -47,6 +47,7 @@ export class InteractivePicker {
     this.filletRadius = 1.0;
     this.selectedFilletEdge = null;
     this.cachedSharpEdges = [];
+    this.preferOuterGrid = false;
 
     // Selected points in 3D: [ { x, y, z }, ... ]
     this.selectedPoints = [];
@@ -523,12 +524,28 @@ export class InteractivePicker {
     const camDir = new THREE.Vector3();
     this.camera.getWorldDirection(camDir);
 
-    // 1. Bắn tia tới bề mặt khối trước để xác định khoảng cách mặt trước (frontHit)
+    // 1. Bắn tia: Nếu bật "Lưới Ngoài", ưu tiên lưới bao vuông [0..W, 0..H, 0..D] trước bề mặt khối
     let frontHit = null;
     let hitPoint = null;
     let hitNormal = null;
 
-    if (this.currentBrush) {
+    if (this.preferOuterGrid) {
+      const outerBox = this.getOuterBoundsMesh();
+      if (outerBox) {
+        const outerHits = this.raycaster.intersectObject(outerBox, false);
+        for (const hit of outerHits) {
+          const norm = hit.face.normal.clone().normalize();
+          if (norm.dot(camDir) < -0.01) {
+            frontHit = hit;
+            hitPoint = hit.point;
+            hitNormal = norm;
+            break;
+          }
+        }
+      }
+    }
+
+    if (!frontHit && this.currentBrush) {
       const intersects = this.raycaster.intersectObject(this.currentBrush, false);
       for (const hit of intersects) {
         const norm = hit.face.normal.clone().transformDirection(this.currentBrush.matrixWorld).normalize();
@@ -541,7 +558,7 @@ export class InteractivePicker {
       }
     }
 
-    if (!frontHit) {
+    if (!frontHit && !this.preferOuterGrid) {
       const outerBox = this.getOuterBoundsMesh();
       if (outerBox) {
         const outerHits = this.raycaster.intersectObject(outerBox, false);
@@ -563,7 +580,7 @@ export class InteractivePicker {
       const floorPt = new THREE.Vector3();
       if (this.raycaster.ray.intersectPlane(floorPlane, floorPt)) {
         const { w, d } = this.bounds;
-        if (floorPt.x >= -w * 0.5 && floorPt.x <= w * 1.5 && floorPt.z >= -d * 0.5 && floorPt.z <= d * 1.5) {
+        if (floorPt.x >= -w && floorPt.x <= w * 2 && floorPt.z >= -d && floorPt.z <= d * 2) {
           hitPoint = floorPt;
           hitNormal = new THREE.Vector3(0, 1, 0);
           isFloorGridHit = true;
@@ -1499,6 +1516,7 @@ export class InteractivePicker {
       <div style="display:inline-flex; align-items:center; gap:5px; margin-left:6px;">
         <button class="hud-btn-toggle" id="hud-toggle-step" title="Đổi bước lưới (1 ➔ 1/2 ➔ 1/4 ➔ 1/8) (Phím tắt: S)">${stepBadge}</button>
         <button class="hud-btn-toggle" id="hud-toggle-grid" title="Bật/Tắt lưới ô vuông trên mặt khối (Phím tắt: G)">🔲 Ô Vuông</button>
+        <button class="hud-btn-toggle ${this.preferOuterGrid ? 'active' : ''}" id="hud-toggle-outer-grid" style="${this.preferOuterGrid ? 'background:#0284c7;color:#fff;border-color:#38bdf8;' : ''}" title="Ưu tiên chọn điểm trên lưới vuông bao ngoài [0..W, 0..H, 0..D] để cắt mặt cong dễ hơn">🧲 Lưới Ngoài</button>
       </div>
     `;
 
@@ -1854,6 +1872,12 @@ export class InteractivePicker {
     const btnToggleGrid = document.getElementById('hud-toggle-grid');
     if (btnToggleGrid) btnToggleGrid.addEventListener('click', () => {
       if (this.callbacks.onToggleGridSquares) this.callbacks.onToggleGridSquares();
+    });
+
+    const btnToggleOuterGrid = document.getElementById('hud-toggle-outer-grid');
+    if (btnToggleOuterGrid) btnToggleOuterGrid.addEventListener('click', () => {
+      this.preferOuterGrid = !this.preferOuterGrid;
+      this.updateHUD();
     });
 
     const btnCut = document.getElementById('hud-cut-btn');

@@ -325,24 +325,6 @@ export class CAD2DEditor {
         p: { u: rightXOffset + D / 2, v: frontYOffset + H + labelOffset }
       });
 
-      // 4. ĐƯỜNG GIÓNG LIÊN KẾT GIỮA CÁC HÌNH CHIẾU (DASHED GUIDES)
-      this.elements.push({
-        type: 'line', style: 'guide',
-        p1: { u: 0, v: D }, p2: { u: 0, v: frontYOffset }
-      });
-      this.elements.push({
-        type: 'line', style: 'guide',
-        p1: { u: W, v: D }, p2: { u: W, v: frontYOffset }
-      });
-      this.elements.push({
-        type: 'line', style: 'guide',
-        p1: { u: W, v: frontYOffset }, p2: { u: rightXOffset, v: frontYOffset }
-      });
-      this.elements.push({
-        type: 'line', style: 'guide',
-        p1: { u: W, v: frontYOffset + H }, p2: { u: rightXOffset, v: frontYOffset + H }
-      });
-
     } else {
       // HIỂN THỊ TỪNG HÌNH CHIẾU RIÊNG LẺ
       let viewData = proj[viewType];

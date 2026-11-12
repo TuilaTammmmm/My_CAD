@@ -93,10 +93,8 @@ export function replicadToBrush(shape3d, material, options = {}) {
   edgeGeom.computeBoundingBox();
   edgeGeom.computeBoundingSphere();
 
-  brush.userData.replicadShape = shape3d;
-  brush.userData.occtEdges = edgeGeom;
-  brush.userData.occtEdgeGroups = edgeData.edgeGroups;
-  brush.userData.occtFaceGroups = meshData.faceGroups;
+  brush._replicadShape = shape3d;
+  brush._occtEdges = edgeGeom;
   brush.userData.isBRep = true;
 
   return brush;

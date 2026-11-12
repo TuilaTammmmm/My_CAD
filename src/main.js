@@ -97,6 +97,8 @@ function saveHistory(brush) {
   history = history.slice(0, historyIndex + 1);
   const clone = brush.clone();
   clone.geometry = brush.geometry.clone();
+  clone._replicadShape = brush._replicadShape || null;
+  clone._occtEdges = brush._occtEdges || null;
   history.push(clone);
   historyIndex = history.length - 1;
   updateHistoryButtons();
@@ -378,8 +380,11 @@ document.getElementById('btn-reset-block').addEventListener('click', () => {
 function performUndo() {
   if (historyIndex > 0) {
     historyIndex--;
-    const brush = history[historyIndex].clone();
-    brush.geometry = history[historyIndex].geometry.clone();
+    const src = history[historyIndex];
+    const brush = src.clone();
+    brush.geometry = src.geometry.clone();
+    brush._replicadShape = src._replicadShape || null;
+    brush._occtEdges = src._occtEdges || null;
     setModel(brush, false);
     updateHistoryButtons();
   }
@@ -388,8 +393,11 @@ function performUndo() {
 function performRedo() {
   if (historyIndex < history.length - 1) {
     historyIndex++;
-    const brush = history[historyIndex].clone();
-    brush.geometry = history[historyIndex].geometry.clone();
+    const src = history[historyIndex];
+    const brush = src.clone();
+    brush.geometry = src.geometry.clone();
+    brush._replicadShape = src._replicadShape || null;
+    brush._occtEdges = src._occtEdges || null;
     setModel(brush, false);
     updateHistoryButtons();
   }

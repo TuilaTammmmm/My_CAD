@@ -55,7 +55,7 @@ export class CadEngine {
     const d = maxZ - minZ;
     if (w <= 0.0001 || h <= 0.0001 || d <= 0.0001) return targetBrush;
 
-    if (isOCCTReady() && targetBrush.userData?.replicadShape) {
+    if (isOCCTReady() && targetBrush?._replicadShape) {
       try {
         const cutter = replicad.makeBox([minX, minY, minZ], [maxX, maxY, maxZ]);
         const nextShape = targetBrush.userData.replicadShape.cut(cutter);
@@ -610,7 +610,7 @@ export class CadEngine {
   }
 
   cutHole(targetBrush, hitPoint, hitNormal, radius, depth = 0, isThrough = true, maxSpan = 100) {
-    if (isOCCTReady() && targetBrush.userData?.replicadShape) {
+    if (isOCCTReady() && targetBrush?._replicadShape) {
       try {
         const n = hitNormal.clone().normalize();
         const len = isThrough ? (maxSpan * 2 + 2) : (depth + 0.08);
@@ -719,7 +719,7 @@ export class CadEngine {
   }
 
   cutFilletEdge(targetBrush, edgeStart, edgeEnd, n1, n2, radius, segments = 20) {
-    if (isOCCTReady() && targetBrush.userData?.replicadShape && radius > 1e-4) {
+    if (isOCCTReady() && targetBrush?._replicadShape && radius > 1e-4) {
       try {
         const midTarget = new THREE.Vector3().addVectors(edgeStart, edgeEnd).multiplyScalar(0.5);
         const nextShape = targetBrush.userData.replicadShape.fillet(radius, (ef) =>
@@ -747,7 +747,7 @@ export class CadEngine {
 
       // TẠO ĐƯỜNG VIỀN KỸ THUẬT SẠCH SẼ (LỌC NÉT CHÉO NỘI BỘ & NÉT DƯ APEX RÃNH V)
   createEdges(mesh) {
-    if (mesh?.userData?.occtEdges) {
+    if (mesh?._occtEdges) {
       return new THREE.LineSegments(mesh.userData.occtEdges, this.edgeMaterial);
     }
     const nonIndexedGeom = mesh.geometry.index ? mesh.geometry.toNonIndexed() : mesh.geometry;

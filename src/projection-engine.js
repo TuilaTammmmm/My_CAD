@@ -44,9 +44,9 @@ export class ProjectionEngine {
    * Chiếu trực giao một hướng nhìn cụ thể
    */
   projectOrthographic(brush, viewType, bounds) {
-    if (isOCCTReady() && brush?.userData?.replicadShape) {
+    if (isOCCTReady() && brush?._replicadShape) {
       try {
-        return this.projectWithOCCT(brush.userData.replicadShape, viewType, bounds);
+        return this.projectWithOCCT(brush._replicadShape, viewType, bounds);
       } catch (err) {
         console.warn('OCCT HLR projection fallback:', err);
       }

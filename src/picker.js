@@ -153,13 +153,13 @@ export class InteractivePicker {
     const triangles = [];
     const vertMap = new Map();
 
-    const addVert = (v, n) => {
+    const addSharpVert = (v, n1, n2) => {
       const key = `${Math.round(v.x * 100)}_${Math.round(v.y * 100)}_${Math.round(v.z * 100)}`;
       const existing = vertMap.get(key);
       if (existing) {
-        existing.normals.push(n);
+        existing.normals.push(n1, n2);
       } else {
-        const entry = { pos: v.clone(), normals: [n] };
+        const entry = { pos: v.clone(), normals: [n1, n2] };
         vertMap.set(key, entry);
         this.cachedVertices.push(entry);
       }
@@ -175,9 +175,6 @@ export class InteractivePicker {
         norm.normalize();
         const tri = { p0, p1, p2, norm };
         triangles.push(tri);
-        addVert(p0, norm);
-        addVert(p1, norm);
-        addVert(p2, norm);
       }
     }
 
@@ -260,6 +257,12 @@ export class InteractivePicker {
         this.cachedSharpEdges.push(seg);
       }
     }
+
+    // Chỉ cache đỉnh từ các cạnh sắc đã gộp (loại bỏ toàn bộ đỉnh giả trên mặt cong hình trụ)
+    for (const edge of this.cachedSharpEdges) {
+      addSharpVert(edge.p1, edge.n1, edge.n2);
+      addSharpVert(edge.p2, edge.n1, edge.n2);
+    }
   }
 
   isPointInTriangleBary(P, t) {
@@ -293,119 +296,13 @@ export class InteractivePicker {
     }
   }
 
-  // Chỉ tính và vẽ các nút lưới nằm trong bán kính 10 bước quanh con trỏ chuột (1 draw call)
+  // Không hiện các chấm lưới xung quanh nữa — chỉ hiện duy nhất nút đang trỏ (hoverMarker)
   updateLocalNodesAroundCursor(hitPoint, hitNormal) {
-    if (!this.localNodesMesh || this.mode === 'view' || !hitPoint || !hitNormal) {
-      if (this.localNodesMesh) this.localNodesMesh.visible = false;
-      return;
+    if (this.localNodesMesh) {
+      this.localNodesMesh.count = 0;
+      this.localNodesMesh.visible = false;
     }
-
-    const { w, h, d } = this.bounds;
-    const step = this.snapStep;
-    const radiusSteps = 4;
-    const radiusWorld = radiusSteps * step;
-    const radiusSq = radiusWorld * radiusWorld + 1e-4;
-
-    // Tìm mặt phẳng tương ứng đang trỏ chuột để lọc các nút nằm trong diện tích mặt đó
-    const matchingFaces = this.cachedFaces.filter(
-      f => f.norm.dot(hitNormal) > 0.96 && Math.abs(f.norm.dot(hitPoint.clone().sub(f.p0))) < 0.08
-    );
-
-    const N = hitNormal;
-    const absX = Math.abs(N.x), absY = Math.abs(N.y), absZ = Math.abs(N.z);
-    const refP0 = matchingFaces.length > 0 ? matchingFaces[0].p0 : hitPoint;
-
-    const zoomInv = this.camera && this.camera.zoom ? Math.max(0.25, Math.min(2.5, 1 / this.camera.zoom)) : 1;
-    const scaleK = Math.max(1, Math.min(2.2, (Math.max(w, h, d) / 24) * zoomInv));
-    const rWhole = Math.min(0.085 * scaleK, step * 0.16);
-    const rHalf = Math.min(0.055 * scaleK, step * 0.11);
-
-    const isWhole = (v) => Math.abs(v - Math.round(v)) < 0.02;
-    const snapAxis = (v) => Math.round(v / step) * step;
-
-    const dummy = new THREE.Object3D();
-    const colorWhole = new THREE.Color(0x38bdf8);
-    const colorHalf = new THREE.Color(0x67e8f9);
-    const pt = new THREE.Vector3();
-
-    let count = 0;
-
-    const tryEmit = (x, y, z) => {
-      if (count >= this.MAX_LOCAL_NODES) return;
-      pt.set(x, y, z);
-      if (pt.distanceToSquared(hitPoint) > radiusSq) return;
-
-      if (matchingFaces.length > 0) {
-        let inside = false;
-        for (const f of matchingFaces) {
-          if (f.triangles.some(t => this.isPointInTriangleBary(pt, t))) {
-            inside = true;
-            break;
-          }
-        }
-        if (!inside) return;
-      }
-
-      const whole = isWhole(x) && isWhole(y) && isWhole(z);
-      dummy.position.copy(pt);
-      dummy.scale.setScalar(whole ? rWhole : rHalf);
-      dummy.updateMatrix();
-      this.localNodesMesh.setMatrixAt(count, dummy.matrix);
-      this.localNodesMesh.setColorAt(count, whole ? colorWhole : colorHalf);
-      count++;
-    };
-
-    if (absZ >= absX && absZ >= absY && absZ > 1e-4) {
-      const cx = snapAxis(hitPoint.x);
-      const cy = snapAxis(hitPoint.y);
-      const xMin = Math.max(0, cx - radiusWorld);
-      const xMax = Math.min(w, cx + radiusWorld);
-      const yMin = Math.max(0, cy - radiusWorld);
-      const yMax = Math.min(h, cy + radiusWorld);
-      for (let x = xMin; x <= xMax + 1e-4; x += step) {
-        for (let y = yMin; y <= yMax + 1e-4; y += step) {
-          const z = refP0.z - (N.x * (x - refP0.x) + N.y * (y - refP0.y)) / N.z;
-          if (z >= -0.01 && z <= d + 0.01) {
-            tryEmit(x, y, z);
-          }
-        }
-      }
-    } else if (absX >= absY && absX > 1e-4) {
-      const cz = snapAxis(hitPoint.z);
-      const cy = snapAxis(hitPoint.y);
-      const zMin = Math.max(0, cz - radiusWorld);
-      const zMax = Math.min(d, cz + radiusWorld);
-      const yMin = Math.max(0, cy - radiusWorld);
-      const yMax = Math.min(h, cy + radiusWorld);
-      for (let z = zMin; z <= zMax + 1e-4; z += step) {
-        for (let y = yMin; y <= yMax + 1e-4; y += step) {
-          const x = refP0.x - (N.y * (y - refP0.y) + N.z * (z - refP0.z)) / N.x;
-          if (x >= -0.01 && x <= w + 1e-4) {
-            tryEmit(x, y, z);
-          }
-        }
-      }
-    } else if (absY > 1e-4) {
-      const cx = snapAxis(hitPoint.x);
-      const cz = snapAxis(hitPoint.z);
-      const xMin = Math.max(0, cx - radiusWorld);
-      const xMax = Math.min(w, cx + radiusWorld);
-      const zMin = Math.max(0, cz - radiusWorld);
-      const zMax = Math.min(d, cz + radiusWorld);
-      for (let x = xMin; x <= xMax + 1e-4; x += step) {
-        for (let z = zMin; z <= zMax + 1e-4; z += step) {
-          const y = refP0.y - (N.x * (x - refP0.x) + N.z * (z - refP0.z)) / N.y;
-          if (y >= -0.01 && y <= h + 1e-4) {
-            tryEmit(x, y, z);
-          }
-        }
-      }
-    }
-
-    this.localNodesMesh.count = count;
-    this.localNodesMesh.instanceMatrix.needsUpdate = true;
-    if (this.localNodesMesh.instanceColor) this.localNodesMesh.instanceColor.needsUpdate = true;
-    this.localNodesMesh.visible = count > 0;
+    return;
   }
 
   setMode(mode) {
@@ -636,10 +533,10 @@ export class InteractivePicker {
 
     const scaleK = Math.max(1, Math.max(this.bounds.w, this.bounds.h, this.bounds.d) / 14);
 
-    // 2. Bắt dính nhanh vào đỉnh hình học gần nhất (trên mặt đang trỏ)
+    // 2. Bắt dính nhanh vào đỉnh góc sắc gần nhất (không bắt đỉnh trơn trên mặt trụ)
     if (this.cachedVertices && this.cachedVertices.length > 0) {
       let closestVert = null;
-      let minVDist = Math.max(0.22 * scaleK, this.snapStep * 0.48);
+      let minVDist = Math.min(0.45, this.snapStep * 0.48);
       for (const v of this.cachedVertices) {
         const d = hitPoint.distanceTo(v.pos);
         if (d < minVDist) {

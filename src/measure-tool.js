@@ -239,7 +239,7 @@ export class InspectionTool {
     this.active = true;
     this.measurementsGroup.visible = true;
     this.previewGroup.visible = true;
-    if (this._cacheDirty) {
+    if (this._cacheDirty || (this.currentEdges && this.edgesList.length === 0)) {
       this._cacheDirty = false;
       this.cacheEdges();
       this.cacheCircles();
@@ -613,7 +613,8 @@ export class InspectionTool {
           const hits = occRay.intersectObject(this.currentBrush, false);
           if (hits.length > 0) {
             const distToEdge = occRay.ray.origin.distanceTo(edge.mid);
-            if (hits[0].distance < distToEdge - 0.15) {
+            const occTol = Math.max(0.5, edge.len * 0.02);
+            if (hits[0].distance < distToEdge - occTol) {
               continue; // Bị mặt trước của khối che khuất!
             }
           }
@@ -1364,6 +1365,15 @@ export class InspectionTool {
     }
   }
 
+  projectToScreen(pt, rect) {
+    const v = pt.clone().project(this.camera);
+    if (v.z > 1) return null;
+    return {
+      x: (v.x * 0.5 + 0.5) * rect.width,
+      y: (-v.y * 0.5 + 0.5) * rect.height
+    };
+  }
+
   findNearestCircle(clientX, clientY) {
     if (!this.circlesList || this.circlesList.length === 0) return null;
     const rect = this.container.getBoundingClientRect();
@@ -1399,7 +1409,7 @@ export class InspectionTool {
           const hits = occRay.intersectObject(this.currentBrush, false);
           if (hits.length > 0) {
             const distToPt = occRay.ray.origin.distanceTo(closestPt);
-            if (hits[0].distance < distToPt - Math.max(0.35, c.radius * 0.03)) {
+            if (hits[0].distance < distToPt - Math.max(0.6, c.radius * 0.05)) {
               continue;
             }
           }

@@ -572,6 +572,126 @@ export class CadEngine {
     return result;
   }
 
+  // Tạo khối dao cắt hình trụ để khoan lỗ tròn (Hole / Cylinder Cut)
+  createHoleCutterGeometry(hitPoint, hitNormal, radius, depth = 0, isThrough = true, maxSpan = 100) {
+    const len = isThrough ? (maxSpan * 2 + 2) : (depth + 0.08);
+    const geom = new THREE.CylinderGeometry(radius, radius, len, 48);
+    const n = hitNormal.clone().normalize();
+    const quat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), n);
+    geom.applyQuaternion(quat);
+
+    const center = hitPoint.clone();
+    if (isThrough) {
+      center.addScaledVector(n, -maxSpan * 0.5);
+    } else {
+      center.addScaledVector(n, -(depth * 0.5 - 0.04));
+    }
+    geom.translate(center.x, center.y, center.z);
+    return geom;
+  }
+
+  cutHole(targetBrush, hitPoint, hitNormal, radius, depth = 0, isThrough = true, maxSpan = 100) {
+    const geom = this.createHoleCutterGeometry(hitPoint, hitNormal, radius, depth, isThrough, maxSpan);
+    const cutter = new Brush(geom);
+    cutter.updateMatrixWorld();
+
+    const result = this.evaluator.evaluate(targetBrush, cutter, SUBTRACTION);
+    result.material = this.material;
+    result.geometry.computeVertexNormals();
+    return result;
+  }
+
+  // Tạo khối dao cắt bo tròn cạnh 3D (Fillet Edge) cho góc bất kỳ
+  createFilletCutterGeometry(edgeStart, edgeEnd, n1, n2, radius, segments = 20) {
+    const dir = new THREE.Vector3().subVectors(edgeEnd, edgeStart);
+    const len = dir.length();
+    if (len < 1e-4 || radius <= 1e-4) return null;
+    const eDir = dir.clone().divideScalar(len);
+
+    const n1p = n1.clone().addScaledVector(eDir, -n1.dot(eDir));
+    const n2p = n2.clone().addScaledVector(eDir, -n2.dot(eDir));
+    if (n1p.lengthSq() < 1e-6 || n2p.lengthSq() < 1e-6) return null;
+    n1p.normalize();
+    n2p.normalize();
+
+    const outBisector = new THREE.Vector3().addVectors(n1p, n2p);
+    if (outBisector.lengthSq() < 1e-6) return null;
+    outBisector.normalize();
+    const inBisector = outBisector.clone().negate();
+
+    const cosPhi = Math.max(-0.999, Math.min(0.999, n1p.dot(n2p)));
+    const halfAlpha = (Math.PI - Math.acos(cosPhi)) * 0.5;
+    if (halfAlpha <= 0.05 || halfAlpha >= Math.PI * 0.49) return null;
+
+    const distCenter = radius / Math.sin(halfAlpha);
+    const tDist = radius / Math.tan(halfAlpha);
+
+    const t1 = new THREE.Vector3().crossVectors(eDir, n1p).normalize();
+    if (t1.dot(inBisector) < 0) t1.negate();
+
+    const t2 = new THREE.Vector3().crossVectors(eDir, n2p).normalize();
+    if (t2.dot(inBisector) < 0) t2.negate();
+
+    // Hệ trục phải (uAxis, vAxis, eDir)
+    const uAxis = t1.clone();
+    const vAxis = new THREE.Vector3().crossVectors(eDir, uAxis).normalize();
+    const to2D = (v) => ({ x: v.dot(uAxis), y: v.dot(vAxis) });
+
+    const eps = 0.025;
+    const pCorner = to2D(outBisector.clone().multiplyScalar(eps));
+    let pA = to2D(t1.clone().multiplyScalar(tDist).addScaledVector(n1p, eps));
+    let tA = to2D(t1.clone().multiplyScalar(tDist));
+    let pB = to2D(t2.clone().multiplyScalar(tDist).addScaledVector(n2p, eps));
+    let tB = to2D(t2.clone().multiplyScalar(tDist));
+    const c2d = to2D(inBisector.clone().multiplyScalar(distCenter));
+
+    // Đảm bảo thứ tự đỉnh đi ngược chiều kim đồng hồ (CCW) trong mặt phẳng 2D
+    const area2 = (tA.x - pCorner.x) * (tB.y - pCorner.y) - (tA.y - pCorner.y) * (tB.x - pCorner.x);
+    if (area2 < 0) {
+      [pA, pB] = [pB, pA];
+      [tA, tB] = [tB, tA];
+    }
+
+    const aStart = Math.atan2(tA.y - c2d.y, tA.x - c2d.x);
+    const aEnd = Math.atan2(tB.y - c2d.y, tB.x - c2d.x);
+    // Cung tròn phải đi cùng chiều kim đồng hồ (lõm về phía tâm c2d, ngược với pCorner)
+    let diffCCW = aEnd - aStart;
+    while (diffCCW < 0) diffCCW += Math.PI * 2;
+    const isClockwise = diffCCW > Math.PI;
+
+    const shape = new THREE.Shape();
+    shape.moveTo(pCorner.x, pCorner.y);
+    shape.lineTo(pA.x, pA.y);
+    shape.lineTo(tA.x, tA.y);
+    shape.absarc(c2d.x, c2d.y, radius, aStart, aEnd, isClockwise);
+    shape.lineTo(pB.x, pB.y);
+    shape.closePath();
+
+    const geom = new THREE.ExtrudeGeometry(shape, {
+      depth: len + 0.04,
+      bevelEnabled: false,
+      curveSegments: segments
+    });
+    geom.translate(0, 0, -0.02);
+
+    const basis = new THREE.Matrix4().makeBasis(uAxis, vAxis, eDir);
+    basis.setPosition(edgeStart);
+    geom.applyMatrix4(basis);
+    return geom;
+  }
+
+  cutFilletEdge(targetBrush, edgeStart, edgeEnd, n1, n2, radius, segments = 20) {
+    const geom = this.createFilletCutterGeometry(edgeStart, edgeEnd, n1, n2, radius, segments);
+    if (!geom) return targetBrush;
+    const cutter = new Brush(geom);
+    cutter.updateMatrixWorld();
+
+    const result = this.evaluator.evaluate(targetBrush, cutter, SUBTRACTION);
+    result.material = this.material;
+    result.geometry.computeVertexNormals();
+    return result;
+  }
+
       // TẠO ĐƯỜNG VIỀN KỸ THUẬT SẠCH SẼ (LỌC NÉT CHÉO NỘI BỘ & NÉT DƯ APEX RÃNH V)
   createEdges(mesh) {
     const nonIndexedGeom = mesh.geometry.index ? mesh.geometry.toNonIndexed() : mesh.geometry;

@@ -102,6 +102,20 @@
               </span>
               <span class="tool-text">Rãnh Chữ V</span>
             </button>
+
+            <button class="tool-btn mode-btn" data-mode="hole" title="Khoan lỗ tròn: Click chọn tâm trên mặt khối để cắt lỗ trụ Ø/R">
+              <span class="tool-icon">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2" stroke-dasharray="2 2"/></svg>
+              </span>
+              <span class="tool-text">Khoan Lỗ Tròn (Ø)</span>
+            </button>
+
+            <button class="tool-btn mode-btn" data-mode="fillet3d" title="Bo tròn cạnh 3D: Click vào cạnh sắc để bo cung tròn bán kính R">
+              <span class="tool-icon">
+                <svg viewBox="0 0 24 24"><path d="M4 20V10a6 6 0 0 1 6-6h10"/></svg>
+              </span>
+              <span class="tool-text">Bo Tròn Cạnh (R)</span>
+            </button>
           </div>
         </div>
 
@@ -419,15 +433,15 @@
       <div class="dim-grid">
         <div class="dim-field">
           <label>Rộng (W)</label>
-          <input type="number" id="dim-w" value="6" min="1" max="30">
+          <input type="number" id="dim-w" value="6" min="1" max="300">
         </div>
         <div class="dim-field">
           <label>Cao (H)</label>
-          <input type="number" id="dim-h" value="4" min="1" max="30">
+          <input type="number" id="dim-h" value="4" min="1" max="300">
         </div>
         <div class="dim-field">
           <label>Sâu (D)</label>
-          <input type="number" id="dim-d" value="4" min="1" max="30">
+          <input type="number" id="dim-d" value="4" min="1" max="300">
         </div>
       </div>
       <button class="btn-primary-reset" id="btn-reset-block">

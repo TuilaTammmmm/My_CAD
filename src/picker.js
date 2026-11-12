@@ -37,6 +37,17 @@ export class InteractivePicker {
     // Index góc hộp cho vát góc 3 điểm
     this.cornerCandidateIndex = 0;
 
+    // Tuỳ chỉnh Khoan lỗ tròn (Hole) & Bo tròn cạnh (Fillet 3D)
+    this.holeRadius = 1.0;
+    this.holeDepth = 2.0;
+    this.holeThrough = true;
+    this.holeCenter = null;
+    this.holeNormal = null;
+
+    this.filletRadius = 1.0;
+    this.selectedFilletEdge = null;
+    this.cachedSharpEdges = [];
+
     // Selected points in 3D: [ { x, y, z }, ... ]
     this.selectedPoints = [];
 
@@ -48,10 +59,13 @@ export class InteractivePicker {
     this.pickerGroup.renderOrder = 999;
     this.scene.add(this.pickerGroup);
 
-    // Chấm nút lưới bề mặt
-    this.gridNodesGroup = new THREE.Group();
-    this.gridNodesGroup.visible = false;
-    this.scene.add(this.gridNodesGroup);
+    // Chấm nút lưới bề mặt (chỉ hiển thị quanh con trỏ chuột bằng 1 InstancedMesh duy nhất)
+    this.MAX_LOCAL_NODES = 420;
+    this.cachedFaces = [];
+    this.cachedVertices = [];
+    this.surfaceNodesList = [];
+    this._lastHit = null;
+    this.initLocalNodesMesh();
 
     // Hover snap marker
     this.initHoverMarker();
@@ -63,6 +77,22 @@ export class InteractivePicker {
     this.bindEvents();
     this.updateCursor();
     this.updateHUD();
+  }
+
+  initLocalNodesMesh() {
+    const geom = new THREE.SphereGeometry(1, 10, 10);
+    const mat = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.9
+    });
+    this.localNodesMesh = new THREE.InstancedMesh(geom, mat, this.MAX_LOCAL_NODES);
+    this.localNodesMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    this.localNodesMesh.count = 0;
+    this.localNodesMesh.visible = false;
+    this.localNodesMesh.renderOrder = 999;
+    this.localNodesMesh.frustumCulled = false;
+    this.scene.add(this.localNodesMesh);
   }
 
   initHoverMarker() {
@@ -104,229 +134,285 @@ export class InteractivePicker {
     this.rebuildSurfaceGridNodes();
   }
 
-      // TẠO CÁC NÚT LƯỚI BỀ MẶT BÁM SÁT MẶT CẮT (KỂ CẢ CẮT CHÉO, THEO CHIỀU NGANG TỪNG Ô VUÔNG)
+  // Cache mặt phẳng, đỉnh và cạnh sắc nhẹ nhàng (0 tạo Mesh toàn khối -> 60fps với khối 100-300)
   rebuildSurfaceGridNodes() {
-    while (this.gridNodesGroup.children.length > 0) {
-      const obj = this.gridNodesGroup.children[0];
-      this.gridNodesGroup.remove(obj);
-      if (obj.geometry) obj.geometry.dispose();
+    this.cachedFaces = [];
+    this.cachedVertices = [];
+    this.cachedSharpEdges = [];
+    this._lastHit = null;
+    if (this.localNodesMesh) {
+      this.localNodesMesh.count = 0;
+      this.localNodesMesh.visible = false;
+    }
+
+    if (!this.currentBrush || !this.currentBrush.geometry) return;
+
+    const nonIndexed = this.currentBrush.geometry.index ? this.currentBrush.geometry.toNonIndexed() : this.currentBrush.geometry;
+    const pos = nonIndexed.attributes.position;
+    const triCount = Math.floor(pos.count / 3);
+    const triangles = [];
+    const vertMap = new Map();
+
+    const addVert = (v, n) => {
+      const key = `${Math.round(v.x * 100)}_${Math.round(v.y * 100)}_${Math.round(v.z * 100)}`;
+      const existing = vertMap.get(key);
+      if (existing) {
+        existing.normals.push(n);
+      } else {
+        const entry = { pos: v.clone(), normals: [n] };
+        vertMap.set(key, entry);
+        this.cachedVertices.push(entry);
+      }
+    };
+
+    for (let i = 0; i < triCount; i++) {
+      const p0 = new THREE.Vector3(pos.getX(i * 3), pos.getY(i * 3), pos.getZ(i * 3));
+      const p1 = new THREE.Vector3(pos.getX(i * 3 + 1), pos.getY(i * 3 + 1), pos.getZ(i * 3 + 1));
+      const p2 = new THREE.Vector3(pos.getX(i * 3 + 2), pos.getY(i * 3 + 2), pos.getZ(i * 3 + 2));
+      const norm = new THREE.Vector3().subVectors(p1, p0).cross(new THREE.Vector3().subVectors(p2, p0));
+      const len = norm.length();
+      if (len > 1e-6) {
+        norm.normalize();
+        const tri = { p0, p1, p2, norm };
+        triangles.push(tri);
+        addVert(p0, norm);
+        addVert(p1, norm);
+        addVert(p2, norm);
+      }
+    }
+
+    for (const t of triangles) {
+      const f = this.cachedFaces.find(
+        item => item.norm.dot(t.norm) > 0.99 && Math.abs(item.norm.dot(t.p0.clone().sub(item.p0))) < 0.02
+      );
+      if (f) f.triangles.push(t);
+      else this.cachedFaces.push({ norm: t.norm, p0: t.p0, triangles: [t] });
+    }
+
+    // Trích xuất cạnh sắc (giao bởi 2 mặt có góc gập > 25°) cho công cụ Bo Tròn Cạnh (Fillet 3D)
+    const eKey = (v) => `${Math.round(v.x * 1000)}_${Math.round(v.y * 1000)}_${Math.round(v.z * 1000)}`;
+    const edgeMap = new Map();
+    for (const t of triangles) {
+      const vs = [t.p0, t.p1, t.p2];
+      for (let e = 0; e < 3; e++) {
+        const a = vs[e];
+        const b = vs[(e + 1) % 3];
+        const ka = eKey(a);
+        const kb = eKey(b);
+        if (ka === kb) continue;
+        const key = ka < kb ? `${ka}|${kb}` : `${kb}|${ka}`;
+        let entry = edgeMap.get(key);
+        if (!entry) {
+          entry = { p1: a.clone(), p2: b.clone(), normals: [] };
+          edgeMap.set(key, entry);
+        }
+        entry.normals.push(t.norm);
+      }
+    }
+
+    const rawSharp = [];
+    for (const entry of edgeMap.values()) {
+      if (entry.normals.length < 2) continue;
+      const n1 = entry.normals[0];
+      let n2 = null;
+      for (let i = 1; i < entry.normals.length; i++) {
+        if (n1.dot(entry.normals[i]) < 0.906) {
+          n2 = entry.normals[i];
+          break;
+        }
+      }
+      if (n2) {
+        rawSharp.push({ p1: entry.p1, p2: entry.p2, n1, n2 });
+      }
+    }
+
+    // Gộp các đoạn cạnh sắc thẳng hàng có cùng cặp pháp tuyến (n1, n2)
+    for (const seg of rawSharp) {
+      const dir = new THREE.Vector3().subVectors(seg.p2, seg.p1).normalize();
+      let merged = false;
+      for (const existing of this.cachedSharpEdges) {
+        const eDir = new THREE.Vector3().subVectors(existing.p2, existing.p1).normalize();
+        if (Math.abs(dir.dot(eDir)) < 0.999) continue;
+        const sameNormals =
+          (existing.n1.dot(seg.n1) > 0.98 && existing.n2.dot(seg.n2) > 0.98) ||
+          (existing.n1.dot(seg.n2) > 0.98 && existing.n2.dot(seg.n1) > 0.98);
+        if (!sameNormals) continue;
+
+        if (existing.p2.distanceTo(seg.p1) < 0.02) {
+          existing.p2.copy(seg.p2);
+          merged = true;
+          break;
+        } else if (existing.p2.distanceTo(seg.p2) < 0.02) {
+          existing.p2.copy(seg.p1);
+          merged = true;
+          break;
+        } else if (existing.p1.distanceTo(seg.p1) < 0.02) {
+          existing.p1.copy(seg.p2);
+          merged = true;
+          break;
+        } else if (existing.p1.distanceTo(seg.p2) < 0.02) {
+          existing.p1.copy(seg.p1);
+          merged = true;
+          break;
+        }
+      }
+      if (!merged) {
+        this.cachedSharpEdges.push(seg);
+      }
+    }
+  }
+
+  isPointInTriangleBary(P, t) {
+    const v2 = new THREE.Vector3().subVectors(P, t.p0);
+    const dist = Math.abs(t.norm.dot(v2));
+    if (dist > 0.03) return false;
+
+    const v0 = new THREE.Vector3().subVectors(t.p2, t.p0);
+    const v1 = new THREE.Vector3().subVectors(t.p1, t.p0);
+    const dot00 = v0.dot(v0);
+    const dot01 = v0.dot(v1);
+    const dot02 = v0.dot(v2);
+    const dot11 = v1.dot(v1);
+    const dot12 = v1.dot(v2);
+    const denom = dot00 * dot11 - dot01 * dot01;
+    if (denom < 1e-5) return false;
+
+    const invDenom = 1 / denom;
+    const u = (dot11 * dot02 - dot01 * dot12) * invDenom;
+    const v = (dot00 * dot12 - dot01 * dot02) * invDenom;
+    return u >= -0.02 && v >= -0.02 && u + v <= 1.02;
+  }
+
+  updateVisibleGridNodes() {
+    if (this.mode === 'view') {
+      if (this.localNodesMesh) this.localNodesMesh.visible = false;
+      return;
+    }
+    if (this._lastHit) {
+      this.updateLocalNodesAroundCursor(this._lastHit.point, this._lastHit.normal);
+    }
+  }
+
+  // Chỉ tính và vẽ các nút lưới nằm trong bán kính 10 bước quanh con trỏ chuột (1 draw call)
+  updateLocalNodesAroundCursor(hitPoint, hitNormal) {
+    if (!this.localNodesMesh || this.mode === 'view' || !hitPoint || !hitNormal) {
+      if (this.localNodesMesh) this.localNodesMesh.visible = false;
+      return;
     }
 
     const { w, h, d } = this.bounds;
     const step = this.snapStep;
-    const minDist = step * 0.42;
+    const radiusSteps = 10;
+    const radiusWorld = radiusSteps * step;
+    const radiusSq = radiusWorld * radiusWorld + 1e-4;
 
-    this.surfaceNodesList = [];
-    const ptsList = [];
-    // Khử trùng lặp không gian: khoảng cách khử co dãn theo bước lưới step (0.42 khi step=1, 0.21 khi step=0.5)
-    const addPt = (x, y, z, normal) => {
-      const rx = Math.round(x * 100) / 100;
-      const ry = Math.round(y * 100) / 100;
-      const rz = Math.round(z * 100) / 100;
-      const cand = new THREE.Vector3(rx, ry, rz);
-      for (const existing of ptsList) {
-        if (existing.pos.distanceTo(cand) < minDist) {
-          existing.normals.push(normal);
-          return;
-        }
-      }
-      ptsList.push({ pos: cand, normals: [normal] });
-    };
+    // Tìm mặt phẳng tương ứng đang trỏ chuột để lọc các nút nằm trong diện tích mặt đó
+    const matchingFaces = this.cachedFaces.filter(
+      f => f.norm.dot(hitNormal) > 0.96 && Math.abs(f.norm.dot(hitPoint.clone().sub(f.p0))) < 0.08
+    );
 
-    if (this.currentBrush && this.currentBrush.geometry) {
-      const nonIndexed = this.currentBrush.geometry.index ? this.currentBrush.geometry.toNonIndexed() : this.currentBrush.geometry;
-      const pos = nonIndexed.attributes.position;
-      const triCount = Math.floor(pos.count / 3);
-      const triangles = [];
-      for (let i = 0; i < triCount; i++) {
-        const p0 = new THREE.Vector3(pos.getX(i*3), pos.getY(i*3), pos.getZ(i*3));
-        const p1 = new THREE.Vector3(pos.getX(i*3+1), pos.getY(i*3+1), pos.getZ(i*3+1));
-        const p2 = new THREE.Vector3(pos.getX(i*3+2), pos.getY(i*3+2), pos.getZ(i*3+2));
-        const norm = new THREE.Vector3().subVectors(p1, p0).cross(new THREE.Vector3().subVectors(p2, p0));
-        const len = norm.length();
-        if (len > 1e-6) triangles.push({ p0, p1, p2, norm: norm.normalize() });
-      }
+    const N = hitNormal;
+    const absX = Math.abs(N.x), absY = Math.abs(N.y), absZ = Math.abs(N.z);
+    const refP0 = matchingFaces.length > 0 ? matchingFaces[0].p0 : hitPoint;
 
-      function isPointInTriangleBary(P, t) {
-        const v2 = new THREE.Vector3().subVectors(P, t.p0);
-        const dist = Math.abs(t.norm.dot(v2));
-        if (dist > 0.02) return false;
-
-        const v0 = new THREE.Vector3().subVectors(t.p2, t.p0);
-        const v1 = new THREE.Vector3().subVectors(t.p1, t.p0);
-
-        const dot00 = v0.dot(v0);
-        const dot01 = v0.dot(v1);
-        const dot02 = v0.dot(v2);
-        const dot11 = v1.dot(v1);
-        const dot12 = v1.dot(v2);
-
-        const denom = (dot00 * dot11 - dot01 * dot01);
-        if (denom < 1e-5) return false;
-
-        const invDenom = 1 / denom;
-        const u = (dot11 * dot02 - dot01 * dot12) * invDenom;
-        const v = (dot00 * dot12 - dot01 * dot02) * invDenom;
-
-        return (u >= -0.02) && (v >= -0.02) && (u + v <= 1.02);
-      }
-
-      // Nhóm tam giác thành các mặt phẳng
-      const faces = [];
-      for (const t of triangles) {
-        let f = faces.find(item => item.norm.dot(t.norm) > 0.99 && Math.abs(item.norm.dot(t.p0.clone().sub(item.p0))) < 0.01);
-        if (f) f.triangles.push(t);
-        else faces.push({ norm: t.norm, p0: t.p0, triangles: [t] });
-      }
-
-      // Mỗi mặt chỉ lấy DUY NHẤT một trục pháp tuyến chủ đạo để giải tọa độ lưới
-      // Tránh việc sinh chồng chéo 2-3 bộ nút trên cùng một mặt nghiêng
-      for (const face of faces) {
-        const N = face.norm;
-        const absX = Math.abs(N.x), absY = Math.abs(N.y), absZ = Math.abs(N.z);
-
-        if (absZ >= absX && absZ >= absY && absZ > 1e-4) {
-          for (let x = 0; x <= w + 1e-4; x += step) {
-            for (let y = 0; y <= h + 1e-4; y += step) {
-              const z = face.p0.z - (N.x * (x - face.p0.x) + N.y * (y - face.p0.y)) / N.z;
-              if (z >= -0.01 && z <= d + 0.01) {
-                const pt = new THREE.Vector3(x, y, z);
-                if (face.triangles.some(t => isPointInTriangleBary(pt, t))) {
-                  addPt(pt.x, pt.y, pt.z, N);
-                }
-              }
-            }
-          }
-        } else if (absX >= absY && absX > 1e-4) {
-          for (let z = 0; z <= d + 1e-4; z += step) {
-            for (let y = 0; y <= h + 1e-4; y += step) {
-              const x = face.p0.x - (N.y * (y - face.p0.y) + N.z * (z - face.p0.z)) / N.x;
-              if (x >= -0.01 && x <= w + 0.01) {
-                const pt = new THREE.Vector3(x, y, z);
-                if (face.triangles.some(t => isPointInTriangleBary(pt, t))) {
-                  addPt(pt.x, pt.y, pt.z, N);
-                }
-              }
-            }
-          }
-        } else if (absY > 1e-4) {
-          for (let x = 0; x <= w + 1e-4; x += step) {
-            for (let z = 0; z <= d + 1e-4; z += step) {
-              const y = face.p0.y - (N.x * (x - face.p0.x) + N.z * (z - face.p0.z)) / N.y;
-              if (y >= -0.01 && y <= h + 0.01) {
-                const pt = new THREE.Vector3(x, y, z);
-                if (face.triangles.some(t => isPointInTriangleBary(pt, t))) {
-                  addPt(pt.x, pt.y, pt.z, N);
-                }
-              }
-            }
-          }
-        }
-      }
-
-      // Thêm các đỉnh hình học (apex rãnh V, góc cắt khối) nếu chưa có nút lưới nào gần đó
-      for (const t of triangles) {
-        const v0 = new THREE.Vector3().subVectors(t.p2, t.p0);
-        const v1 = new THREE.Vector3().subVectors(t.p1, t.p0);
-        const denom = (v0.dot(v0) * v1.dot(v1) - Math.pow(v0.dot(v1), 2));
-        if (denom >= 1e-4) {
-          addPt(t.p0.x, t.p0.y, t.p0.z, t.norm);
-          addPt(t.p1.x, t.p1.y, t.p1.z, t.norm);
-          addPt(t.p2.x, t.p2.y, t.p2.z, t.norm);
-        }
-      }
-    } else {
-      // Fallback
-      for (let x = 0; x <= w + 1e-4; x += step) {
-        for (let y = 0; y <= h + 1e-4; y += step) {
-          addPt(x, y, d, new THREE.Vector3(0, 0, 1));
-          addPt(x, y, 0, new THREE.Vector3(0, 0, -1));
-        }
-      }
+    const scaleK = Math.max(1, Math.max(w, h, d) / 14);
+    let rWhole = 0.085 * scaleK;
+    let rHalf = 0.06 * scaleK;
+    if (step <= 0.25) {
+      rWhole = Math.min(0.065 * scaleK, step * 0.28);
+      rHalf = Math.min(0.04 * scaleK, step * 0.18);
+    }
+    if (step <= 0.125) {
+      rWhole = Math.min(0.05 * scaleK, step * 0.28);
+      rHalf = Math.min(0.028 * scaleK, step * 0.18);
     }
 
     const isWhole = (v) => Math.abs(v - Math.round(v)) < 0.02;
-    let rWhole = 0.085;
-    let rHalf = 0.06;
-    if (step <= 0.25) {
-      rWhole = 0.065;
-      rHalf = 0.04;
-    }
-    if (step <= 0.125) {
-      rWhole = 0.05;
-      rHalf = 0.028;
-    }
+    const snapAxis = (v) => Math.round(v / step) * step;
 
-    const nodeGeomWhole = new THREE.SphereGeometry(rWhole, 12, 12);
-    const nodeMatWhole = new THREE.MeshBasicMaterial({
-      color: 0x38bdf8,
-      transparent: true,
-      opacity: 0.88
-    });
-    const nodeGeomHalf = new THREE.SphereGeometry(rHalf, 10, 10);
-    const nodeMatHalf = new THREE.MeshBasicMaterial({
-      color: 0x67e8f9,
-      transparent: true,
-      opacity: 0.95
-    });
+    const dummy = new THREE.Object3D();
+    const colorWhole = new THREE.Color(0x38bdf8);
+    const colorHalf = new THREE.Color(0x67e8f9);
+    const pt = new THREE.Vector3();
 
-    ptsList.forEach((item) => {
-      const isInteger = isWhole(item.pos.x) && isWhole(item.pos.y) && isWhole(item.pos.z);
-      const geom = isInteger ? nodeGeomWhole : nodeGeomHalf;
-      const mat = isInteger ? nodeMatWhole : nodeMatHalf;
-      const mesh = new THREE.Mesh(geom, mat);
-      mesh.position.copy(item.pos);
-      mesh.userData = { normals: item.normals, isHalf: !isInteger };
-      this.gridNodesGroup.add(mesh);
-      this.surfaceNodesList.push({ pos: item.pos, normals: item.normals, isHalf: !isInteger });
-    });
+    let count = 0;
 
-    this.gridNodesGroup.visible = (this.mode !== 'view');
-    this.updateVisibleGridNodes();
-  }
+    const tryEmit = (x, y, z) => {
+      if (count >= this.MAX_LOCAL_NODES) return;
+      pt.set(x, y, z);
+      if (pt.distanceToSquared(hitPoint) > radiusSq) return;
 
-  updateVisibleGridNodes() {
-    if (this.mode === 'view' || !this.gridNodesGroup || !this.gridNodesGroup.visible) return;
-
-    const camDir = new THREE.Vector3();
-    this.camera.getWorldDirection(camDir);
-    const testRay = new THREE.Raycaster();
-
-    for (const mesh of this.gridNodesGroup.children) {
-      if (!mesh.userData || !mesh.userData.normals) continue;
-      // 1. Nếu không có ít nhất 1 pháp tuyến hướng về camera -> ẩn
-      let isFacingCam = false;
-      for (const n of mesh.userData.normals) {
-        if (n.dot(camDir) < -0.02) {
-          isFacingCam = true;
-          break;
+      if (matchingFaces.length > 0) {
+        let inside = false;
+        for (const f of matchingFaces) {
+          if (f.triangles.some(t => this.isPointInTriangleBary(pt, t))) {
+            inside = true;
+            break;
+          }
         }
-      }
-      if (!isFacingCam) {
-        mesh.visible = false;
-        continue;
+        if (!inside) return;
       }
 
-      // 2. Chống hiển thị xuyên thấu các điểm phía sau lưng bị vách trước che khuất
-      if (this.currentBrush) {
-        const ndc = mesh.position.clone().project(this.camera);
-        if (ndc.z < -1 || ndc.z > 1) {
-          mesh.visible = false;
-          continue;
-        }
-        testRay.setFromCamera({ x: ndc.x, y: ndc.y }, this.camera);
-        const hits = testRay.intersectObject(this.currentBrush, false);
-        if (hits.length > 0) {
-          const distToNode = testRay.ray.origin.distanceTo(mesh.position);
-          if (hits[0].distance < distToNode - 0.12) {
-            mesh.visible = false;
-            continue;
+      const whole = isWhole(x) && isWhole(y) && isWhole(z);
+      dummy.position.copy(pt);
+      dummy.scale.setScalar(whole ? rWhole : rHalf);
+      dummy.updateMatrix();
+      this.localNodesMesh.setMatrixAt(count, dummy.matrix);
+      this.localNodesMesh.setColorAt(count, whole ? colorWhole : colorHalf);
+      count++;
+    };
+
+    if (absZ >= absX && absZ >= absY && absZ > 1e-4) {
+      const cx = snapAxis(hitPoint.x);
+      const cy = snapAxis(hitPoint.y);
+      const xMin = Math.max(0, cx - radiusWorld);
+      const xMax = Math.min(w, cx + radiusWorld);
+      const yMin = Math.max(0, cy - radiusWorld);
+      const yMax = Math.min(h, cy + radiusWorld);
+      for (let x = xMin; x <= xMax + 1e-4; x += step) {
+        for (let y = yMin; y <= yMax + 1e-4; y += step) {
+          const z = refP0.z - (N.x * (x - refP0.x) + N.y * (y - refP0.y)) / N.z;
+          if (z >= -0.01 && z <= d + 0.01) {
+            tryEmit(x, y, z);
           }
         }
       }
-
-      mesh.visible = true;
+    } else if (absX >= absY && absX > 1e-4) {
+      const cz = snapAxis(hitPoint.z);
+      const cy = snapAxis(hitPoint.y);
+      const zMin = Math.max(0, cz - radiusWorld);
+      const zMax = Math.min(d, cz + radiusWorld);
+      const yMin = Math.max(0, cy - radiusWorld);
+      const yMax = Math.min(h, cy + radiusWorld);
+      for (let z = zMin; z <= zMax + 1e-4; z += step) {
+        for (let y = yMin; y <= yMax + 1e-4; y += step) {
+          const x = refP0.x - (N.y * (y - refP0.y) + N.z * (z - refP0.z)) / N.x;
+          if (x >= -0.01 && x <= w + 1e-4) {
+            tryEmit(x, y, z);
+          }
+        }
+      }
+    } else if (absY > 1e-4) {
+      const cx = snapAxis(hitPoint.x);
+      const cz = snapAxis(hitPoint.z);
+      const xMin = Math.max(0, cx - radiusWorld);
+      const xMax = Math.min(w, cx + radiusWorld);
+      const zMin = Math.max(0, cz - radiusWorld);
+      const zMax = Math.min(d, cz + radiusWorld);
+      for (let x = xMin; x <= xMax + 1e-4; x += step) {
+        for (let z = zMin; z <= zMax + 1e-4; z += step) {
+          const y = refP0.y - (N.x * (x - refP0.x) + N.z * (z - refP0.z)) / N.y;
+          if (y >= -0.01 && y <= h + 1e-4) {
+            tryEmit(x, y, z);
+          }
+        }
+      }
     }
+
+    this.localNodesMesh.count = count;
+    this.localNodesMesh.instanceMatrix.needsUpdate = true;
+    if (this.localNodesMesh.instanceColor) this.localNodesMesh.instanceColor.needsUpdate = true;
+    this.localNodesMesh.visible = count > 0;
   }
 
   setMode(mode) {
@@ -334,9 +420,8 @@ export class InteractivePicker {
     this.clearSelection();
     this.updateCursor();
 
-    this.gridNodesGroup.visible = (this.mode !== 'view');
-    if (this.mode !== 'view') {
-      this.updateVisibleGridNodes();
+    if (this.localNodesMesh) {
+      this.localNodesMesh.visible = false;
     }
 
     if (this.mode === 'view') {
@@ -362,6 +447,9 @@ export class InteractivePicker {
 
   clearSelection() {
     this.selectedPoints = [];
+    this.holeCenter = null;
+    this.holeNormal = null;
+    this.selectedFilletEdge = null;
     this.vApexOverride = -1;
     this.cornerCandidateIndex = 0;
     while (this.pickerGroup.children.length > 0) {
@@ -539,98 +627,73 @@ export class InteractivePicker {
         const sHits = this.raycaster.intersectObjects(sPanels, false);
         if (sHits.length > 0) {
           if (!frontHit || sHits[0].distance < frontHit.distance) {
+            this._lastHit = null;
             return null; // Chuột trỏ trên màn chiếu, không chọn khối phía sau
           }
         }
       }
     }
 
-    // 2. Kiểm tra trực tiếp nếu trỏ chuột chạm vào quả cầu nút lưới (direct hit)
-    // CHỈ CHẤP NHẬN NÚT NẰM Ở MẶT TRƯỚC (không bị che bởi vách trước, không nằm ở sau lưng)
-    if (this.gridNodesGroup && this.gridNodesGroup.visible) {
-      const nodeHits = this.raycaster.intersectObjects(this.gridNodesGroup.children, false);
-      for (const nh of nodeHits) {
-        if (!nh.object || !nh.object.visible) continue;
-        // Nếu đã có mặt trước của khối, nút lưới không được nằm thụt sâu phía sau khối
-        if (frontHit && nh.distance > frontHit.distance + 0.15) continue;
+    if (!hitPoint) {
+      this._lastHit = null;
+      return null;
+    }
 
-        let isFacing = false;
-        if (nh.object.userData && nh.object.userData.normals) {
-          for (const n of nh.object.userData.normals) {
+    this._lastHit = { point: hitPoint.clone(), normal: hitNormal.clone() };
+
+    const scaleK = Math.max(1, Math.max(this.bounds.w, this.bounds.h, this.bounds.d) / 14);
+
+    // 2. Bắt dính nhanh vào đỉnh hình học gần nhất (trên mặt đang trỏ)
+    if (this.cachedVertices && this.cachedVertices.length > 0) {
+      let closestVert = null;
+      let minVDist = Math.max(0.22 * scaleK, this.snapStep * 0.48);
+      for (const v of this.cachedVertices) {
+        const d = hitPoint.distanceTo(v.pos);
+        if (d < minVDist) {
+          let facing = false;
+          for (const n of v.normals) {
             if (n.dot(camDir) < -0.01) {
-              isFacing = true;
+              facing = true;
               break;
             }
           }
-        } else {
-          isFacing = true;
+          if (facing) {
+            minVDist = d;
+            closestVert = v.pos;
+          }
         }
-        if (!isFacing) continue;
-
-        return nh.object.position.clone();
+      }
+      if (closestVert) {
+        return closestVert.clone();
       }
     }
 
-    if (!hitPoint) return null;
-
-    // 3. Tìm nút gần nhất trên bề mặt (trong danh sách surfaceNodesList)
-    if (this.surfaceNodesList && this.surfaceNodesList.length > 0) {
-      let closestNode = null;
-      let minDistance = Math.max(0.18, this.snapStep * 0.9); // Bán kính bắt dính co giãn theo bước chia
-
-      for (const node of this.surfaceNodesList) {
-        // Kiểm tra nút có hướng về phía camera
-        let facingCam = false;
-        if (node.normals && node.normals.length > 0) {
-          for (const n of node.normals) {
-            if (n.dot(camDir) < -0.01) {
-              facingCam = true;
-              break;
-            }
-          }
-        } else {
-          facingCam = true;
-        }
-        if (!facingCam) continue;
-
-        const dist = hitPoint.distanceTo(node.pos);
-        if (dist < minDistance) {
-          minDistance = dist;
-          closestNode = node.pos;
-        }
-      }
-
-      if (closestNode) {
-        // Kiểm tra xem node này có bị che khuất bởi mặt trước của khối không
-        const ndc = closestNode.clone().project(this.camera);
-        if (ndc.z >= -1 && ndc.z <= 1) {
-          const occRay = new THREE.Raycaster();
-          occRay.setFromCamera({ x: ndc.x, y: ndc.y }, this.camera);
-          const occHits = occRay.intersectObject(this.currentBrush, false);
-          if (occHits.length > 0) {
-            const distToNode = occRay.ray.origin.distanceTo(closestNode);
-            if (occHits[0].distance < distToNode - 0.15) {
-              return null; // Bị che khuất hình học
-            }
-          }
-        }
-        return closestNode.clone();
-      }
-    }
-
-    // 4. Fallback cho mặt phẳng trực giao (hỗ trợ các bước chia lưới 1, 0.5, 0.25, 0.125)
+    // 3. Bắt lưới toán học trực tiếp trên mặt phẳng đang trỏ (hỗ trợ cả mặt nghiêng & trực giao)
     const snapVal = (v) => Number((Math.round(v / this.snapStep) * this.snapStep).toFixed(4));
     let sx = snapVal(hitPoint.x);
     let sy = snapVal(hitPoint.y);
     let sz = snapVal(hitPoint.z);
 
-    // Khóa tọa độ tuyệt đối theo mặt phẳng ngoài để không bị sai số 0.001 sinh vết cắt dư
-    if (Math.abs(hitNormal.z) > 0.8) {
+    // Nếu là mặt nghiêng/trụ, chiếu điểm snap trở lại mặt phẳng tiếp xúc
+    const absX = Math.abs(hitNormal.x), absY = Math.abs(hitNormal.y), absZ = Math.abs(hitNormal.z);
+    if (absZ > 0.98) {
       sz = (hitPoint.z > this.bounds.d / 2) ? this.bounds.d : 0;
-    } else if (Math.abs(hitNormal.x) > 0.8) {
+      if (Math.abs(hitPoint.z - sz) > 0.05) sz = Number(hitPoint.z.toFixed(4));
+    } else if (absX > 0.98) {
       sx = (hitPoint.x > this.bounds.w / 2) ? this.bounds.w : 0;
-    } else if (Math.abs(hitNormal.y) > 0.8) {
+      if (Math.abs(hitPoint.x - sx) > 0.05) sx = Number(hitPoint.x.toFixed(4));
+    } else if (absY > 0.98) {
       sy = (hitPoint.y > this.bounds.h / 2) ? this.bounds.h : 0;
+      if (Math.abs(hitPoint.y - sy) > 0.05) sy = Number(hitPoint.y.toFixed(4));
+    } else {
+      // Mặt vát nghiêng hoặc trụ tròn: giải tọa độ trên mặt phẳng (hitPoint, hitNormal)
+      if (absZ >= absX && absZ >= absY) {
+        sz = hitPoint.z - (hitNormal.x * (sx - hitPoint.x) + hitNormal.y * (sy - hitPoint.y)) / hitNormal.z;
+      } else if (absX >= absY) {
+        sx = hitPoint.x - (hitNormal.y * (sy - hitPoint.y) + hitNormal.z * (sz - hitPoint.z)) / hitNormal.x;
+      } else {
+        sy = hitPoint.y - (hitNormal.x * (sx - hitPoint.x) + hitNormal.z * (sz - hitPoint.z)) / hitNormal.y;
+      }
     }
 
     if (Math.abs(sx) < 0.02) sx = 0;
@@ -655,7 +718,7 @@ export class InteractivePicker {
       if (occHits.length > 0) {
         const distToCandidate = occRay.ray.origin.distanceTo(snapCandidate);
         if (occHits[0].distance < distToCandidate - 0.15) {
-          return null;
+          return hitPoint.clone();
         }
       }
     }
@@ -667,12 +730,19 @@ export class InteractivePicker {
     if (this.mode === 'view') return;
 
     const snap = this.findSnapPoint();
-    if (!snap) {
+    if (!snap || !this._lastHit) {
       this.hoverMarker.visible = false;
       this.hoverRing.visible = false;
+      if (this.localNodesMesh) this.localNodesMesh.visible = false;
       if (this.tooltipElement) this.tooltipElement.style.display = 'none';
       return;
     }
+
+    this.updateLocalNodesAroundCursor(this._lastHit.point, this._lastHit.normal);
+
+    const scaleK = Math.max(1, Math.max(this.bounds.w, this.bounds.h, this.bounds.d) / 14);
+    this.hoverMarker.scale.setScalar(scaleK);
+    this.hoverRing.scale.setScalar(scaleK);
 
     this.hoverMarker.position.copy(snap);
     this.hoverMarker.visible = true;
@@ -686,7 +756,15 @@ export class InteractivePicker {
       this.tooltipElement.style.left = `${e.clientX + 14}px`;
       this.tooltipElement.style.top = `${e.clientY - 28}px`;
       const fmt = (n) => Number(n.toFixed(2));
-      this.tooltipElement.innerHTML = `📍 <b>(X: ${fmt(snap.x)}, Y: ${fmt(snap.y)}, Z: ${fmt(snap.z)})</b>`;
+      let html = `📍 <b>(${fmt(snap.x)}, ${fmt(snap.y)}, ${fmt(snap.z)})</b>`;
+      if (this.selectedPoints.length > 0) {
+        const p0 = this.selectedPoints[this.selectedPoints.length - 1];
+        const dx = fmt(Math.abs(snap.x - p0.x));
+        const dy = fmt(Math.abs(snap.y - p0.y));
+        const dz = fmt(Math.abs(snap.z - p0.z));
+        html += ` <span style="color:#38bdf8">| Δ(${dx}, ${dy}, ${dz})</span>`;
+      }
+      this.tooltipElement.innerHTML = html;
     }
   }
 
@@ -772,12 +850,87 @@ export class InteractivePicker {
       } else {
         this.preview.clear();
       }
+
+    } else if (this.mode === 'hole') {
+      if (!this._lastHit) return;
+      this.holeCenter = snap.clone();
+      this.holeNormal = this._lastHit.normal.clone();
+      this.selectedPoints = [{ x: snap.x, y: snap.y, z: snap.z }];
+      this.renderPointMarkers();
+      this.updatePreviewForHole();
+
+    } else if (this.mode === 'fillet3d') {
+      if (!this._lastHit) return;
+      const edge = this.findNearestSharpEdge(this._lastHit.point);
+      if (!edge) return;
+      this.selectedFilletEdge = edge;
+      this.selectedPoints = [
+        { x: edge.p1.x, y: edge.p1.y, z: edge.p1.z },
+        { x: edge.p2.x, y: edge.p2.y, z: edge.p2.z }
+      ];
+      this.renderPointMarkers();
+      this.updatePreviewForFillet();
     }
 
     this.updateHUD();
     if (this.callbacks.onPointsChanged) {
       this.callbacks.onPointsChanged(this.mode, this.selectedPoints);
     }
+  }
+
+  findNearestSharpEdge(hitPoint) {
+    if (!this.cachedSharpEdges || this.cachedSharpEdges.length === 0) return null;
+    const scaleK = Math.max(1, Math.max(this.bounds.w, this.bounds.h, this.bounds.d) / 14);
+    const maxDist = Math.max(0.75 * scaleK, 0.75);
+    let best = null;
+    let bestDist = maxDist;
+
+    const line = new THREE.Line3();
+    const closest = new THREE.Vector3();
+    for (const edge of this.cachedSharpEdges) {
+      line.set(edge.p1, edge.p2);
+      line.closestPointToPoint(hitPoint, true, closest);
+      const d = closest.distanceTo(hitPoint);
+      if (d < bestDist) {
+        bestDist = d;
+        best = edge;
+      }
+    }
+    return best;
+  }
+
+  updatePreviewForHole() {
+    if (!this.holeCenter || !this.holeNormal || !this.currentBrush) {
+      this.preview.clear();
+      return;
+    }
+    const maxSpan = Math.max(this.bounds.w, this.bounds.h, this.bounds.d);
+    this.preview.showHole(
+      this.holeCenter,
+      this.holeNormal,
+      this.holeRadius,
+      this.holeDepth,
+      this.holeThrough,
+      maxSpan,
+      this.currentBrush,
+      this.cad
+    );
+  }
+
+  updatePreviewForFillet() {
+    if (!this.selectedFilletEdge || !this.currentBrush) {
+      this.preview.clear();
+      return;
+    }
+    this.preview.showFilletEdge(
+      this.selectedFilletEdge.p1,
+      this.selectedFilletEdge.p2,
+      this.selectedFilletEdge.n1,
+      this.selectedFilletEdge.n2,
+      this.filletRadius,
+      this.currentBrush,
+      this.cad
+    );
   }
 
   // TỰ ĐỘNG PHÂN LOẠI CHÍNH XÁC APEX VÀ 2 BASE CỦA RÃNH V THEO GRID
@@ -1299,6 +1452,31 @@ export class InteractivePicker {
           params.dMin,
           params.dMax
         );
+
+      } else if (this.mode === 'hole') {
+        if (!this.holeCenter || !this.holeNormal) return;
+        const maxSpan = Math.max(this.bounds.w, this.bounds.h, this.bounds.d);
+        newBrush = this.cad.cutHole(
+          this.currentBrush,
+          this.holeCenter,
+          this.holeNormal,
+          this.holeRadius,
+          this.holeDepth,
+          this.holeThrough,
+          maxSpan
+        );
+
+      } else if (this.mode === 'fillet3d') {
+        if (!this.selectedFilletEdge) return;
+        newBrush = this.cad.cutFilletEdge(
+          this.currentBrush,
+          this.selectedFilletEdge.p1,
+          this.selectedFilletEdge.p2,
+          this.selectedFilletEdge.n1,
+          this.selectedFilletEdge.n2,
+          this.filletRadius,
+          20
+        );
       }
 
       if (newBrush && this.callbacks.onCutExecute) {
@@ -1638,6 +1816,77 @@ export class InteractivePicker {
           </div>
         `;
       }
+
+    } else if (this.mode === 'hole') {
+      const dia = Number((this.holeRadius * 2).toFixed(2));
+      const depthVal = Number(this.holeDepth.toFixed(2));
+      const holeControlsHtml = `
+        <div class="hud-stepper" style="gap:6px;">
+          <span>Ø:</span>
+          <input type="number" id="hud-hole-dia" value="${dia}" min="0.2" max="300" step="0.5" style="width:58px;background:#0f172a;color:#fff;border:1px solid #38bdf8;border-radius:6px;padding:2px 6px;font-weight:700;">
+          <span>(R=${Number(this.holeRadius.toFixed(2))})</span>
+          <button class="hud-btn-toggle ${this.holeThrough ? 'active' : ''}" id="hud-hole-through">${this.holeThrough ? 'Xuyên suốt' : 'Theo sâu'}</button>
+          ${this.holeThrough ? '' : `<input type="number" id="hud-hole-depth" value="${depthVal}" min="0.2" max="300" step="0.5" style="width:54px;background:#0f172a;color:#fff;border:1px solid #38bdf8;border-radius:6px;padding:2px 6px;font-weight:700;">`}
+        </div>
+      `;
+      if (!this.holeCenter) {
+        html = `
+          <div class="hud-step">
+            <span class="hud-badge pulse">Khoan Lỗ</span>
+            <span>Click chọn <b>Tâm lỗ tròn</b> trên mặt khối</span>
+            ${holeControlsHtml}
+            ${quickControlsHtml}
+          </div>
+        `;
+      } else {
+        const c = this.holeCenter;
+        html = `
+          <div class="hud-actions">
+            <div class="hud-coords">⭕ Tâm (${Number(c.x.toFixed(2))}, ${Number(c.y.toFixed(2))}, ${Number(c.z.toFixed(2))})</div>
+            ${holeControlsHtml}
+            <button class="hud-btn-action hud-btn-cut" id="hud-cut-btn">
+              ✂️ KHOAN LỖ (Enter)
+            </button>
+            <button class="hud-btn-cancel" id="hud-cancel-btn">✖️</button>
+            ${quickControlsHtml}
+          </div>
+        `;
+      }
+
+    } else if (this.mode === 'fillet3d') {
+      const rVal = Number(this.filletRadius.toFixed(2));
+      const filletControlsHtml = `
+        <div class="hud-stepper" style="gap:6px;">
+          <span>Bán kính R:</span>
+          <button class="step-btn" id="hud-fillet-minus" title="Giảm R">➖</button>
+          <input type="number" id="hud-fillet-r" value="${rVal}" min="0.2" max="200" step="0.5" style="width:58px;background:#0f172a;color:#fff;border:1px solid #38bdf8;border-radius:6px;padding:2px 6px;font-weight:700;">
+          <button class="step-btn" id="hud-fillet-plus" title="Tăng R">➕</button>
+        </div>
+      `;
+      if (!this.selectedFilletEdge) {
+        html = `
+          <div class="hud-step">
+            <span class="hud-badge pulse">Bo Cạnh</span>
+            <span>Click vào <b>1 cạnh sắc</b> trên khối 3D để bo tròn</span>
+            ${filletControlsHtml}
+            ${quickControlsHtml}
+          </div>
+        `;
+      } else {
+        const e = this.selectedFilletEdge;
+        const len = e.p1.distanceTo(e.p2).toFixed(2);
+        html = `
+          <div class="hud-actions">
+            <div class="hud-coords">╭ Cạnh dài ${len}</div>
+            ${filletControlsHtml}
+            <button class="hud-btn-action hud-btn-cut" id="hud-cut-btn">
+              ✂️ BO TRÒN CẠNH (Enter)
+            </button>
+            <button class="hud-btn-cancel" id="hud-cancel-btn">✖️</button>
+            ${quickControlsHtml}
+          </div>
+        `;
+      }
     }
 
     this.hudElement.innerHTML = html;
@@ -1696,6 +1945,62 @@ export class InteractivePicker {
       this.adjustCornerDelta('dx', 1);
       this.adjustCornerDelta('dy', 1);
       this.adjustCornerDelta('dz', 1);
+    });
+
+    const inputHoleDia = document.getElementById('hud-hole-dia');
+    if (inputHoleDia) {
+      inputHoleDia.addEventListener('input', () => {
+        const val = parseFloat(inputHoleDia.value);
+        if (!isNaN(val) && val > 0.1) {
+          this.holeRadius = val * 0.5;
+          this.updatePreviewForHole();
+        }
+      });
+      inputHoleDia.addEventListener('change', () => this.updateHUD());
+    }
+
+    const btnHoleThrough = document.getElementById('hud-hole-through');
+    if (btnHoleThrough) btnHoleThrough.addEventListener('click', () => {
+      this.holeThrough = !this.holeThrough;
+      this.updatePreviewForHole();
+      this.updateHUD();
+    });
+
+    const inputHoleDepth = document.getElementById('hud-hole-depth');
+    if (inputHoleDepth) {
+      inputHoleDepth.addEventListener('input', () => {
+        const val = parseFloat(inputHoleDepth.value);
+        if (!isNaN(val) && val > 0.1) {
+          this.holeDepth = val;
+          this.updatePreviewForHole();
+        }
+      });
+    }
+
+    const inputFilletR = document.getElementById('hud-fillet-r');
+    if (inputFilletR) {
+      inputFilletR.addEventListener('input', () => {
+        const val = parseFloat(inputFilletR.value);
+        if (!isNaN(val) && val > 0.1) {
+          this.filletRadius = val;
+          this.updatePreviewForFillet();
+        }
+      });
+      inputFilletR.addEventListener('change', () => this.updateHUD());
+    }
+
+    const btnFilletMinus = document.getElementById('hud-fillet-minus');
+    if (btnFilletMinus) btnFilletMinus.addEventListener('click', () => {
+      this.filletRadius = Math.max(0.25, Number((this.filletRadius - this.snapStep).toFixed(3)));
+      this.updatePreviewForFillet();
+      this.updateHUD();
+    });
+
+    const btnFilletPlus = document.getElementById('hud-fillet-plus');
+    if (btnFilletPlus) btnFilletPlus.addEventListener('click', () => {
+      this.filletRadius = Number((this.filletRadius + this.snapStep).toFixed(3));
+      this.updatePreviewForFillet();
+      this.updateHUD();
     });
   }
 }

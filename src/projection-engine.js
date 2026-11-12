@@ -200,6 +200,42 @@ export class ProjectionEngine {
       }
     }
 
+    // SILHOUETTE EDGES: Trích xuất đường biên ngoài của mặt trụ tròn / bo góc cong
+    const vKey = (v) => `${Math.round(v.x * 1000)}_${Math.round(v.y * 1000)}_${Math.round(v.z * 1000)}`;
+    const edgeMap = new Map();
+    for (const t of triangles) {
+      const verts = [t.p0, t.p1, t.p2];
+      for (let e = 0; e < 3; e++) {
+        const a = verts[e];
+        const b = verts[(e + 1) % 3];
+        const ka = vKey(a);
+        const kb = vKey(b);
+        if (ka === kb) continue;
+        const key = ka < kb ? `${ka}|${kb}` : `${kb}|${ka}`;
+        let entry = edgeMap.get(key);
+        if (!entry) {
+          entry = { p1: a, p2: b, normals: [] };
+          edgeMap.set(key, entry);
+        }
+        entry.normals.push(t.norm);
+      }
+    }
+
+    for (const entry of edgeMap.values()) {
+      if (entry.normals.length < 2) continue;
+      const n0 = entry.normals[0];
+      const n1 = entry.normals[1];
+      const dotAdj = n0.dot(n1);
+      // Chỉ xét cạnh trơn trên mặt cong (góc gập < 25 độ, không đồng phẳng hoàn toàn)
+      if (dotAdj > 0.906 && dotAdj < 0.9999) {
+        const d0 = n0.dot(viewDir);
+        const d1 = n1.dot(viewDir);
+        if ((d0 < -0.005 && d1 >= -0.005) || (d1 < -0.005 && d0 >= -0.005)) {
+          candidateEdges.push({ p1: entry.p1, p2: entry.p2 });
+        }
+      }
+    }
+
     return candidateEdges;
   }
 

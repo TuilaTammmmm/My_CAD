@@ -410,4 +410,22 @@ export class CutterPreview {
 
     this.setPreviewCutter(geom, currentBrush, cadEngine);
   }
+
+  // Xem trước Khoan Lỗ Tròn (Hole / Cylinder Cut)
+  showHole(hitPoint, hitNormal, radius, depth, isThrough, maxSpan, currentBrush = null, cadEngine = null) {
+    if (!cadEngine || !cadEngine.createHoleCutterGeometry) return;
+    const geom = cadEngine.createHoleCutterGeometry(hitPoint, hitNormal, radius, depth, isThrough, maxSpan);
+    this.setPreviewCutter(geom, currentBrush, cadEngine);
+  }
+
+  // Xem trước Bo Tròn Cạnh 3D (Fillet Edge)
+  showFilletEdge(edgeStart, edgeEnd, n1, n2, radius, currentBrush = null, cadEngine = null) {
+    if (!cadEngine || !cadEngine.createFilletCutterGeometry) return;
+    const geom = cadEngine.createFilletCutterGeometry(edgeStart, edgeEnd, n1, n2, radius, 18);
+    if (!geom) {
+      this.clear();
+      return;
+    }
+    this.setPreviewCutter(geom, currentBrush, cadEngine);
+  }
 }

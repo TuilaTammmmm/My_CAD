@@ -122,12 +122,14 @@ export class ProjectionScreensOverlay {
     const borderMat = new THREE.LineBasicMaterial({ color: 0x38bdf8, linewidth: 2.5 });
     screenGroup.add(new THREE.LineSegments(borderGeom, borderMat));
 
-    // 3. Lưới ô vuông 1x1 trên màn chiếu
+    // 3. Lưới ô vuông tự giãn theo kích thước khối
+    const maxDim = Math.max(w, h, d);
+    const step = maxDim <= 16 ? 1 : maxDim <= 40 ? 2 : maxDim <= 80 ? 5 : maxDim <= 160 ? 10 : 20;
     const gridPts = [];
-    for (let x = 1; x < w; x++) {
+    for (let x = step; x < w; x += step) {
       gridPts.push(x, 0, zPos + 0.01, x, h, zPos + 0.01);
     }
-    for (let y = 1; y < h; y++) {
+    for (let y = step; y < h; y += step) {
       gridPts.push(0, y, zPos + 0.01, w, y, zPos + 0.01);
     }
     if (gridPts.length > 0) {
@@ -194,12 +196,14 @@ export class ProjectionScreensOverlay {
     const borderMat = new THREE.LineBasicMaterial({ color: 0x10b981, linewidth: 2.5 });
     screenGroup.add(new THREE.LineSegments(borderGeom, borderMat));
 
-    // 3. Lưới ô vuông 1x1 trên màn chiếu
+    // 3. Lưới ô vuông tự giãn theo kích thước khối
+    const maxDim = Math.max(w, h, d);
+    const step = maxDim <= 16 ? 1 : maxDim <= 40 ? 2 : maxDim <= 80 ? 5 : maxDim <= 160 ? 10 : 20;
     const gridPts = [];
-    for (let x = 1; x < w; x++) {
+    for (let x = step; x < w; x += step) {
       gridPts.push(x, yPos + 0.01, 0, x, yPos + 0.01, d);
     }
-    for (let z = 1; z < d; z++) {
+    for (let z = step; z < d; z += step) {
       gridPts.push(0, yPos + 0.01, z, w, yPos + 0.01, z);
     }
     if (gridPts.length > 0) {
@@ -266,12 +270,14 @@ export class ProjectionScreensOverlay {
     const borderMat = new THREE.LineBasicMaterial({ color: 0xf59e0b, linewidth: 2.5 });
     screenGroup.add(new THREE.LineSegments(borderGeom, borderMat));
 
-    // 3. Lưới ô vuông 1x1 trên màn chiếu
+    // 3. Lưới ô vuông tự giãn theo kích thước khối
+    const maxDim = Math.max(w, h, d);
+    const step = maxDim <= 16 ? 1 : maxDim <= 40 ? 2 : maxDim <= 80 ? 5 : maxDim <= 160 ? 10 : 20;
     const gridPts = [];
-    for (let z = 1; z < d; z++) {
+    for (let z = step; z < d; z += step) {
       gridPts.push(xPos + 0.01, 0, z, xPos + 0.01, h, z);
     }
-    for (let y = 1; y < h; y++) {
+    for (let y = step; y < h; y += step) {
       gridPts.push(xPos + 0.01, y, 0, xPos + 0.01, y, d);
     }
     if (gridPts.length > 0) {

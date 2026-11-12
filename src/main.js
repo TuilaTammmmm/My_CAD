@@ -30,7 +30,7 @@ let frustumSize = Math.max(12, Math.max(W, H, D) * 1.8);
 const camera = new THREE.OrthographicCamera(
   -frustumSize * aspect / 2, frustumSize * aspect / 2,
   frustumSize / 2, -frustumSize / 2,
-  0.1, 1000
+  0.1, 5000
 );
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });

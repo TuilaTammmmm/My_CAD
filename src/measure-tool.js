@@ -225,7 +225,7 @@ export class InspectionTool {
       } else if (e.key === 'Delete' || (e.ctrlKey && e.key.toLowerCase() === 'k')) {
         this.clearAll();
       } else if (e.key.toLowerCase() === 'm') {
-        const modes = ['edge', 'angle-edges', 'angle-faces', 'distance'];
+        const modes = ['edge', 'angle-edges', 'angle-faces', 'distance', 'circle'];
         const nextIdx = (modes.indexOf(this.subMode) + 1) % modes.length;
         this.setSubMode(modes[nextIdx]);
       } else if (e.key.toLowerCase() === 'p') {
@@ -301,6 +301,8 @@ export class InspectionTool {
         const p = this.selectedPoint1;
         this.instructionElement.innerHTML = `🟢 <b>Điểm 1 (${p.x.toFixed(1)}, ${p.y.toFixed(1)}, ${p.z.toFixed(1)})</b>. Hãy <b>Click ĐIỂM THỨ HAI</b> để đo khoảng cách.`;
       }
+    } else if (this.subMode === 'circle') {
+      this.instructionElement.innerHTML = `👉 <b>Rê chuột vào đường tròn hoặc cung bo</b> rồi <b>Click</b> để đo Bán kính (R) & Đường kính (Ø).`;
     }
   }
 
@@ -309,6 +311,7 @@ export class InspectionTool {
     this.currentBrush = brush;
     this.currentEdges = edges;
     this.cacheEdges();
+    this.cacheCircles();
     this.cacheFaces();
     this.resetSelection();
     this.clearPreview();
@@ -747,6 +750,17 @@ export class InspectionTool {
       if (this.selectedPoint1) {
         this.previewGroup.add(this.createPointHighlight(this.selectedPoint1, 0x10b981));
       }
+
+    } else if (this.subMode === 'circle') {
+      const circle = this.findNearestCircle(e.clientX, e.clientY);
+      this.hoveredCircle = circle;
+      if (circle) {
+        this.renderer.domElement.style.cursor = 'pointer';
+        this.previewGroup.add(this.createCircleHighlight(circle, 0xfbbf24));
+        this.previewGroup.add(this.createPointHighlight(circle.center, 0xfbbf24, 0.11));
+      } else {
+        this.renderer.domElement.style.cursor = 'grab';
+      }
     }
   }
 
@@ -756,6 +770,12 @@ export class InspectionTool {
       const edge = this.findNearestEdge(e.clientX, e.clientY);
       if (edge) {
         this.addMeasureEdge(edge);
+      }
+
+    } else if (this.subMode === 'circle') {
+      const circle = this.findNearestCircle(e.clientX, e.clientY);
+      if (circle) {
+        this.addMeasureCircle(circle);
       }
 
     } else if (this.subMode === 'angle-edges') {
@@ -960,6 +980,7 @@ export class InspectionTool {
     this.updateUIList();
   }
 
+
   // 2. Thêm số đo góc giữa 2 cạnh (Angle between 2 Edges)
   addMeasureAngleEdges(edge1, edge2) {
     const id = `angle_${this.idCounter++}`;
@@ -1072,6 +1093,7 @@ export class InspectionTool {
     this.updateUIList();
   }
 
+
   // 3. Thêm số đo góc giữa 2 mặt phẳng (Dihedral Angle)
   addMeasureAngleFaces(face1, face2) {
     const id = `angle_face_${this.idCounter++}`;
@@ -1132,6 +1154,7 @@ export class InspectionTool {
     this.updateUIList();
   }
 
+
   // 4. Thêm số đo khoảng cách giữa 2 điểm (Distance)
   addMeasureDistance(p1, p2) {
     const id = `dist_${this.idCounter++}`;
@@ -1190,6 +1213,245 @@ export class InspectionTool {
       type: 'distance',
       title: itemTitle,
       sub: itemSub,
+      group
+    };
+
+    this.measurements.push(item);
+    this.updateUIList();
+  }
+
+  // ==========================================
+  // NHẬN DIỆN & ĐO ĐƯỜNG TRÒN / CUNG BO (R / Ø)
+  // ==========================================
+
+  cacheCircles() {
+    this.circlesList = [];
+    if (!this.currentEdges || !this.currentEdges.geometry) return;
+    const pos = this.currentEdges.geometry.attributes.position;
+    if (!pos || pos.count === 0) return;
+
+    const segs = [];
+    for (let i = 0; i < pos.count; i += 2) {
+      const p1 = new THREE.Vector3(pos.getX(i), pos.getY(i), pos.getZ(i));
+      const p2 = new THREE.Vector3(pos.getX(i + 1), pos.getY(i + 1), pos.getZ(i + 1));
+      const len = p1.distanceTo(p2);
+      if (len > 0.01 && len < 6.0) {
+        segs.push({ p1, p2, dir: new THREE.Vector3().subVectors(p2, p1).normalize(), used: false });
+      }
+    }
+
+    const EPS = 0.02;
+    const chains = [];
+
+    for (let i = 0; i < segs.length; i++) {
+      if (segs[i].used) continue;
+      segs[i].used = true;
+      const pts = [segs[i].p1.clone(), segs[i].p2.clone()];
+
+      // Mở rộng về 2 đầu nếu các đoạn liên tiếp uốn cong mượt (góc rẽ 2°..38°)
+      let extended = true;
+      while (extended) {
+        extended = false;
+        const head = pts[0];
+        const headDir = new THREE.Vector3().subVectors(pts[1], pts[0]).normalize();
+        const tail = pts[pts.length - 1];
+        const tailDir = new THREE.Vector3().subVectors(tail, pts[pts.length - 2]).normalize();
+
+        for (let j = 0; j < segs.length; j++) {
+          if (segs[j].used) continue;
+          const s = segs[j];
+          // Nối vào đuôi
+          if (s.p1.distanceTo(tail) < EPS) {
+            const dot = tailDir.dot(s.dir);
+            if (dot > 0.75 && dot < 0.9993) {
+              segs[j].used = true;
+              pts.push(s.p2.clone());
+              extended = true;
+              continue;
+            }
+          } else if (s.p2.distanceTo(tail) < EPS) {
+            const dRev = s.dir.clone().negate();
+            const dot = tailDir.dot(dRev);
+            if (dot > 0.75 && dot < 0.9993) {
+              segs[j].used = true;
+              pts.push(s.p1.clone());
+              extended = true;
+              continue;
+            }
+          }
+          // Nối vào đầu
+          if (s.p2.distanceTo(head) < EPS) {
+            const dot = headDir.dot(s.dir);
+            if (dot > 0.75 && dot < 0.9993) {
+              segs[j].used = true;
+              pts.unshift(s.p1.clone());
+              extended = true;
+              continue;
+            }
+          } else if (s.p1.distanceTo(head) < EPS) {
+            const dRev = s.dir.clone().negate();
+            const dot = headDir.dot(dRev);
+            if (dot > 0.75 && dot < 0.9993) {
+              segs[j].used = true;
+              pts.unshift(s.p2.clone());
+              extended = true;
+              continue;
+            }
+          }
+        }
+      }
+
+      if (pts.length >= 4) {
+        chains.push(pts);
+      }
+    }
+
+    for (const pts of chains) {
+      const pA = pts[0];
+      const pB = pts[Math.floor(pts.length / 2)];
+      const pC = pts[pts.length - 1];
+
+      // Nếu khép kín hoàn toàn, lấy điểm 1/3 và 2/3 để tránh pA == pC
+      const isClosed = pA.distanceTo(pC) < 0.08;
+      const qA = pts[0];
+      const qB = pts[Math.floor(pts.length / 3)];
+      const qC = pts[Math.floor((pts.length * 2) / 3)];
+
+      const ab = new THREE.Vector3().subVectors(qB, qA);
+      const ac = new THREE.Vector3().subVectors(qC, qA);
+      const abXac = new THREE.Vector3().crossVectors(ab, ac);
+      const denom = 2 * abXac.lengthSq();
+      if (denom < 1e-7) continue;
+
+      const t1 = new THREE.Vector3().crossVectors(abXac, ab).multiplyScalar(ac.lengthSq());
+      const t2 = new THREE.Vector3().crossVectors(ac, abXac).multiplyScalar(ab.lengthSq());
+      const center = qA.clone().add(t1.add(t2).divideScalar(denom));
+      const radius = center.distanceTo(qA);
+      if (radius < 0.1 || radius > 500) continue;
+
+      const normal = abXac.clone().normalize();
+      const tol = Math.max(0.08, radius * 0.03);
+      let valid = true;
+      for (const p of pts) {
+        if (Math.abs(p.distanceTo(center) - radius) > tol || Math.abs(normal.dot(p.clone().sub(center))) > tol) {
+          valid = false;
+          break;
+        }
+      }
+      if (!valid) continue;
+
+      this.circlesList.push({
+        center,
+        normal,
+        radius,
+        diameter: radius * 2,
+        points: pts,
+        isFullCircle: isClosed
+      });
+    }
+  }
+
+  findNearestCircle(clientX, clientY) {
+    if (!this.circlesList || this.circlesList.length === 0) return null;
+    const rect = this.container.getBoundingClientRect();
+    const mx = clientX - rect.left;
+    const my = clientY - rect.top;
+
+    let bestCircle = null;
+    let minScreenDist = 20;
+    const occRay = new THREE.Raycaster();
+
+    for (const c of this.circlesList) {
+      let closestPt = null;
+      let bestSegDist = minScreenDist;
+
+      for (let i = 0; i < c.points.length - 1; i++) {
+        const p1 = c.points[i];
+        const p2 = c.points[i + 1];
+        const s1 = this.projectToScreen(p1, rect);
+        const s2 = this.projectToScreen(p2, rect);
+        if (!s1 || !s2) continue;
+
+        const d = this.pointToSegmentDistance2D(mx, my, s1.x, s1.y, s2.x, s2.y);
+        if (d < bestSegDist) {
+          bestSegDist = d;
+          closestPt = new THREE.Vector3().lerpVectors(p1, p2, 0.5);
+        }
+      }
+
+      if (closestPt && this.currentBrush) {
+        const ndc = closestPt.clone().project(this.camera);
+        if (ndc.z >= -1 && ndc.z <= 1) {
+          occRay.setFromCamera({ x: ndc.x, y: ndc.y }, this.camera);
+          const hits = occRay.intersectObject(this.currentBrush, false);
+          if (hits.length > 0) {
+            const distToPt = occRay.ray.origin.distanceTo(closestPt);
+            if (hits[0].distance < distToPt - 0.18) {
+              continue;
+            }
+          }
+        }
+      }
+
+      if (closestPt) {
+        minScreenDist = bestSegDist;
+        bestCircle = c;
+      }
+    }
+
+    return bestCircle;
+  }
+
+  createCircleHighlight(circle, colorHex = 0x06b6d4) {
+    const geom = new THREE.BufferGeometry().setFromPoints(circle.points);
+    const mat = new THREE.LineBasicMaterial({
+      color: colorHex,
+      linewidth: 2,
+      depthTest: true
+    });
+    const line = new THREE.Line(geom, mat);
+    line.renderOrder = 1030;
+    return line;
+  }
+
+  addMeasureCircle(circle) {
+    const id = `circle_${this.idCounter++}`;
+    const group = new THREE.Group();
+
+    group.add(this.createCircleHighlight(circle, 0x06b6d4));
+    group.add(this.createPointHighlight(circle.center, 0x06b6d4, 0.09));
+
+    const rimPt = circle.points[Math.floor(circle.points.length / 4)] || circle.points[0];
+    const linePts = [circle.center.x, circle.center.y, circle.center.z, rimPt.x, rimPt.y, rimPt.z];
+    const dir = new THREE.Vector3().subVectors(rimPt, circle.center).normalize();
+    const perp = new THREE.Vector3().crossVectors(circle.normal, dir).normalize();
+    this.addCadArrowTip(linePts, rimPt, circle.center, perp, Math.min(0.25, circle.radius * 0.25), Math.min(0.09, circle.radius * 0.09));
+
+    const lineGeom = new THREE.BufferGeometry();
+    lineGeom.setAttribute('position', new THREE.Float32BufferAttribute(linePts, 3));
+    const lineMat = new THREE.LineBasicMaterial({ color: 0x06b6d4, depthTest: true });
+    const radLine = new THREE.LineSegments(lineGeom, lineMat);
+    radLine.renderOrder = 1026;
+    group.add(radLine);
+
+    const fmt = (n) => (Math.abs(n - Math.round(n)) < 0.02) ? `${Math.round(n)}` : n.toFixed(2);
+    const rStr = fmt(circle.radius);
+    const dStr = fmt(circle.diameter);
+    const badgeText = circle.isFullCircle ? `Ø${dStr} (R${rStr})` : `R${rStr} (Ø${dStr})`;
+
+    const labelPos = new THREE.Vector3().lerpVectors(circle.center, rimPt, 0.55).addScaledVector(circle.normal, 0.35);
+    const sprite = this.createTextSprite(badgeText, '#06b6d4');
+    sprite.position.copy(labelPos);
+    group.add(sprite);
+
+    this.measurementsGroup.add(group);
+
+    const c = circle.center;
+    const item = {
+      id,
+      type: 'circle',
+      title: circle.isFullCircle ? `Đường tròn: Ø${dStr} (R${rStr})` : `Cung bo: R${rStr} (Ø${dStr})`,
+      sub: `Tâm (${c.x.toFixed(1)}, ${c.y.toFixed(1)}, ${c.z.toFixed(1)}) | R: ${rStr} | Ø: ${dStr}`,
       group
     };
 

@@ -486,6 +486,27 @@ export class InteractivePicker {
   }
 
   // CHỈ BẮT DÍNH NÚT TRÊN MẶT ĐANG HƯỚNG VỀ PHÍA CAMERA (VÀ KHÔNG BỊ KHỐI CHE KHUẤT)
+  getOuterBoundsMesh() {
+    const { w, h, d } = this.bounds;
+    if (
+      !this._outerBoundsMesh ||
+      !this._outerBoundsDims ||
+      this._outerBoundsDims.w !== w ||
+      this._outerBoundsDims.h !== h ||
+      this._outerBoundsDims.d !== d
+    ) {
+      if (this._outerBoundsMesh && this._outerBoundsMesh.geometry) {
+        this._outerBoundsMesh.geometry.dispose();
+      }
+      const geom = new THREE.BoxGeometry(w, h, d);
+      geom.translate(w / 2, h / 2, d / 2);
+      this._outerBoundsMesh = new THREE.Mesh(geom, new THREE.MeshBasicMaterial({ side: THREE.FrontSide }));
+      this._outerBoundsMesh.updateMatrixWorld();
+      this._outerBoundsDims = { w, h, d };
+    }
+    return this._outerBoundsMesh;
+  }
+
   findSnapPoint() {
     this.raycaster.setFromCamera(this.mouse, this.camera);
 
@@ -510,6 +531,36 @@ export class InteractivePicker {
       }
     }
 
+    if (!frontHit) {
+      const outerBox = this.getOuterBoundsMesh();
+      if (outerBox) {
+        const outerHits = this.raycaster.intersectObject(outerBox, false);
+        for (const hit of outerHits) {
+          const norm = hit.face.normal.clone().normalize();
+          if (norm.dot(camDir) < -0.01) {
+            frontHit = hit;
+            hitPoint = hit.point;
+            hitNormal = norm;
+            break;
+          }
+        }
+      }
+    }
+
+    let isFloorGridHit = false;
+    if (!hitPoint) {
+      const floorPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+      const floorPt = new THREE.Vector3();
+      if (this.raycaster.ray.intersectPlane(floorPlane, floorPt)) {
+        const { w, d } = this.bounds;
+        if (floorPt.x >= -w * 0.5 && floorPt.x <= w * 1.5 && floorPt.z >= -d * 0.5 && floorPt.z <= d * 1.5) {
+          hitPoint = floorPt;
+          hitNormal = new THREE.Vector3(0, 1, 0);
+          isFloorGridHit = true;
+        }
+      }
+    }
+
     // Chống bắt dính xuyên qua màn chiếu: Nếu chuột trỏ vào màn chiếu chắn trước khối
     if (this.projectionScreens && this.projectionScreens.getScreenPanels) {
       const sPanels = this.projectionScreens.getScreenPanels();
@@ -530,6 +581,11 @@ export class InteractivePicker {
     }
 
     this._lastHit = { point: hitPoint.clone(), normal: hitNormal.clone() };
+
+    if (isFloorGridHit) {
+      const snapVal = (v) => Number((Math.round(v / this.snapStep) * this.snapStep).toFixed(4));
+      return new THREE.Vector3(snapVal(hitPoint.x), 0, snapVal(hitPoint.z));
+    }
 
     const scaleK = Math.max(1, Math.max(this.bounds.w, this.bounds.h, this.bounds.d) / 14);
 

@@ -343,7 +343,7 @@ export class Reconstruct3DEngine {
    * @param {Object} bounds - { w, h, d }
    * @param {number} extraMargin - Mở rộng 2 đầu khi dùng làm dao cắt/giao
    */
-  extrudeShapesToBrush(shapes, viewPlane, depth, bounds = { w: 6, h: 4, d: 4 }, extraMargin = 0) {
+  extrudeShapesToBrush(shapes, viewPlane, depth, bounds = { w: 6, h: 4, d: 4 }, extraMargin = 0, cutFromNearFace = false) {
     const extrudeDepth = Math.max(0.05, depth + extraMargin * 2);
     const geom = new THREE.ExtrudeGeometry(shapes, {
       depth: extrudeDepth,
@@ -355,21 +355,18 @@ export class Reconstruct3DEngine {
     // Front: u=X, v=Y, Z in [0, D]
     // Top:   u=X, v=D-Z (tức Z = D - v), Y in [0, H]
     // Right: u=D-Z (tức Z = D - u), v=Y, X in [0, W]
-    const D = bounds.d;
+    const { w: W, h: H, d: D } = bounds;
     if (viewPlane === 'front') {
-      geom.translate(0, 0, -extraMargin);
+      const zStart = cutFromNearFace ? (D - depth - extraMargin) : -extraMargin;
+      geom.translate(0, 0, zStart);
     } else if (viewPlane === 'top') {
-      // ExtrudeGeometry ban đầu: x=u, y=v, z in [0, extrudeDepth]
-      // Xoay +90 deg quanh X: (x, y, z) -> (x, -z, y)
-      // Sau đó dịch chuyển để Y nằm trong [-extraMargin, depth + extraMargin] và Z = D - v
       geom.rotateX(-Math.PI / 2);
-      // Sau rotateX(-90deg): (x, y, z) -> (x, z, -y) -> tức X=u, Y=z, Z=-v
-      geom.translate(0, -extraMargin, D);
+      const yStart = cutFromNearFace ? (H - depth - extraMargin) : -extraMargin;
+      geom.translate(0, yStart, D);
     } else if (viewPlane === 'right' || viewPlane === 'side') {
-      // ExtrudeGeometry ban đầu: x=u, y=v, z in [0, extrudeDepth]
-      // Xoay +90 deg quanh Y: (x, y, z) -> (z, y, -x) -> tức X=z, Y=v, Z=-u
       geom.rotateY(Math.PI / 2);
-      geom.translate(-extraMargin, 0, D);
+      const xStart = cutFromNearFace ? (W - depth - extraMargin) : -extraMargin;
+      geom.translate(xStart, 0, D);
     }
 
     // Đảm bảo có uv & normal chuẩn cho three-bvh-csg
@@ -398,9 +395,10 @@ export class Reconstruct3DEngine {
       return { brush: newBrush, error: null };
     }
 
-    // Khi Cắt (cut) hoặc Ghép (add): dùng độ sâu xuyên hoặc độ sâu người dùng nhập
-    const margin = (operation === 'cut') ? 0.2 : 0;
-    const toolBrush = this.extrudeShapesToBrush(shapes, viewPlane, depth, bounds, margin);
+    // Khi Cắt (cut) hoặc Ghép (add): cắt tính từ mặt nhìn gần nhất (Front +Z, Top +Y, Right +X)
+    const isCut = (operation === 'cut');
+    const margin = isCut ? 0.2 : 0;
+    const toolBrush = this.extrudeShapesToBrush(shapes, viewPlane, depth, bounds, margin, isCut);
 
     targetBrush.updateMatrixWorld();
     toolBrush.updateMatrixWorld();

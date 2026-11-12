@@ -510,21 +510,21 @@
             <span class="m-icon">🔲</span>
             <span class="m-text" id="lbl-inspect-grid">Ô Vuông: BẬT</span>
           </button>
-          <button id="inspect-toggle-dim" class="inspect-toggle-btn active" title="Bật/Tắt khung số đo kích thước kỹ thuật khi đổi góc nhìn (Phím D)">
+          <button id="inspect-toggle-dim" class="inspect-toggle-btn" title="Bật/Tắt khung số đo kích thước kỹ thuật khi đổi góc nhìn (Phím D)">
             <span class="m-icon">📏</span>
-            <span class="m-text" id="lbl-inspect-dim">Số Đo: BẬT</span>
+            <span class="m-text" id="lbl-inspect-dim">Số Đo: TẮT</span>
           </button>
           <button id="inspect-toggle-screens" class="inspect-toggle-btn" title="Bật/Tắt 3 Màn Chiếu Kỹ Thuật 2D (Front, Top, Side) cách các mặt vài ô (Phím P)">
             <span class="m-icon">📺</span>
             <span class="m-text" id="lbl-inspect-screens">Màn Chiếu: TẮT</span>
           </button>
         </div>
-        <div class="screen-dist-control" id="screen-dist-control" title="Điều chỉnh khoảng cách từ khối đến các màn chiếu (2 đến 10 ô)">
+        <div class="screen-dist-control" id="screen-dist-control" title="Điều chỉnh khoảng cách từ khối đến các màn chiếu (2 đến 100 ô)">
           <div class="screen-dist-header">
             <span>Khoảng cách màn chiếu:</span>
             <span id="lbl-screen-dist" class="screen-dist-val">2.0</span>
           </div>
-          <input type="range" id="screen-dist-slider" min="2" max="10" step="0.5" value="2">
+          <input type="range" id="screen-dist-slider" min="2" max="100" step="1" value="2">
         </div>
       </div>
 
@@ -584,7 +584,7 @@
     </button>
 
     <!-- BANNER SỐ ĐO KỸ THUẬT NỔI PHÍA TRÊN KHI ĐỔI GÓC NHÌN -->
-    <div id="view-dim-badge" class="view-dim-badge" style="display: flex;">
+    <div id="view-dim-badge" class="view-dim-badge" style="display: none;">
       <div class="badge-icon">📐</div>
       <div class="badge-info">
         <span class="badge-title" id="view-badge-title">PHỐI CẢNH TRỤC ĐO (ISO 3D)</span>

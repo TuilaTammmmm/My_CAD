@@ -291,6 +291,8 @@ function syncDimUI(enabled) {
   const lbl = document.getElementById('lbl-toggle-dim');
   if (btn) btn.classList.toggle('active', enabled);
   if (lbl) lbl.textContent = enabled ? 'Số Đo: BẬT' : 'Số Đo: TẮT';
+  const viewDimBadge = document.getElementById('view-dim-badge');
+  if (viewDimBadge) viewDimBadge.style.display = (enabled && appMode === '3d') ? 'flex' : 'none';
   if (inspectionTool && inspectionTool.syncDimUI) {
     inspectionTool.syncDimUI(enabled);
   }
@@ -686,7 +688,7 @@ function switchTo3D() {
   const isDimOn = dimBtn ? dimBtn.classList.contains('active') : false;
   dimOverlay.setEnabled(isDimOn);
   const viewDimBadge = document.getElementById('view-dim-badge');
-  if (viewDimBadge) viewDimBadge.style.display = 'flex';
+  if (viewDimBadge) viewDimBadge.style.display = isDimOn ? 'flex' : 'none';
   if (projectionScreens) projectionScreens.group.visible = projectionScreens.enabled;
   appMode = '3d';
   document.getElementById('switch-to-2d')?.classList.remove('active');

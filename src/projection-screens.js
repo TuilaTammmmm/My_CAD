@@ -48,7 +48,7 @@ export class ProjectionScreensOverlay {
   }
 
   setOffsetDist(dist) {
-    const val = Math.max(2, Math.min(10, Number(dist) || 2));
+    const val = Math.max(2, Math.min(100, Number(dist) || 2));
     this.offsetDist = val;
     if (this.enabled) {
       this.rebuild();

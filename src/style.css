@@ -195,9 +195,7 @@ body {
   transition: transform 0.2s;
 }
 
-.tool-btn:hover .tool-icon svg {
-  transform: scale(1.1);
-}
+.tool-btn:hover .tool-icon svg {}
 
 .tool-text {
   flex: 1;
@@ -412,9 +410,7 @@ body {
 }
 
 .btn-primary-reset:hover {
-  background: linear-gradient(135deg, #0369a1, #075985);
-  transform: translateY(-1px);
-}
+  background: linear-gradient(135deg, #0369a1, #075985);}
 
 /* ===================================================
    INTERACTIVE HUD (BOTTOM ACTION BAR)
@@ -467,9 +463,7 @@ body {
 .hud-badge.pulse {
   background: rgba(56, 189, 248, 0.2);
   color: #38bdf8;
-  border: 1px solid #38bdf8;
-  animation: pulseBadge 1.6s infinite;
-}
+  border: 1px solid #38bdf8;}
 
 @keyframes pulseBadge {
   0%, 100% { transform: scale(1); opacity: 1; }
@@ -567,9 +561,7 @@ body {
 }
 
 .hud-btn-cut:hover {
-  background: linear-gradient(135deg, #f43f5e, #e11d48) !important;
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(225, 29, 72, 0.6);
+  background: linear-gradient(135deg, #f43f5e, #e11d48) !important;  box-shadow: 0 6px 20px rgba(225, 29, 72, 0.6);
 }
 
 .hud-btn-cancel {
@@ -658,9 +650,7 @@ body {
 
 .clickable-brand:hover {
   background: rgba(56, 189, 248, 0.12);
-  border-color: rgba(56, 189, 248, 0.35);
-  transform: translateY(-1px);
-}
+  border-color: rgba(56, 189, 248, 0.35);}
 
 .mode-switcher-bar {
   display: grid;
@@ -1060,9 +1050,7 @@ body {
 .tool-btn-sync:hover {
   background: rgba(56, 189, 248, 0.2);
   border-color: rgba(56, 189, 248, 0.45);
-  color: #ffffff;
-  transform: translateY(-1px);
-}
+  color: #ffffff;}
 
 .tool-btn-sync.active {
   background: linear-gradient(135deg, rgba(2, 132, 199, 0.85), rgba(56, 189, 248, 0.85));
@@ -1089,9 +1077,7 @@ body {
 .inspect-toggle-btn:hover {
   background: rgba(255, 255, 255, 0.08);
   border-color: rgba(255, 255, 255, 0.18);
-  color: #f1f5f9;
-  transform: translateY(-1px);
-}
+  color: #f1f5f9;}
 
 .inspect-toggle-btn.active {
   background: linear-gradient(135deg, rgba(2, 132, 199, 0.35), rgba(56, 189, 248, 0.15));
@@ -1122,9 +1108,7 @@ body {
 .measure-mode-btn:hover {
   background: rgba(255, 255, 255, 0.08);
   border-color: rgba(255, 255, 255, 0.18);
-  color: #f1f5f9;
-  transform: translateY(-1px);
-}
+  color: #f1f5f9;}
 
 .measure-mode-btn.active {
   background: linear-gradient(135deg, rgba(2, 132, 199, 0.35), rgba(56, 189, 248, 0.15));
@@ -1164,9 +1148,7 @@ body {
   background: linear-gradient(135deg, rgba(239, 68, 68, 0.45), rgba(220, 38, 38, 0.3));
   border-color: #ef4444;
   color: #ffffff;
-  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.3);
-  transform: translateY(-1px);
-}
+  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.3);}
 
 .btn-measure-secondary {
   background: rgba(255, 255, 255, 0.05);

@@ -255,7 +255,8 @@ export class CAD2DEditor {
     const W = this.bounds.w;
     const H = this.bounds.h;
     const D = this.bounds.d;
-    const GAP = 2.0;
+    const GAP = Math.max(8, Math.round(Math.max(W, H, D) * 0.25));
+    const labelOffset = Math.max(0.8, GAP * 0.18);
 
     this.elements = [];
 
@@ -280,7 +281,7 @@ export class CAD2DEditor {
         type: 'label',
         text: `TOP VIEW (${W}×${D})`,
         color: '#10b981',
-        p: { u: W / 2, v: -0.45 }
+        p: { u: W / 2, v: -labelOffset }
       });
 
       // 2. FRONT VIEW (Đặt ở trên Top View: [0, W] x [D + GAP, D + GAP + H])
@@ -300,7 +301,7 @@ export class CAD2DEditor {
         type: 'label',
         text: `FRONT VIEW (${W}×${H})`,
         color: '#38bdf8',
-        p: { u: W / 2, v: frontYOffset + H + 0.45 }
+        p: { u: W / 2, v: frontYOffset + H + labelOffset }
       });
 
       // 3. RIGHT VIEW (Đặt bên phải Front View: [W + GAP, W + GAP + D] x [D + GAP, D + GAP + H])
@@ -321,7 +322,7 @@ export class CAD2DEditor {
         type: 'label',
         text: `RIGHT VIEW (${D}×${H})`,
         color: '#f59e0b',
-        p: { u: rightXOffset + D / 2, v: frontYOffset + H + 0.45 }
+        p: { u: rightXOffset + D / 2, v: frontYOffset + H + labelOffset }
       });
 
       // 4. ĐƯỜNG GIÓNG LIÊN KẾT GIỮA CÁC HÌNH CHIẾU (DASHED GUIDES)

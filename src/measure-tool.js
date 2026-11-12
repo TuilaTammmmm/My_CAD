@@ -1248,7 +1248,7 @@ export class InspectionTool {
       const p1 = new THREE.Vector3(pos.getX(i), pos.getY(i), pos.getZ(i));
       const p2 = new THREE.Vector3(pos.getX(i + 1), pos.getY(i + 1), pos.getZ(i + 1));
       const len = p1.distanceTo(p2);
-      if (len > 0.01 && len < 6.0) {
+      if (len > 0.01 && len < 50.0) {
         segs.push({ p1, p2, dir: new THREE.Vector3().subVectors(p2, p1).normalize(), used: false });
       }
     }
@@ -1276,7 +1276,7 @@ export class InspectionTool {
           // Nối vào đuôi
           if (s.p1.distanceTo(tail) < EPS) {
             const dot = tailDir.dot(s.dir);
-            if (dot > 0.75 && dot < 0.9993) {
+            if (dot > 0.45 && dot < 0.99995) {
               segs[j].used = true;
               pts.push(s.p2.clone());
               extended = true;
@@ -1285,7 +1285,7 @@ export class InspectionTool {
           } else if (s.p2.distanceTo(tail) < EPS) {
             const dRev = s.dir.clone().negate();
             const dot = tailDir.dot(dRev);
-            if (dot > 0.75 && dot < 0.9993) {
+            if (dot > 0.45 && dot < 0.99995) {
               segs[j].used = true;
               pts.push(s.p1.clone());
               extended = true;
@@ -1295,7 +1295,7 @@ export class InspectionTool {
           // Nối vào đầu
           if (s.p2.distanceTo(head) < EPS) {
             const dot = headDir.dot(s.dir);
-            if (dot > 0.75 && dot < 0.9993) {
+            if (dot > 0.45 && dot < 0.99995) {
               segs[j].used = true;
               pts.unshift(s.p1.clone());
               extended = true;
@@ -1304,7 +1304,7 @@ export class InspectionTool {
           } else if (s.p1.distanceTo(head) < EPS) {
             const dRev = s.dir.clone().negate();
             const dot = headDir.dot(dRev);
-            if (dot > 0.75 && dot < 0.9993) {
+            if (dot > 0.45 && dot < 0.99995) {
               segs[j].used = true;
               pts.unshift(s.p2.clone());
               extended = true;
@@ -1399,7 +1399,7 @@ export class InspectionTool {
           const hits = occRay.intersectObject(this.currentBrush, false);
           if (hits.length > 0) {
             const distToPt = occRay.ray.origin.distanceTo(closestPt);
-            if (hits[0].distance < distToPt - 0.18) {
+            if (hits[0].distance < distToPt - Math.max(0.35, c.radius * 0.03)) {
               continue;
             }
           }
@@ -1755,6 +1755,13 @@ export class InspectionTool {
 
   // Tạo sprite nhãn số đo sắc nét, to đẹp từ 2D Canvas
   createTextSprite(text, borderColor = '#38bdf8', bgColor = 'rgba(15, 23, 42, 0.95)') {
+    // Ẩn số đo nổi trực tiếp trên màn hình 3D; chỉ hiển thị trong bảng Danh Sách Số Đo
+    const dummy = new THREE.Object3D();
+    dummy.visible = false;
+    return dummy;
+  }
+
+  _unusedCreateTextSprite(text, borderColor = '#38bdf8', bgColor = 'rgba(15, 23, 42, 0.95)') {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     const dpr = 2;

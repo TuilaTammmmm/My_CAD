@@ -43,6 +43,13 @@ export class ProjectionScreensOverlay {
     return this.enabled;
   }
 
+  setOffsetDist(dist) {
+    const val = Math.max(2, Math.min(10, Number(dist) || 2));
+    this.offsetDist = val;
+    this.rebuild();
+    if (this.onUpdate) this.onUpdate();
+  }
+
   update(w, h, d, brush = null) {
     this.w = w;
     this.h = h;

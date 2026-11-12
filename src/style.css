@@ -982,6 +982,37 @@ body {
   grid-column: span 2;
 }
 
+.screen-dist-control {
+  margin-top: 8px;
+  padding: 7px 10px;
+  background: rgba(30, 41, 59, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 9px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.screen-dist-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #cbd5e1;
+}
+
+.screen-dist-val {
+  color: #38bdf8;
+  font-weight: 700;
+}
+
+#screen-dist-slider {
+  width: 100%;
+  accent-color: #38bdf8;
+  cursor: pointer;
+}
+
 /* ===================================================
    NHÓM NÚT NẠP HÌNH CHIẾU TỪ 3D (ĐỨNG, BẰNG, CẠNH)
    =================================================== */

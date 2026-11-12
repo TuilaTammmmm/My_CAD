@@ -655,13 +655,15 @@ function switchTo2D() {
   if (sidebar3d) sidebar3d.style.display = 'none';
   if (sidebar2d) sidebar2d.style.display = 'flex';
 
-  // Ẩn HUD và helper 3D
+  // Ẩn HUD, badge kích thước và helper 3D
   const hud = document.getElementById('interactive-hud');
   const helper = document.querySelector('.hud-helper');
   const popover = document.getElementById('dim-popover');
+  const viewDimBadge = document.getElementById('view-dim-badge');
   if (hud) hud.style.display = 'none';
   if (helper) helper.style.display = 'none';
   if (popover) popover.style.display = 'none';
+  if (viewDimBadge) viewDimBadge.style.display = 'none';
 
   // Hiện 2D canvas (không tự động tải đè từ 3D)
   cad2dEditor.show(currentBrush, { w: W, h: H, d: D });
@@ -671,8 +673,10 @@ function switchTo3D() {
   gridOverlay.setAllVisible(true);
   gridOverlay.setVisible(picker ? picker.mode !== 'view' : false);
   const dimBtn = document.getElementById('inspect-toggle-dim') || document.getElementById('btn-toggle-dim');
-  const isDimOn = dimBtn ? dimBtn.classList.contains('active') : true;
+  const isDimOn = dimBtn ? dimBtn.classList.contains('active') : false;
   dimOverlay.setEnabled(isDimOn);
+  const viewDimBadge = document.getElementById('view-dim-badge');
+  if (viewDimBadge) viewDimBadge.style.display = 'flex';
   if (projectionScreens) projectionScreens.group.visible = projectionScreens.enabled;
   appMode = '3d';
   document.getElementById('switch-to-2d')?.classList.remove('active');
@@ -845,6 +849,17 @@ syncGridSquaresUI(gridOverlay.showGridSquares);
 syncDimUI(dimOverlay.enabled);
 syncScreensUI(projectionScreens.enabled);
 syncSnapStepUI(picker.snapStep);
+
+// Thanh trượt điều chỉnh khoảng cách màn chiếu (2 -> 10)
+const screenDistSlider = document.getElementById('screen-dist-slider');
+const lblScreenDist = document.getElementById('lbl-screen-dist');
+screenDistSlider?.addEventListener('input', (e) => {
+  const val = parseFloat(e.target.value);
+  if (!isNaN(val)) {
+    if (lblScreenDist) lblScreenDist.textContent = val.toFixed(1);
+    projectionScreens.setOffsetDist(val);
+  }
+});
 
 // Animation loop
 function animate() {

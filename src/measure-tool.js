@@ -840,7 +840,7 @@ export class InspectionTool {
 
     // Nhận biết camera đang ở góc nhìn trực giao 2D (Chiếu Đứng, Chiếu Bằng, Chiếu Cạnh)
     const isOrthographicView = (this.camera.isOrthographicCamera) && (
-      Math.abs(camDir.x) > 0.92 || Math.abs(camDir.y) > 0.92 || Math.abs(camDir.z) > 0.92
+      Math.abs(camDir.x) > 0.999 || Math.abs(camDir.y) > 0.999 || Math.abs(camDir.z) > 0.999
     );
 
     const isOblique = Math.abs(len3D - len2D) > 0.03;
@@ -852,29 +852,29 @@ export class InspectionTool {
     let itemSub = '';
 
     if (edge.isScreenEdge) {
-      badgeText = `L = ${fmt(len3D)} ô`;
-      itemTitle = `Cạnh [Màn ${edge.screenName}]: ${fmt(len3D)} ô`;
-      itemSub = `Đo trực tiếp trên Màn Chiếu ${edge.screenName} | Chiều dài: ${fmt(len3D)} ô`;
+      badgeText = `${fmt(len3D)}`;
+      itemTitle = `Cạnh [Màn ${edge.screenName}]: ${fmt(len3D)}`;
+      itemSub = `Đo trực tiếp trên Màn Chiếu ${edge.screenName} | Chiều dài: ${fmt(len3D)}`;
     } else if (isOrthographicView) {
-      // Khi đang xem ở góc chiếu 2D (như trong ảnh screenshot của user)
+      // Khi đang xem ở góc chiếu 2D
       if (isOblique) {
-        badgeText = `L = ${fmt(len2D)} ô (3D: ${fmt(len3D)})`;
-        itemTitle = `Cạnh: ${fmt(len2D)} ô (Chiếu 2D)`;
-        itemSub = `Hình chiếu: ${fmt(len2D)} ô | 3D thực: ${fmt(len3D)} ô (ΔX:${Math.abs(p2.x - p1.x).toFixed(1)}, ΔY:${Math.abs(p2.y - p1.y).toFixed(1)}, ΔZ:${Math.abs(p2.z - p1.z).toFixed(1)})`;
+        badgeText = `${fmt(len2D)} (${fmt(len3D)})`;
+        itemTitle = `Cạnh: ${fmt(len2D)} (Chiếu 2D)`;
+        itemSub = `Hình chiếu: ${fmt(len2D)} | 3D thực: ${fmt(len3D)} (ΔX:${Math.abs(p2.x - p1.x).toFixed(1)}, ΔY:${Math.abs(p2.y - p1.y).toFixed(1)}, ΔZ:${Math.abs(p2.z - p1.z).toFixed(1)})`;
       } else {
-        badgeText = `L = ${fmt(len3D)} ô`;
-        itemTitle = `Cạnh: ${fmt(len3D)} ô`;
+        badgeText = `${fmt(len3D)}`;
+        itemTitle = `Cạnh: ${fmt(len3D)}`;
         itemSub = `P1(${p1.x.toFixed(1)}, ${p1.y.toFixed(1)}, ${p1.z.toFixed(1)}) ➔ P2(${p2.x.toFixed(1)}, ${p2.y.toFixed(1)}, ${p2.z.toFixed(1)})`;
       }
     } else {
       // Khi đang ở Trục đo 3D (ISO)
       if (isOblique) {
-        badgeText = `L = ${fmt(len3D)} ô`;
-        itemTitle = `Cạnh: ${fmt(len3D)} ô`;
-        itemSub = `Không gian 3D: ${fmt(len3D)} ô (ΔX:${Math.abs(p2.x - p1.x).toFixed(1)}, ΔY:${Math.abs(p2.y - p1.y).toFixed(1)}, ΔZ:${Math.abs(p2.z - p1.z).toFixed(1)})`;
+        badgeText = `${fmt(len3D)}`;
+        itemTitle = `Cạnh: ${fmt(len3D)}`;
+        itemSub = `Không gian 3D: ${fmt(len3D)} (ΔX:${Math.abs(p2.x - p1.x).toFixed(1)}, ΔY:${Math.abs(p2.y - p1.y).toFixed(1)}, ΔZ:${Math.abs(p2.z - p1.z).toFixed(1)})`;
       } else {
-        badgeText = `L = ${fmt(len3D)} ô`;
-        itemTitle = `Cạnh: ${fmt(len3D)} ô`;
+        badgeText = `${fmt(len3D)}`;
+        itemTitle = `Cạnh: ${fmt(len3D)}`;
         itemSub = `P1(${p1.x.toFixed(1)}, ${p1.y.toFixed(1)}, ${p1.z.toFixed(1)}) ➔ P2(${p2.x.toFixed(1)}, ${p2.y.toFixed(1)}, ${p2.z.toFixed(1)})`;
       }
     }
@@ -923,7 +923,7 @@ export class InspectionTool {
     ];
     const extGeom = new THREE.BufferGeometry();
     extGeom.setAttribute('position', new THREE.Float32BufferAttribute(extPts, 3));
-    const extMat = new THREE.LineBasicMaterial({ color: 0x94a3b8, transparent: true, opacity: 0.8, depthTest: false });
+    const extMat = new THREE.LineBasicMaterial({ color: 0x94a3b8, transparent: true, opacity: 0.8, depthTest: true });
     const extLines = new THREE.LineSegments(extGeom, extMat);
     extLines.renderOrder = 1022;
     group.add(extLines);
@@ -935,7 +935,7 @@ export class InspectionTool {
 
     const mainGeom = new THREE.BufferGeometry();
     mainGeom.setAttribute('position', new THREE.Float32BufferAttribute(mainPts, 3));
-    const mainMat = new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.95, depthTest: false });
+    const mainMat = new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.95, depthTest: true });
     const mainLine = new THREE.LineSegments(mainGeom, mainMat);
     mainLine.renderOrder = 1024;
     group.add(mainLine);
@@ -1017,7 +1017,7 @@ export class InspectionTool {
         }
 
         const arcGeom = new THREE.BufferGeometry().setFromPoints(arcPts);
-        const arcMat = new THREE.LineBasicMaterial({ color: 0xfbbf24, linewidth: 2, depthTest: false });
+        const arcMat = new THREE.LineBasicMaterial({ color: 0xfbbf24, linewidth: 2, depthTest: true });
         const arcLine = new THREE.Line(arcGeom, arcMat);
         arcLine.renderOrder = 1026;
         group.add(arcLine);
@@ -1027,11 +1027,11 @@ export class InspectionTool {
           .addScaledVector(dir1, Math.cos(midRad) * (R + 0.4))
           .addScaledVector(perp1, Math.sin(midRad) * (R + 0.4));
 
-        const sprite = this.createTextSprite(`Góc: ${angleDeg.toFixed(1)}°`, '#fbbf24');
+        const sprite = this.createTextSprite(`${angleDeg.toFixed(1)}°`, '#fbbf24');
         sprite.position.copy(labelPos);
         group.add(sprite);
       } else {
-        const sprite = this.createTextSprite(`Góc: ${angleDeg.toFixed(1)}°`, '#fbbf24');
+        const sprite = this.createTextSprite(`${angleDeg.toFixed(1)}°`, '#fbbf24');
         sprite.position.copy(V.clone().add(new THREE.Vector3(0, 0.4, 0)));
         group.add(sprite);
       }
@@ -1046,14 +1046,14 @@ export class InspectionTool {
       const linePts = [edge1.mid.x, edge1.mid.y, edge1.mid.z, edge2.mid.x, edge2.mid.y, edge2.mid.z];
       const geom = new THREE.BufferGeometry();
       geom.setAttribute('position', new THREE.Float32BufferAttribute(linePts, 3));
-      const mat = new THREE.LineDashedMaterial({ color: 0xfbbf24, dashSize: 0.2, gapSize: 0.1, depthTest: false });
+      const mat = new THREE.LineDashedMaterial({ color: 0xfbbf24, dashSize: 0.2, gapSize: 0.1, depthTest: true });
       const line = new THREE.LineSegments(geom, mat);
       line.computeLineDistances();
       line.renderOrder = 1024;
       group.add(line);
 
       const midMid = new THREE.Vector3().addVectors(edge1.mid, edge2.mid).multiplyScalar(0.5);
-      const sprite = this.createTextSprite(`Góc: ${angleDeg.toFixed(1)}°`, '#fbbf24');
+      const sprite = this.createTextSprite(`${angleDeg.toFixed(1)}°`, '#fbbf24');
       sprite.position.copy(midMid);
       group.add(sprite);
     }
@@ -1087,22 +1087,34 @@ export class InspectionTool {
     const normAngleRad = Math.acos(dot);
     const normAngleDeg = (normAngleRad * 180) / Math.PI;
 
-    // Góc nhị diện giữa 2 mặt
-    const dihedralDeg = 180 - normAngleDeg;
+    // Góc nhị diện giữa 2 mặt trên tổng 360° (1 góc rộng + 1 góc hẹp)
+    const interiorDeg = 180 - normAngleDeg;
+    const exteriorDeg = 360 - interiorDeg;
+    const wideDeg = Math.max(interiorDeg, exteriorDeg);
+    const narrowDeg = Math.min(interiorDeg, exteriorDeg);
+
+    const badgeText = `${wideDeg.toFixed(1)}° (${narrowDeg.toFixed(1)}°)`;
     let titleStr = '';
     let subStr = '';
 
     if (Math.abs(dot) < 0.01) {
-      titleStr = 'Góc 2 Mặt: 90.0°';
-      subStr = '2 mặt vuông góc (90.0°)';
+      titleStr = `270.0° (90.0°)`;
+      subStr = 'Góc rộng: 270.0° | Góc hẹp: 90.0° (Vuông góc)';
     } else {
-      titleStr = `Góc: ${dihedralDeg.toFixed(1)}° (${normAngleDeg.toFixed(1)}°)`;
-      subStr = `Góc trong: ${dihedralDeg.toFixed(1)}° | Góc nghiêng: ${normAngleDeg.toFixed(1)}°`;
+      titleStr = badgeText;
+      subStr = `Góc rộng: ${wideDeg.toFixed(1)}° | Góc hẹp: ${narrowDeg.toFixed(1)}° (Tổng 360°)`;
     }
 
-    // Đặt nhãn tại vị trí trung gian giữa 2 mặt phẳng
+    // Đặt nhãn tại vị trí trung gian giữa 2 mặt phẳng và đẩy nhẹ ra ngoài theo pháp tuyến chung để không bị lún vào khối khi bật depthTest
     const midPos = new THREE.Vector3().addVectors(face1.centroid, face2.centroid).multiplyScalar(0.5);
-    const sprite = this.createTextSprite(titleStr, '#a855f7');
+    const outNorm = new THREE.Vector3().addVectors(face1.norm, face2.norm);
+    if (outNorm.lengthSq() > 0.001) {
+      outNorm.normalize();
+    } else {
+      outNorm.copy(face1.norm);
+    }
+    midPos.addScaledVector(outNorm, 0.45);
+    const sprite = this.createTextSprite(badgeText, '#a855f7');
     sprite.position.copy(midPos);
     group.add(sprite);
 
@@ -1140,19 +1152,19 @@ export class InspectionTool {
     const dist2D = vProj.length();
 
     const isOrthographicView = (this.camera.isOrthographicCamera) && (
-      Math.abs(camDir.x) > 0.92 || Math.abs(camDir.y) > 0.92 || Math.abs(camDir.z) > 0.92
+      Math.abs(camDir.x) > 0.999 || Math.abs(camDir.y) > 0.999 || Math.abs(camDir.z) > 0.999
     );
     const isOblique = Math.abs(dist3D - dist2D) > 0.03;
     const fmt = (n) => (Math.abs(n - Math.round(n)) < 0.01) ? `${Math.round(n)}` : n.toFixed(2);
 
-    let badgeText = `D = ${fmt(dist3D)} ô`;
-    let itemTitle = `Khoảng cách: ${fmt(dist3D)} ô`;
+    let badgeText = `${fmt(dist3D)}`;
+    let itemTitle = `Khoảng cách: ${fmt(dist3D)}`;
     let itemSub = `ΔX: ${dx.toFixed(1)} | ΔY: ${dy.toFixed(1)} | ΔZ: ${dz.toFixed(1)}`;
 
     if (isOrthographicView && isOblique) {
-      badgeText = `D = ${fmt(dist2D)} ô (3D: ${fmt(dist3D)})`;
-      itemTitle = `Khoảng cách: ${fmt(dist2D)} ô (Chiếu 2D)`;
-      itemSub = `Chiếu 2D: ${fmt(dist2D)} ô | 3D thực: ${fmt(dist3D)} ô (ΔX:${dx.toFixed(1)}, ΔY:${dy.toFixed(1)}, ΔZ:${dz.toFixed(1)})`;
+      badgeText = `${fmt(dist2D)} (${fmt(dist3D)})`;
+      itemTitle = `Khoảng cách: ${fmt(dist2D)} (Chiếu 2D)`;
+      itemSub = `Chiếu 2D: ${fmt(dist2D)} | 3D thực: ${fmt(dist3D)} (ΔX:${dx.toFixed(1)}, ΔY:${dy.toFixed(1)}, ΔZ:${dz.toFixed(1)})`;
     }
 
     group.add(this.createPointHighlight(p1, 0xec4899, 0.08));
@@ -1161,7 +1173,7 @@ export class InspectionTool {
     const linePts = [p1.x, p1.y, p1.z, p2.x, p2.y, p2.z];
     const geom = new THREE.BufferGeometry();
     geom.setAttribute('position', new THREE.Float32BufferAttribute(linePts, 3));
-    const mat = new THREE.LineBasicMaterial({ color: 0xec4899, linewidth: 2.5, depthTest: false });
+    const mat = new THREE.LineBasicMaterial({ color: 0xec4899, linewidth: 2.5, depthTest: true });
     const line = new THREE.Line(geom, mat);
     line.renderOrder = 1024;
     group.add(line);
@@ -1328,7 +1340,7 @@ export class InspectionTool {
     const cylGeom = new THREE.CylinderGeometry(radius, radius, len, 12, 1, false);
     const mat = new THREE.MeshBasicMaterial({
       color: colorHex,
-      depthTest: false,
+      depthTest: true,
       depthWrite: false,
       transparent: true,
       opacity: 0.95
@@ -1357,7 +1369,7 @@ export class InspectionTool {
     const lineGeom = new THREE.BufferGeometry().setFromPoints([p1, p2]);
     const lineMat = new THREE.LineBasicMaterial({
       color: 0xffffff,
-      depthTest: false,
+      depthTest: true,
       depthWrite: false,
       transparent: true,
       opacity: 0.95
@@ -1378,7 +1390,7 @@ export class InspectionTool {
     const coreGeom = new THREE.SphereGeometry(radius, 16, 16);
     const coreMat = new THREE.MeshBasicMaterial({
       color: colorHex,
-      depthTest: false,
+      depthTest: true,
       depthWrite: false
     });
     const core = new THREE.Mesh(coreGeom, coreMat);
@@ -1393,7 +1405,7 @@ export class InspectionTool {
       transparent: true,
       opacity: 0.45,
       wireframe: true,
-      depthTest: false,
+      depthTest: true,
       depthWrite: false
     });
     const halo = new THREE.Mesh(haloGeom, haloMat);
@@ -1405,7 +1417,7 @@ export class InspectionTool {
     const sparkGeom = new THREE.SphereGeometry(radius * 0.42, 8, 8);
     const sparkMat = new THREE.MeshBasicMaterial({
       color: 0xffffff,
-      depthTest: false,
+      depthTest: true,
       depthWrite: false
     });
     const spark = new THREE.Mesh(sparkGeom, sparkMat);
@@ -1438,11 +1450,14 @@ export class InspectionTool {
       transparent: true,
       opacity,
       side: THREE.DoubleSide,
-      depthTest: false,
-      depthWrite: false
+      depthTest: true,
+      depthWrite: false,
+      polygonOffset: true,
+      polygonOffsetFactor: -2,
+      polygonOffsetUnits: -2
     });
     const mesh = new THREE.Mesh(geom, mat);
-    mesh.position.addScaledVector(face.norm, 0.005);
+    mesh.position.addScaledVector(face.norm, 0.008);
     mesh.renderOrder = 1020;
     group.add(mesh);
 
@@ -1498,7 +1513,7 @@ export class InspectionTool {
     texture.minFilter = THREE.LinearFilter;
     const mat = new THREE.SpriteMaterial({
       map: texture,
-      depthTest: false,
+      depthTest: true,
       depthWrite: false,
       transparent: true
     });

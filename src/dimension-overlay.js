@@ -17,7 +17,8 @@ export class DimensionOverlay {
     this.group.renderOrder = 1005;
     this.scene.add(this.group);
 
-    this.enabled = true; // Mặc định bật số đo khi đổi góc nhìn
+    this.enabled = false; // Mặc định tắt số đo 3D quanh khối (chỉ hiện thanh trên)
+    this.group.visible = false;
     this.currentView = 'iso'; // 'iso', 'front', 'right', 'back', 'left', 'top'
     this.bounds = { w: 6, h: 4, d: 4 };
     this.snapStep = 1.0;
@@ -48,9 +49,6 @@ export class DimensionOverlay {
   setEnabled(enabled) {
     this.enabled = enabled;
     this.group.visible = enabled;
-    if (this.badgeElement) {
-      this.badgeElement.style.display = enabled ? 'flex' : 'none';
-    }
   }
 
   toggle() {
@@ -368,9 +366,8 @@ export class DimensionOverlay {
       ));
     }
 
-    // Cập nhật HUD badge nổi
+    // Cập nhật HUD badge nổi (luôn hiển thị ở chế độ 3D)
     if (this.badgeElement) {
-      this.badgeElement.style.display = this.enabled ? 'flex' : 'none';
       if (this.badgeTitle) this.badgeTitle.textContent = titleText;
       if (this.badgeDims) this.badgeDims.textContent = dimsText;
     }

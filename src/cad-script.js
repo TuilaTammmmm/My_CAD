@@ -32,12 +32,13 @@ let res = union(uBody, pipeL, pipeR);
 res = cut(res, holeL, holeR);
 return res;`,
 
-  horiz_cyl_mount: `// Đề bài: Trụ nằm ngang Ø50 dài 90 (tâm cao 55) + Hộp đế 50×55×35
-// Chỉ tạo phôi cơ bản (trụ + hộp) để tự cắt gọt các rãnh bằng tay
+  horiz_cyl_mount: `// Đề bài: Trụ nằm ngang Ø50×90 (tâm Y=55, Z=0) + Vách đứng 50×35×15 + Đế dưới 50×20×35
+// (Chừa sẵn 3 phần phôi chuẩn để bạn tự cắt 3 rãnh bằng tay)
 const cyl = move(cylinder(25, 90, 'x'), 0, 55, 0);
-const base = move(box(50, 55, 35), 0, 27.5, 17.5);
+const wall = move(box(50, 35, 15), 0, 37.5, 7.5);
+const base = move(box(50, 20, 35), 0, 10, 17.5);
 
-return union(cyl, base);`,
+return union(cyl, wall, base);`,
 
   starter_block: `// Phôi hộp 60x40x50 bo cạnh R3 + khoan lỗ Ø20 (OpenCascade B-Rep)
 const block = fillet(box(60, 40, 50), 3);

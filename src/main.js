@@ -667,15 +667,31 @@ function switchTo2D() {
   if (sidebar3d) sidebar3d.style.display = 'none';
   if (sidebar2d) sidebar2d.style.display = 'flex';
 
-  // Ẩn HUD, badge kích thước và helper 3D
+  // Ẩn toàn bộ các thành phần 3D: HUD, helper, popover, bảng cắt gọt bên phải, bảng đo đạc, tooltip
   const hud = document.getElementById('interactive-hud');
   const helper = document.querySelector('.hud-helper');
   const popover = document.getElementById('dim-popover');
   const viewDimBadge = document.getElementById('view-dim-badge');
+  const tsrElement = document.getElementById('tool-sidebar-right');
+  const btnFloatingTsr = document.getElementById('btn-floating-open-tsr');
+  const inspectionPanel = document.getElementById('inspection-panel');
+  const btnFloatingInspect = document.getElementById('btn-floating-open-inspect');
+  const tooltip = document.getElementById('picker-tooltip');
+
   if (hud) hud.style.display = 'none';
   if (helper) helper.style.display = 'none';
   if (popover) popover.style.display = 'none';
   if (viewDimBadge) viewDimBadge.style.display = 'none';
+  if (tsrElement) tsrElement.style.display = 'none';
+  if (btnFloatingTsr) btnFloatingTsr.style.display = 'none';
+  if (inspectionPanel) inspectionPanel.style.display = 'none';
+  if (btnFloatingInspect) btnFloatingInspect.style.display = 'none';
+  if (tooltip) tooltip.style.display = 'none';
+
+  if (picker) {
+    picker.setEnabled(false);
+    picker.clearSelection();
+  }
 
   // Hiện 2D canvas (không tự động tải đè từ 3D)
   cad2dEditor.show(currentBrush, { w: W, h: H, d: D });
@@ -704,15 +720,14 @@ function switchTo3D() {
   if (sidebar3d) sidebar3d.style.display = 'flex';
   if (sidebar2d) sidebar2d.style.display = 'none';
 
-  // Hiện lại HUD và helper 3D theo trạng thái mode hiện tại
-  const hud = document.getElementById('interactive-hud');
-  if (hud) hud.style.display = '';
-  const helper = document.querySelector('.hud-helper');
-  if (helper) helper.style.display = '';
-  if (picker && picker.updateHUD) picker.updateHUD();
-
-  if (picker && picker.mode === 'view') {
-    inspectionTool.show();
+  // Kích hoạt lại picker 3D và khôi phục toolbar phù hợp
+  if (picker) {
+    picker.setEnabled(true);
+    if (picker.mode !== 'view') {
+      picker.updateRightToolbar();
+    } else {
+      inspectionTool.show();
+    }
   }
 
   // Ẩn 2D canvas

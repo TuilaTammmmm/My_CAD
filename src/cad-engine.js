@@ -810,8 +810,8 @@ export class CadEngine {
 
       // TẠO ĐƯỜNG VIỀN KỸ THUẬT SẠCH SẼ (LỌC NÉT CHÉO NỘI BỘ & NÉT DƯ APEX RÃNH V)
   createEdges(mesh) {
-    if (mesh?._occtEdges) {
-      return new THREE.LineSegments(mesh.userData.occtEdges, this.edgeMaterial);
+    if (mesh?._occtEdges || mesh?.userData?.occtEdges) {
+      return new THREE.LineSegments(mesh._occtEdges || mesh.userData.occtEdges, this.edgeMaterial);
     }
     const nonIndexedGeom = mesh.geometry.index ? mesh.geometry.toNonIndexed() : mesh.geometry;
     const cleanGeom = mergeVertices(nonIndexedGeom, 0.005);

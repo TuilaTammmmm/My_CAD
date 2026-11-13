@@ -1,4 +1,5 @@
 import { initOCCT, replicad, replicadToBrush } from './occt-kernel.js';
+import { Brush } from 'three-bvh-csg';
 
 export const CAD_SCRIPT_PRESETS = {
   new_box_cut: `// 1. Tạo sẵn phôi hộp mới theo kích thước W x H x D hiện tại
@@ -242,22 +243,55 @@ export async function executeCadScript(code, cadEngine, dims = { w: 6, h: 4, d: 
 }
 
 /**
- * Rotate an existing B-Rep brush around the Y axis by `deg` degrees (e.g. +90)
+ * Rotate an existing brush around the Y axis by `deg` degrees (e.g. +90)
  * and re-align its bounding box to [0..W, 0..H, 0..D].
+ * Supports both OpenCascade B-Rep shapes and Three.js / CSG mesh brushes.
  */
 export async function rotateBrushAroundY(brush, cadEngine, deg = 90) {
-  await initOCCT();
-  if (!brush || !brush._replicadShape) {
-    throw new Error('Khối hiện tại chưa có dữ liệu B-Rep để xoay');
+  if (!brush || !brush.geometry) {
+    throw new Error('Không có khối để xoay');
   }
-  const rotated = brush._replicadShape.clone().rotate(deg, [0, 0, 0], [0, 1, 0]);
-  const bounds = rotated.boundingBox.bounds;
-  const minX = bounds[0][0], minY = bounds[0][1], minZ = bounds[0][2];
-  const maxX = bounds[1][0], maxY = bounds[1][1], maxZ = bounds[1][2];
-  const aligned = rotated.translate(-minX, -minY, -minZ);
-  const w = Math.max(1, Math.round((maxX - minX) * 100) / 100);
-  const h = Math.max(1, Math.round((maxY - minY) * 100) / 100);
-  const d = Math.max(1, Math.round((maxZ - minZ) * 100) / 100);
-  const nextBrush = replicadToBrush(aligned, cadEngine.material);
+
+  // 1. Nếu có B-Rep shape từ OpenCascade, thử xoay bằng OCCT trước
+  if (brush._replicadShape) {
+    try {
+      await initOCCT();
+      const rotated = brush._replicadShape.clone().rotate(deg, [0, 0, 0], [0, 1, 0]);
+      const bounds = rotated.boundingBox.bounds;
+      const minX = bounds[0][0], minY = bounds[0][1], minZ = bounds[0][2];
+      const maxX = bounds[1][0], maxY = bounds[1][1], maxZ = bounds[1][2];
+      const aligned = rotated.translate(-minX, -minY, -minZ);
+      const w = Math.max(1, Math.round((maxX - minX) * 100) / 100);
+      const h = Math.max(1, Math.round((maxY - minY) * 100) / 100);
+      const d = Math.max(1, Math.round((maxZ - minZ) * 100) / 100);
+      const nextBrush = replicadToBrush(aligned, cadEngine.material);
+      return { brush: nextBrush, w, h, d };
+    } catch (err) {
+      console.warn('OCCT rotate failed, falling back to mesh rotation:', err);
+    }
+  }
+
+  // 2. Xoay trực tiếp hình học BufferGeometry (hỗ trợ mọi khối CSG / Three.js)
+  const geom = brush.geometry.clone();
+  geom.rotateY((deg * Math.PI) / 180);
+  geom.computeBoundingBox();
+  const min = geom.boundingBox.min;
+  geom.translate(-min.x, -min.y, -min.z);
+  geom.computeBoundingBox();
+  geom.computeVertexNormals();
+  try {
+    if (geom.computeBoundsTree) geom.computeBoundsTree();
+  } catch (e) {}
+
+  const w = Math.max(1, Math.round(geom.boundingBox.max.x * 100) / 100);
+  const h = Math.max(1, Math.round(geom.boundingBox.max.y * 100) / 100);
+  const d = Math.max(1, Math.round(geom.boundingBox.max.z * 100) / 100);
+
+  const nextBrush = new Brush(geom, cadEngine.material);
+  nextBrush.updateMatrixWorld();
+  if (brush.userData) {
+    nextBrush.userData = { ...brush.userData };
+    delete nextBrush.userData.isBRep;
+  }
   return { brush: nextBrush, w, h, d };
 }

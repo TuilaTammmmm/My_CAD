@@ -416,6 +416,7 @@ body {
    INTERACTIVE HUD (BOTTOM ACTION BAR)
    =================================================== */
 .interactive-hud {
+  display: none !important;
   position: absolute;
   bottom: 24px;
   left: calc(50% + 110px);
@@ -1922,6 +1923,7 @@ body {
   }
 
   .interactive-hud {
+  display: none !important;
     left: 68px !important;
     right: 8px !important;
     bottom: 10px !important;

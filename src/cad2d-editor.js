@@ -1092,6 +1092,28 @@ export class CAD2DEditor {
       return;
     }
 
+    // 7b. Đo 2 điểm riêng biệt 2D (Point-to-Point Dim)
+    if (this.tool === 'dim-points') {
+      if (this.pendingPoints.length === 0) {
+        this.pendingPoints.push(snap);
+      } else {
+        const p1 = this.pendingPoints[0];
+        const p2 = snap;
+        const dist = Math.hypot(p2.u - p1.u, p2.v - p1.v);
+        if (dist > 0.05) {
+          this.elements.push({
+            type: 'dim',
+            p1, p2,
+            dist: Number(dist.toFixed(2))
+          });
+          this.saveHistory();
+        }
+        this.pendingPoints = [];
+      }
+      this.render();
+      return;
+    }
+
     // 5. TỈA NÉT CẮT AUTOCAD (TRIM TOOL)
     if (this.tool === 'erase') {
       this.trimAtPoint(rawPoint || snap);
@@ -2026,7 +2048,11 @@ export class CAD2DEditor {
         ? `🔄 <b>Bo Cung (Fillet R = ${this.filletRadius}):</b> Click chọn Nét thứ 1`
         : `🔄 <b>Bo Cung (Fillet R = ${this.filletRadius}):</b> Click chọn Nét thứ 2 để bo tròn tiếp xúc góc`;
     } else if (this.tool === 'dim') {
-      toolHint = `📐 <b>Đo Kích Thước:</b> Click thẳng vào cạnh để đo ngay chiều dài cạnh (hoặc click 2 điểm để đo khoảng cách)`;
+      toolHint = `📐 <b>Đo Cạnh:</b> Click thẳng vào cạnh để đo ngay chiều dài cạnh`;
+    } else if (this.tool === 'dim-points') {
+      toolHint = (this.pendingPoints.length === 0)
+        ? `🎯 <b>Đo 2 Điểm:</b> Click chọn <b>ĐIỂM THỨ 1</b>`
+        : `🎯 <b>Đo 2 Điểm:</b> Click chọn <b>ĐIỂM THỨ 2</b> để đo khoảng cách giữa 2 điểm`;
     } else if (this.tool === 'dim-radial') {
       toolHint = `⭕ <b>Đo Bán Kính (R) / Đường Kính (Ø):</b> Click vào Cung Tròn hoặc Đường Tròn bất kỳ`;
     } else if (this.tool === 'erase') {
@@ -2405,6 +2431,10 @@ export class CAD2DEditor {
         const x2 = this.offsetX + elem.p2.u * s;
         const y2 = this.offsetY - elem.p2.v * s;
 
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+        const len = Math.hypot(dx, dy);
+
         ctx.strokeStyle = '#38bdf8';
         ctx.lineWidth = 1.4;
         ctx.setLineDash([]);
@@ -2413,20 +2443,58 @@ export class CAD2DEditor {
         ctx.lineTo(x2, y2);
         ctx.stroke();
 
-        // Mũi tên 2 đầu
+        // Điểm tròn đánh dấu 2 đầu
         ctx.beginPath();
-        ctx.arc(x1, y1, 3, 0, Math.PI * 2);
-        ctx.arc(x2, y2, 3, 0, Math.PI * 2);
+        ctx.arc(x1, y1, 3.5, 0, Math.PI * 2);
+        ctx.arc(x2, y2, 3.5, 0, Math.PI * 2);
         ctx.fillStyle = '#38bdf8';
         ctx.fill();
 
-        // Chữ số đo
-        const midX = (x1 + x2) / 2;
-        const midY = (y1 + y2) / 2;
-        ctx.fillStyle = '#38bdf8';
-        ctx.font = 'bold 12px monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText(`${elem.dist}`, midX, midY - 6);
+        if (len > 0.001) {
+          // Tính pháp tuyến vuông góc với đường kích thước
+          let nx = -dy / len;
+          let ny = dx / len;
+
+          // Chuẩn hóa hướng pháp tuyến để số đo luôn ở vị trí chuẩn kỹ thuật:
+          // Nếu đường chủ yếu nằm ngang (|dx| >= |dy|): chữ ở phía trên đường (ny < 0)
+          // Nếu đường chủ yếu thẳng đứng (|dx| < |dy|): chữ ở bên trái đường (nx < 0)
+          if (Math.abs(dx) >= Math.abs(dy)) {
+            if (ny > 0) { nx = -nx; ny = -ny; }
+          } else {
+            if (nx > 0) { nx = -nx; ny = -ny; }
+          }
+
+          const midX = (x1 + x2) / 2;
+          const midY = (y1 + y2) / 2;
+          const offsetDist = 12;
+          const textX = midX + nx * offsetDist;
+          const textY = midY + ny * offsetDist;
+
+          const text = `${elem.dist}`;
+          ctx.font = 'bold 12px monospace';
+          const textMetrics = ctx.measureText(text);
+          const textW = textMetrics.width;
+          const textH = 14;
+          const padX = 5;
+          const padY = 2;
+
+          // Hộp nền tối bảo vệ số đo (Knockout/Background Mask) - không để đường thẳng cắt xuyên qua chữ số
+          ctx.save();
+          ctx.fillStyle = 'rgba(8, 12, 21, 0.94)';
+          ctx.fillRect(textX - textW / 2 - padX, textY - textH / 2 - padY, textW + padX * 2, textH + padY * 2);
+
+          // Khung viền mỏng quanh số đo
+          ctx.strokeStyle = 'rgba(56, 189, 248, 0.5)';
+          ctx.lineWidth = 0.8;
+          ctx.strokeRect(textX - textW / 2 - padX, textY - textH / 2 - padY, textW + padX * 2, textH + padY * 2);
+
+          // Vẽ chữ số đo
+          ctx.fillStyle = '#38bdf8';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(text, textX, textY);
+          ctx.restore();
+        }
 
       } else if (elem.type === 'dim-radial') {
         const cx = this.offsetX + elem.cx * s;
@@ -2557,7 +2625,7 @@ export class CAD2DEditor {
       ctx.fillStyle = '#f43f5e';
       ctx.fill();
 
-      if (this.tool === 'line-visible' || this.tool === 'line-hidden' || this.tool === 'dim') {
+      if (this.tool === 'line-visible' || this.tool === 'line-hidden' || this.tool === 'dim' || this.tool === 'dim-points') {
         ctx.beginPath();
         ctx.moveTo(x1, y1);
         ctx.lineTo(x2, y2);
@@ -3174,6 +3242,10 @@ export class CAD2DEditor {
         const x2 = toCanvasX(elem.p2.u);
         const y2 = toCanvasY(elem.p2.v);
 
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+        const len = Math.hypot(dx, dy);
+
         ctx.strokeStyle = '#0284c7';
         ctx.lineWidth = 2.4;
         ctx.beginPath();
@@ -3181,20 +3253,49 @@ export class CAD2DEditor {
         ctx.lineTo(x2, y2);
         ctx.stroke();
 
-        // Mũi tên 2 đầu
+        // Điểm tròn 2 đầu
         ctx.beginPath();
         ctx.arc(x1, y1, 5, 0, Math.PI * 2);
         ctx.arc(x2, y2, 5, 0, Math.PI * 2);
         ctx.fillStyle = '#0284c7';
         ctx.fill();
 
-        // Chữ số đo
-        const midX = (x1 + x2) / 2;
-        const midY = (y1 + y2) / 2;
-        ctx.fillStyle = '#0284c7';
-        ctx.font = 'bold 20px monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText(`${elem.dist}`, midX, midY - 10);
+        if (len > 0.001) {
+          let nx = -dy / len;
+          let ny = dx / len;
+          if (Math.abs(dx) >= Math.abs(dy)) {
+            if (ny > 0) { nx = -nx; ny = -ny; }
+          } else {
+            if (nx > 0) { nx = -nx; ny = -ny; }
+          }
+
+          const midX = (x1 + x2) / 2;
+          const midY = (y1 + y2) / 2;
+          const offsetDist = 18;
+          const textX = midX + nx * offsetDist;
+          const textY = midY + ny * offsetDist;
+
+          const text = `${elem.dist}`;
+          ctx.font = 'bold 20px monospace';
+          const textMetrics = ctx.measureText(text);
+          const textW = textMetrics.width;
+          const textH = 22;
+          const padX = 8;
+          const padY = 4;
+
+          ctx.save();
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(textX - textW / 2 - padX, textY - textH / 2 - padY, textW + padX * 2, textH + padY * 2);
+          ctx.strokeStyle = 'rgba(2, 132, 199, 0.4)';
+          ctx.lineWidth = 1.2;
+          ctx.strokeRect(textX - textW / 2 - padX, textY - textH / 2 - padY, textW + padX * 2, textH + padY * 2);
+
+          ctx.fillStyle = '#0284c7';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(text, textX, textY);
+          ctx.restore();
+        }
 
       } else if (elem.type === 'dim-radial') {
         const cx = toCanvasX(elem.cx);

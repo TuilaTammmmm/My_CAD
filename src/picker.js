@@ -50,6 +50,7 @@ export class InteractivePicker {
     this.preferOuterGrid = false;
     this.opMode = 'cut'; // 'cut' (Cắt gọt) hoặc 'add' (Vẽ thêm / Hợp nhất)
     this._tsrCollapsed = false;
+    this.enabled = true;
 
     this.tsrElement = document.getElementById('tool-sidebar-right');
     this.tsrBody = document.getElementById('tsr-body');
@@ -363,6 +364,18 @@ export class InteractivePicker {
     else if (this.mode === 'fillet3d') this.updatePreviewForFillet();
   }
 
+  setEnabled(enabled) {
+    this.enabled = !!enabled;
+    if (!this.enabled) {
+      if (this.hoverMarker) this.hoverMarker.visible = false;
+      if (this.hoverRing) this.hoverRing.visible = false;
+      if (this.tooltipElement) this.tooltipElement.style.display = 'none';
+      if (this.tsrElement) this.tsrElement.style.display = 'none';
+      if (this.btnFloatingOpenTsr) this.btnFloatingOpenTsr.style.display = 'none';
+      if (this.preview) this.preview.clear();
+    }
+  }
+
   setMode(mode) {
     this.mode = mode;
     this.clearSelection();
@@ -379,6 +392,7 @@ export class InteractivePicker {
     }
 
     this.updateHUD();
+    this.updateRightToolbar();
     if (this.callbacks.onModeChange) {
       this.callbacks.onModeChange(mode);
     }
@@ -407,6 +421,7 @@ export class InteractivePicker {
     }
     this.preview.clear();
     this.updateHUD();
+    this.updateRightToolbar();
   }
 
   removeLastPoint() {
@@ -429,6 +444,7 @@ export class InteractivePicker {
         this.preview.clear();
       }
       this.updateHUD();
+      this.updateRightToolbar();
       if (this.callbacks.onPointsChanged) {
         this.callbacks.onPointsChanged(this.mode, this.selectedPoints);
       }
@@ -446,6 +462,7 @@ export class InteractivePicker {
     };
 
     dom.addEventListener('pointerdown', (e) => {
+      if (!this.enabled) return;
       activePointers.add(e.pointerId);
       if (activePointers.size > 1) {
         // Đa chạm (pinch zoom / pan 2 ngón) -> hủy click đơn điểm
@@ -462,6 +479,7 @@ export class InteractivePicker {
     });
 
     dom.addEventListener('pointermove', (e) => {
+      if (!this.enabled) return;
       updateMouseFromEvent(e);
 
       if (!this.isPointerDown && this.mode !== 'view') {
@@ -471,7 +489,7 @@ export class InteractivePicker {
 
     window.addEventListener('pointerup', (e) => {
       activePointers.delete(e.pointerId);
-      if (!this.isPointerDown || e.pointerId !== this.pointerDownId) return;
+      if (!this.enabled || !this.isPointerDown || e.pointerId !== this.pointerDownId) return;
       this.isPointerDown = false;
       this.updateCursor();
 
@@ -501,6 +519,7 @@ export class InteractivePicker {
     }
 
     window.addEventListener('keydown', (e) => {
+      if (!this.enabled) return;
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
 
       if (e.key === 'Enter' || e.code === 'Space') {
@@ -894,6 +913,7 @@ export class InteractivePicker {
     }
 
     this.updateHUD();
+    this.updateRightToolbar();
     if (this.callbacks.onPointsChanged) {
       this.callbacks.onPointsChanged(this.mode, this.selectedPoints);
     }
@@ -997,6 +1017,7 @@ export class InteractivePicker {
     this.renderPointMarkers();
     this.updatePreviewForVGroove();
     this.updateHUD();
+    this.updateRightToolbar();
   }
 
   autoComputeCornerDeltas(corner) {
@@ -1539,7 +1560,7 @@ export class InteractivePicker {
   updateRightToolbar() {
     if (!this.tsrElement || !this.tsrBody) return;
 
-    if (this.mode === 'view') {
+    if (!this.enabled || this.mode === 'view') {
       this.tsrElement.style.display = 'none';
       if (this.btnFloatingOpenTsr) this.btnFloatingOpenTsr.style.display = 'none';
       return;
@@ -1668,6 +1689,20 @@ export class InteractivePicker {
           </div>
           <button class="tsr-btn-secondary" id="tsr-btn-toggle-dir" style="width:100%;">
             🔄 Đổi Phía Vát / Cắt (${this.slantCutAbove ? 'Phía TRÊN / PHẢI' : 'Phía DƯỚI / TRÁI'})
+          </button>
+        </div>
+      `;
+    }
+
+    if (this.mode === 'vgroove' && this.selectedPoints.length >= 3) {
+      const apexIdxText = this.vApexOverride >= 0 ? `Điểm ${this.vApexOverride + 1}` : 'Tự động';
+      html += `
+        <div class="tsr-section">
+          <div class="tsr-section-title">
+            <span>🔻 ĐỈNH NHỌN RÃNH V</span>
+          </div>
+          <button class="tsr-btn-secondary" id="tsr-btn-cycle-apex" style="width:100%;">
+            🔄 Đổi Đỉnh Rãnh V (${apexIdxText})
           </button>
         </div>
       `;
@@ -1852,6 +1887,13 @@ export class InteractivePicker {
         this.updatePreviewForCurrentMode();
         this.updateRightToolbar();
         this.updateHUD();
+      });
+    }
+
+    const btnCycleApex = document.getElementById('tsr-btn-cycle-apex');
+    if (btnCycleApex) {
+      btnCycleApex.addEventListener('click', () => {
+        this.cycleVApex();
       });
     }
 

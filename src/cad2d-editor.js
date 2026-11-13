@@ -1102,12 +1102,19 @@ export class CAD2DEditor {
         const p2 = snap;
         const dist = Math.hypot(p2.u - p1.u, p2.v - p1.v);
         if (dist > 0.05) {
-          this.elements.push({
-            type: 'dim',
-            p1, p2,
-            dist: Number(dist.toFixed(2))
-          });
-          this.saveHistory();
+          const duplicate = this.elements.find(e =>
+            e.type === 'dim' &&
+            ((Math.hypot(e.p1.u - p1.u, e.p1.v - p1.v) < 0.1 && Math.hypot(e.p2.u - p2.u, e.p2.v - p2.v) < 0.1) ||
+             (Math.hypot(e.p1.u - p2.u, e.p1.v - p2.v) < 0.1 && Math.hypot(e.p2.u - p1.u, e.p2.v - p1.v) < 0.1))
+          );
+          if (!duplicate) {
+            this.elements.push({
+              type: 'dim',
+              p1, p2,
+              dist: Number(dist.toFixed(2))
+            });
+            this.saveHistory();
+          }
         }
         this.pendingPoints = [];
       }
@@ -1124,12 +1131,19 @@ export class CAD2DEditor {
         const p2 = snap;
         const dist = Math.hypot(p2.u - p1.u, p2.v - p1.v);
         if (dist > 0.05) {
-          this.elements.push({
-            type: 'dim',
-            p1, p2,
-            dist: Number(dist.toFixed(2))
-          });
-          this.saveHistory();
+          const duplicate = this.elements.find(e =>
+            e.type === 'dim' &&
+            ((Math.hypot(e.p1.u - p1.u, e.p1.v - p1.v) < 0.1 && Math.hypot(e.p2.u - p2.u, e.p2.v - p2.v) < 0.1) ||
+             (Math.hypot(e.p1.u - p2.u, e.p1.v - p2.v) < 0.1 && Math.hypot(e.p2.u - p1.u, e.p2.v - p1.v) < 0.1))
+          );
+          if (!duplicate) {
+            this.elements.push({
+              type: 'dim',
+              p1, p2,
+              dist: Number(dist.toFixed(2))
+            });
+            this.saveHistory();
+          }
         }
         this.pendingPoints = [];
       }
@@ -2364,6 +2378,7 @@ export class CAD2DEditor {
     }
 
     // 5. VẼ CÁC ĐỐI TƯỢNG HÌNH HỌC (LINES, ARCS, CIRCLES, DIMS)
+    const drawnDimKeys = new Set();
     for (const elem of this.elements) {
       if (elem.type === 'line') {
         const x1 = this.offsetX + elem.p1.u * s;
@@ -2448,6 +2463,13 @@ export class CAD2DEditor {
         ctx.setLineDash([]);
 
       } else if (elem.type === 'dim') {
+        const k1 = `${elem.p1.u.toFixed(2)},${elem.p1.v.toFixed(2)}-${elem.p2.u.toFixed(2)},${elem.p2.v.toFixed(2)}`;
+        const k2 = `${elem.p2.u.toFixed(2)},${elem.p2.v.toFixed(2)}-${elem.p1.u.toFixed(2)},${elem.p1.v.toFixed(2)}`;
+        if (drawnDimKeys.has(k1) || drawnDimKeys.has(k2)) {
+          continue;
+        }
+        drawnDimKeys.add(k1);
+
         // Vẽ kích thước (Dimension line)
         const x1 = this.offsetX + elem.p1.u * s;
         const y1 = this.offsetY - elem.p1.v * s;
@@ -2489,7 +2511,7 @@ export class CAD2DEditor {
 
           const midX = (x1 + x2) / 2;
           const midY = (y1 + y2) / 2;
-          const offsetDist = 12;
+          const offsetDist = 16;
           const textX = midX + nx * offsetDist;
           const textY = midY + ny * offsetDist;
 

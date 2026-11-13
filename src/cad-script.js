@@ -292,6 +292,8 @@ export async function rotateBrushAroundY(brush, cadEngine, deg = 90) {
   if (brush.userData) {
     nextBrush.userData = { ...brush.userData };
     delete nextBrush.userData.isBRep;
+    delete nextBrush.userData.occtEdges;
   }
+  delete nextBrush._occtEdges;
   return { brush: nextBrush, w, h, d };
 }

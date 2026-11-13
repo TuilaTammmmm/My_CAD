@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Brush, Evaluator, SUBTRACTION, ADDITION } from 'three-bvh-csg';
+import { Brush, Evaluator, SUBTRACTION, ADDITION, INTERSECTION } from 'three-bvh-csg';
 import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { ConvexGeometry } from 'three/addons/geometries/ConvexGeometry.js';
 import { isOCCTReady, replicad, replicadToBrush } from './occt-kernel.js';
@@ -93,6 +93,9 @@ export class CadEngine {
     const du = u2 - u1, dv = v2 - v1;
     const len = Math.hypot(du, dv);
     if (len < 0.0001) return null;
+
+    const midU = (u1 + u2) / 2;
+    const midV = (v1 + v2) / 2;
 
     const tU = du / len, tV = dv / len;
     let nU = -tV, nV = tU;
@@ -342,6 +345,7 @@ export class CadEngine {
     }
 
     const shape = new THREE.Shape(pts2d);
+    shape.closePath();
     const extrudeSettings = { steps: 1, depth: depthSpan + 0.1, bevelEnabled: false };
     const geom = new THREE.ExtrudeGeometry(shape, extrudeSettings);
 
@@ -525,7 +529,7 @@ export class CadEngine {
   }
 
   // Cắt vát góc 3D xác định trực tiếp bởi 3 điểm lưới trên hình
-  cutCorner3Points(targetBrush, p1, p2, p3, customCorner = null) {
+  cutCorner3Points(targetBrush, p1, p2, p3, customCorner = null, op = 'cut') {
     let o = customCorner;
     if (!o) {
       const candidates = this.findCandidateCornersFor3Points(p1, p2, p3);
@@ -573,14 +577,14 @@ export class CadEngine {
     cutter.updateMatrixWorld();
     targetBrush.updateMatrixWorld();
 
-    const result = this.evaluator.evaluate(targetBrush, cutter, SUBTRACTION);
+    const result = this.evaluator.evaluate(targetBrush, cutter, (op === 'add') ? ADDITION : SUBTRACTION);
     result.material = this.material;
     result.geometry.computeVertexNormals();
     return result;
   }
 
   // Cắt vát góc tam giác 3D (Corner Chamfer):
-  cutCorner3D(targetBrush, ox, oy, oz, dx, dy, dz) {
+  cutCorner3D(targetBrush, ox, oy, oz, dx, dy, dz, op = 'cut') {
     if (Math.abs(dx) <= 0.0001 || Math.abs(dy) <= 0.0001 || Math.abs(dz) <= 0.0001) return targetBrush;
 
     const EPS = 0.15;
@@ -622,7 +626,7 @@ export class CadEngine {
     cutter.updateMatrixWorld();
     targetBrush.updateMatrixWorld();
 
-    const result = this.evaluator.evaluate(targetBrush, cutter, SUBTRACTION);
+    const result = this.evaluator.evaluate(targetBrush, cutter, (op === 'add') ? ADDITION : SUBTRACTION);
     result.material = this.material;
     result.geometry.computeVertexNormals();
     return result;
@@ -780,7 +784,7 @@ export class CadEngine {
     return geom;
   }
 
-  cutFilletEdge(targetBrush, edgeStart, edgeEnd, n1, n2, radius, segments = 20) {
+  cutFilletEdge(targetBrush, edgeStart, edgeEnd, n1, n2, radius, segments = 20, op = 'cut') {
     if (isOCCTReady() && targetBrush?._replicadShape && radius > 1e-4) {
       try {
         const midTarget = new THREE.Vector3().addVectors(edgeStart, edgeEnd).multiplyScalar(0.5);
@@ -802,7 +806,7 @@ export class CadEngine {
     const cutter = new Brush(geom);
     cutter.updateMatrixWorld();
 
-    const result = this.evaluator.evaluate(targetBrush, cutter, SUBTRACTION);
+    const result = this.evaluator.evaluate(targetBrush, cutter, (op === 'add') ? ADDITION : SUBTRACTION);
     result.material = this.material;
     result.geometry.computeVertexNormals();
     return result;

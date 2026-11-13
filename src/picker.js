@@ -377,7 +377,14 @@ export class InteractivePicker {
   }
 
   setMode(mode) {
+    if (document.activeElement && typeof document.activeElement.blur === 'function') {
+      document.activeElement.blur();
+    }
     this.mode = mode;
+    if (mode === 'fillet3d') {
+      this.opMode = 'cut';
+      if (this.preview) this.preview.setOpMode('cut');
+    }
     this.clearSelection();
     this.updateCursor();
 
@@ -1447,7 +1454,8 @@ export class InteractivePicker {
           params.p1,
           params.p2,
           params.p3,
-          params.corner
+          params.corner,
+          this.opMode
         );
 
       } else if (this.mode === 'poly') {
@@ -1553,7 +1561,8 @@ export class InteractivePicker {
       }
     } catch (err) {
       console.error('Lỗi khi thực hiện cắt:', err);
-      alert('Không thể thực hiện đường cắt với các điểm đã chọn! Hãy thử chọn lại.');
+      const detail = err && err.message ? `: ${err.message}` : '';
+      alert(`Không thể thực hiện đường cắt với các điểm đã chọn${detail}! Hãy thử chọn lại.`);
     }
   }
 
@@ -1576,11 +1585,12 @@ export class InteractivePicker {
       if (this.btnFloatingOpenTsr) this.btnFloatingOpenTsr.style.display = 'flex';
     }
 
-    // Đừng vẽ lại hoàn toàn nếu người dùng đang gõ trong một ô input để không bị mất focus
+    // Đừng vẽ lại hoàn toàn nếu người dùng đang gõ trong một ô input để không bị mất focus (trừ khi vừa đổi công cụ)
     const activeEl = document.activeElement;
-    if (activeEl && this.tsrBody.contains(activeEl) && activeEl.tagName === 'INPUT') {
+    if (this._lastRenderedMode === this.mode && activeEl && this.tsrBody.contains(activeEl) && activeEl.tagName === 'INPUT') {
       return;
     }
+    this._lastRenderedMode = this.mode;
 
     const toolMeta = {
       poly: { icon: '⬡', title: 'CẮT / VẼ ĐA GIÁC (POLY)', desc: 'Click các điểm liên tiếp tạo hình kín. Có thể chỉnh sửa tọa độ từng điểm hoặc độ sâu trực tiếp bên dưới.' },
@@ -1603,17 +1613,19 @@ export class InteractivePicker {
 
     let html = '';
 
-    // 1. Chuyển đổi Cắt Gọt <--> Vẽ Thêm
-    html += `
-      <div class="tsr-mode-switch">
-        <button class="tsr-mode-btn ${this.opMode === 'cut' ? 'active-cut' : ''}" id="tsr-btn-mode-cut">
-          ✂️ Cắt Gọt
-        </button>
-        <button class="tsr-mode-btn ${this.opMode === 'add' ? 'active-add' : ''}" id="tsr-btn-mode-add">
-          ➕ Vẽ Thêm
-        </button>
-      </div>
-    `;
+    // 1. Chuyển đổi Cắt Gọt <--> Vẽ Thêm (Ẩn khi ở chế độ Bo Tròn Cạnh vì bo tròn chỉ là vát bo mép)
+    if (this.mode !== 'fillet3d') {
+      html += `
+        <div class="tsr-mode-switch">
+          <button class="tsr-mode-btn ${this.opMode === 'cut' ? 'active-cut' : ''}" id="tsr-btn-mode-cut">
+            ✂️ Cắt Gọt
+          </button>
+          <button class="tsr-mode-btn ${this.opMode === 'add' ? 'active-add' : ''}" id="tsr-btn-mode-add">
+            ➕ Vẽ Thêm
+          </button>
+        </div>
+      `;
+    }
 
     // 2. Danh sách tọa độ các điểm đã chọn (cho phép gõ trực tiếp)
     if (this.selectedPoints.length > 0) {

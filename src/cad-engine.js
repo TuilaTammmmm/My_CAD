@@ -258,7 +258,7 @@ export class CadEngine {
   }
 
   // CẮT ĐA GIÁC / KHỐI ĐA DIỆN TỰ DO QUA NHIỀU ĐIỂM (MULTI-POINT POLYGON & POLYHEDRON CUT)
-  cutMultiPointVolume(targetBrush, points3D, customDepth = 0, isFullDepth = true) {
+  cutMultiPointVolume(targetBrush, points3D, customDepth = 0, isFullDepth = true, op = 'cut') {
     if (!points3D || points3D.length < 3) return targetBrush;
 
     const pts = points3D.map(p => new THREE.Vector3(p.x, p.y, p.z));
@@ -396,7 +396,7 @@ export class CadEngine {
 
   // Cắt rãnh chữ V (V-Groove):
   // Apex giữ nguyên chuẩn tọa độ grid, chỉ mở nhẹ 2 chân base ra ngoài để đục thủng
-  cutVGroove(targetBrush, planeType, apex, base1, base2, depthMin, depthMax) {
+  cutVGroove(targetBrush, planeType, apex, base1, base2, depthMin, depthMax, op = 'cut') {
     const depth = Math.abs(depthMax - depthMin);
     if (depth <= 0.0001) return targetBrush;
 
@@ -414,7 +414,7 @@ export class CadEngine {
     cutter.updateMatrixWorld();
     targetBrush.updateMatrixWorld();
 
-    const result = this.evaluator.evaluate(targetBrush, cutter, SUBTRACTION);
+    const result = this.evaluator.evaluate(targetBrush, cutter, (op === 'add') ? ADDITION : SUBTRACTION);
     result.material = this.material;
     result.geometry.computeVertexNormals();
     return result;

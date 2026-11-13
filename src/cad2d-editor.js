@@ -1,4 +1,5 @@
 import { DXFExporter } from './dxf-exporter.js';
+import { saveProjectState } from './storage.js';
 
 /**
  * CAD2DEditor
@@ -138,11 +139,31 @@ export class CAD2DEditor {
     }
   }
 
+  loadSavedElements(elements, bounds) {
+    if (elements && Array.isArray(elements)) {
+      this.elements = elements;
+      this.history = [JSON.parse(JSON.stringify(elements))];
+      this.historyIndex = 0;
+      if (bounds) this.bounds = bounds;
+      this.updateUndoButtons();
+      this.render();
+    }
+  }
+
+  triggerAutoSave() {
+    saveProjectState('state_2d', {
+      elements: this.elements,
+      bounds: this.bounds,
+      updatedAt: Date.now()
+    });
+  }
+
   saveHistory() {
     this.history = this.history.slice(0, this.historyIndex + 1);
     this.history.push(JSON.parse(JSON.stringify(this.elements)));
     this.historyIndex = this.history.length - 1;
     this.updateUndoButtons();
+    this.triggerAutoSave();
   }
 
   undo() {
@@ -155,6 +176,7 @@ export class CAD2DEditor {
       this.updateHUDHint();
       this.render();
       this.updateUndoButtons();
+      this.triggerAutoSave();
     }
   }
 
@@ -168,6 +190,7 @@ export class CAD2DEditor {
       this.updateHUDHint();
       this.render();
       this.updateUndoButtons();
+      this.triggerAutoSave();
     }
   }
 

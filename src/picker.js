@@ -1467,7 +1467,8 @@ export class InteractivePicker {
               this.currentBrush,
               this.selectedPoints,
               this.customDepth,
-              this.isFullDepth
+              this.isFullDepth,
+              this.opMode
             );
           } else {
             newBrush = this.cad.cutPlane3Points(
@@ -1515,7 +1516,8 @@ export class InteractivePicker {
           params.b1_2d,
           params.b2_2d,
           params.dMin,
-          params.dMax
+          params.dMax,
+          this.opMode
         );
 
       } else if (this.mode === 'hole') {

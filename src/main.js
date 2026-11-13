@@ -15,6 +15,7 @@ import { InspectionTool } from './measure-tool.js';
 import { ProjectionScreensOverlay } from './projection-screens.js';
 import { executeCadScript, rotateBrushAroundY, CAD_SCRIPT_PRESETS } from './cad-script.js';
 import { initOCCT } from './occt-kernel.js';
+import { saveProjectState, loadProjectState } from './storage.js';
 import { inject } from '@vercel/analytics';
 import { injectSpeedInsights } from '@vercel/speed-insights';
 
@@ -111,6 +112,39 @@ function updateHistoryButtons() {
   if (btnRedo) btnRedo.disabled = (historyIndex >= history.length - 1);
 }
 
+let autoSaveTimeout = null;
+function triggerAutoSave3D() {
+  if (!currentBrush || !currentBrush.geometry) return;
+  const badge = document.getElementById('autosave-status');
+  if (badge) {
+    badge.textContent = '💾 Đang lưu...';
+    badge.style.color = '#fbbf24';
+  }
+  clearTimeout(autoSaveTimeout);
+  autoSaveTimeout = setTimeout(() => {
+    try {
+      const geomJson = currentBrush.geometry.toJSON();
+      saveProjectState('state_3d', {
+        w: W,
+        h: H,
+        d: D,
+        geom: geomJson,
+        updatedAt: Date.now()
+      });
+      if (badge) {
+        badge.textContent = '✓ Đã lưu tạm';
+        badge.style.color = '#34d399';
+      }
+    } catch (err) {
+      console.warn('Auto-save 3D failed:', err);
+      if (badge) {
+        badge.textContent = '⚠ Lỗi lưu tạm';
+        badge.style.color = '#f87171';
+      }
+    }
+  }, 250);
+}
+
 function setModel(brush, recordHistory = true) {
   if (currentBrush) {
     modelGroup.remove(currentBrush);
@@ -126,6 +160,7 @@ function setModel(brush, recordHistory = true) {
 
   if (recordHistory) {
     saveHistory(currentBrush);
+    triggerAutoSave3D();
   }
 
   const snapStep = (typeof picker !== 'undefined' && picker) ? picker.snapStep : 1.0;
@@ -145,8 +180,12 @@ function setModel(brush, recordHistory = true) {
   }
 }
 
+// Cờ đánh dấu mô hình được khôi phục từ bộ nhớ tạm trình duyệt (F5)
+let isRestoredFromAutoSave = false;
+
 // Reset / Khởi tạo lại khối gốc ban đầu
 function resetBaseBlock() {
+  isRestoredFromAutoSave = false;
   W = parseInt(document.getElementById('dim-w').value) || 6;
   H = parseInt(document.getElementById('dim-h').value) || 4;
   D = parseInt(document.getElementById('dim-d').value) || 4;
@@ -162,6 +201,58 @@ function resetBaseBlock() {
   gridOverlay.setVisible(typeof picker !== 'undefined' && picker ? picker.mode !== 'view' : false);
   dimOverlay.updateBounds(W, H, D, snapStep);
   centerCamera();
+}
+
+async function initAppStorage() {
+  try {
+    const saved3D = await loadProjectState('state_3d');
+    const saved2D = await loadProjectState('state_2d');
+    const savedMode = await loadProjectState('app_mode');
+
+    if (saved3D && saved3D.geom) {
+      const loader = new THREE.BufferGeometryLoader();
+      const geom = loader.parse(saved3D.geom);
+      geom.computeVertexNormals();
+      geom.computeBoundingBox();
+
+      W = Number(saved3D.w) > 0 ? Number(saved3D.w) : 6;
+      H = Number(saved3D.h) > 0 ? Number(saved3D.h) : 4;
+      D = Number(saved3D.d) > 0 ? Number(saved3D.d) : 4;
+
+      const dimW = document.getElementById('dim-w');
+      const dimH = document.getElementById('dim-h');
+      const dimD = document.getElementById('dim-d');
+      if (dimW) dimW.value = W;
+      if (dimH) dimH.value = H;
+      if (dimD) dimD.value = D;
+
+      const restoredBrush = new Brush(geom, cad.material);
+      restoredBrush.updateMatrixWorld();
+
+      isRestoredFromAutoSave = true;
+      history = [];
+      historyIndex = -1;
+      setModel(restoredBrush, true);
+
+      centerCamera();
+
+      const badge = document.getElementById('autosave-status');
+      if (badge) {
+        badge.textContent = '✓ Đã khôi phục';
+        badge.style.color = '#34d399';
+      }
+    }
+
+    if (saved2D && saved2D.elements && saved2D.elements.length > 0) {
+      cad2dEditor.loadSavedElements(saved2D.elements, saved2D.bounds);
+    }
+
+    if (savedMode === '2d') {
+      switchTo2D();
+    }
+  } catch (err) {
+    console.warn('Khôi phục từ bộ nhớ tạm thất bại:', err);
+  }
 }
 
 function updateCameraFrustumForView(viewKey = 'iso') {
@@ -389,6 +480,7 @@ function performUndo() {
     brush._occtEdges = src._occtEdges || null;
     setModel(brush, false);
     updateHistoryButtons();
+    triggerAutoSave3D();
   }
 }
 
@@ -402,6 +494,7 @@ function performRedo() {
     brush._occtEdges = src._occtEdges || null;
     setModel(brush, false);
     updateHistoryButtons();
+    triggerAutoSave3D();
   }
 }
 
@@ -654,6 +747,7 @@ function switchTo2D() {
   if (projectionScreens) projectionScreens.group.visible = false;
   inspectionTool.hide();
   appMode = '2d';
+  saveProjectState('app_mode', '2d');
   document.getElementById('switch-to-3d')?.classList.remove('active');
   document.getElementById('switch-to-2d')?.classList.add('active');
   const appModeTitle = document.getElementById('app-mode-title');
@@ -707,6 +801,7 @@ function switchTo3D() {
   if (viewDimBadge) viewDimBadge.style.display = isDimOn ? 'flex' : 'none';
   if (projectionScreens) projectionScreens.group.visible = projectionScreens.enabled;
   appMode = '3d';
+  saveProjectState('app_mode', '3d');
   document.getElementById('switch-to-2d')?.classList.remove('active');
   document.getElementById('switch-to-3d')?.classList.add('active');
   const appModeTitle = document.getElementById('app-mode-title');
@@ -878,6 +973,7 @@ syncGridSquaresUI(gridOverlay.showGridSquares);
 syncDimUI(dimOverlay.enabled);
 syncScreensUI(projectionScreens.enabled);
 syncSnapStepUI(picker.snapStep);
+initAppStorage();
 
 // Thanh trượt điều chỉnh khoảng cách màn chiếu (2 -> 10)
 const screenDistSlider = document.getElementById('screen-dist-slider');
@@ -996,7 +1092,7 @@ initOCCT()
       occtStatusEl.textContent = '✓ OpenCascade B-Rep';
       occtStatusEl.style.color = '#34d399';
     }
-    if (typeof history !== 'undefined' && history.length <= 1 && currentBrush && !currentBrush.userData?.isBRep) {
+    if (!isRestoredFromAutoSave && typeof history !== 'undefined' && history.length <= 1 && currentBrush && !currentBrush.userData?.isBRep) {
       const brepBlock = cad.createBaseBlock(W, H, D);
       history[0] = brepBlock;
       setModel(brepBlock, false);

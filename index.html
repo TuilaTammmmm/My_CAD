@@ -163,6 +163,13 @@
                 </span>
                 <span class="tool-text">Chiếu Bằng (Top)</span>
               </button>
+
+              <button class="tool-btn topbar-btn" id="btn-rotate-model-90" title="Xoay khối 3D +90° quanh trục Y để đổi hướng mặt Front">
+                <span class="tool-icon">
+                  <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><polyline points="3 3 3 8 8 8"/></svg>
+                </span>
+                <span class="tool-text">Xoay Khối +90° (Front)</span>
+              </button>
             </div>
 
             <div class="section-label" style="margin-top: 8px;">BƯỚC BẮT DÍNH (PHÍM S)</div>
@@ -470,7 +477,15 @@
           <option value="empty_box">Mẫu 2: Phôi hộp mới tinh (W×H×D)</option>
           <option value="u_shell_pipe">Mẫu 3: Vỏ chữ U (2-R8 / 2-R7) + Trụ Ø12/Ø10</option>
           <option value="horiz_cyl_mount">Mẫu 4: Gối đỡ trụ ngang Ø50×90 + Rãnh 18×45</option>
+          <option value="mount_with_boss_slot">Mẫu 6: Gối đỡ 60×80×30 + Trụ Ø30 + Rãnh 40×20 + Vấu 30×10 + Vát 52×42</option>
           <option value="starter_block">Mẫu 5: Khối bo góc + Lỗ tâm</option>
+        </select>
+        <label for="script-front-rot" style="margin-left: 8px;">Hướng Front:</label>
+        <select id="script-front-rot" style="max-width: 155px;">
+          <option value="90" selected>Quay +90° (Front)</option>
+          <option value="0">Mặc định (0°)</option>
+          <option value="180">Quay 180° (Sau)</option>
+          <option value="-90">Quay -90° (Trái)</option>
         </select>
       </div>
       <div class="script-cheatsheet">
@@ -483,6 +498,29 @@
         <button class="btn-primary-reset" id="btn-run-script" style="width:auto; padding:8px 16px;">▶ Chạy Code → Tạo 3D</button>
       </div>
     </div>
+
+    <!-- BẢNG CÔNG CỤ ĐIỀU KHIỂN CẮT GỌT 3D BÊN PHẢI (KHI Ở CHẾ ĐỘ CẮT) -->
+    <aside id="tool-sidebar-right" class="tool-sidebar-right" style="display: none;">
+      <div class="panel-header">
+        <div class="panel-title-group">
+          <span class="panel-icon" id="tsr-icon">✂️</span>
+          <span class="panel-title" id="tsr-title">THÔNG SỐ CẮT GỌT</span>
+        </div>
+        <div class="panel-header-actions">
+          <button id="btn-toggle-tsr" class="panel-collapse-btn" title="Thu gọn / Mở rộng bảng">▶</button>
+        </div>
+      </div>
+      <div class="tsr-instruction" id="tsr-instruction">
+        👉 Chọn các điểm trên khối để cắt gọt. Bạn có thể tự chỉnh trực tiếp tọa độ và độ sâu ở đây.
+      </div>
+      <div id="tsr-body" class="tsr-body"></div>
+    </aside>
+
+    <!-- NÚT NỔI MỞ BẢNG THÔNG SỐ CẮT GỌT KHI ĐÃ BỊ THU GỌN -->
+    <button id="btn-floating-open-tsr" class="floating-inspect-btn" style="display: none;" title="Mở bảng thông số cắt gọt bên phải">
+      <span>⚙️ Thông Số Cắt</span>
+      <span>◀</span>
+    </button>
 
     <!-- BẢNG CÔNG CỤ ĐO ĐẠC & KIỂM TRA BÊN PHẢI (CHỈ XUẤT HIỆN KHI Ở TAB CHỈ XEM) -->
     <aside id="inspection-panel" class="inspection-panel" style="display: none;">

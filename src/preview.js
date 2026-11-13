@@ -38,6 +38,16 @@ export class CutterPreview {
     }
   }
 
+  setOpMode(opMode = 'cut') {
+    if (opMode === 'add') {
+      this.material.color.setHex(0x10b981);
+      this.edgeMaterial.color.setHex(0x34d399);
+    } else {
+      this.material.color.setHex(0xf43f5e);
+      this.edgeMaterial.color.setHex(0xff1744);
+    }
+  }
+
   setPreviewGeom(geom) {
     this.clear();
     this.previewMesh = new THREE.Mesh(geom, this.material);
@@ -108,9 +118,12 @@ export class CutterPreview {
       return;
     }
 
-    let maxU = bounds.w, maxV = bounds.h;
-    if (planeType === 'ZY') { maxU = bounds.d; maxV = bounds.h; }
-    else if (planeType === 'XZ') { maxU = bounds.w; maxV = bounds.d; }
+    let maxU = bounds ? bounds.w : 6, maxV = bounds ? bounds.h : 4;
+    if (planeType === 'ZY') { maxU = bounds ? bounds.d : 4; maxV = bounds ? bounds.h : 4; }
+    else if (planeType === 'XZ') { maxU = bounds ? bounds.w : 6; maxV = bounds ? bounds.d : 4; }
+    const spanScale = Math.max(maxU, maxV, 10) * 1.5;
+    maxU = Math.max(maxU, spanScale);
+    maxV = Math.max(maxV, spanScale);
 
     const rect = [
       { u: 0, v: 0 },

@@ -40,6 +40,33 @@ const base = move(box(50, 20, 35), 0, 10, 17.5);
 
 return union(cyl, wall, base);`,
 
+    mount_with_boss_slot: `// Hình mẫu: Gối đỡ đế 60x80x30 + Trụ tròn Ø30x30 + Hầm xuyên 40x20 + Vấu 30x10x28 + Vát 52x42
+// 1. Đế chính: Rộng 60 (trục X), Cao 30 (trục Y), Dài 80 (trục Z)
+let de = box(60, 30, 80);
+
+// 2. Rãnh hầm khoét xuyên suốt mặt đáy: Rộng 40, Cao 20 (cắt từ đáy Y=-15 lên Y=5)
+const ham = move(box(70, 20, 40), 0, -5, 0);
+de = cut(de, ham);
+
+// 3. Vấu vuông lồi ra phía trước: Rộng 30, Nhô ra 10 (từ Z=-40 đến -50), Cao 28 (từ đáy Y=-15 lên Y=13)
+const vau = move(box(30, 28, 10), 0, -1, -45);
+let res = union(de, vau);
+
+// 4. Bậc hạ phía sau vuông góc: Hạ sâu 15 (từ Y=15 xuống Y=0), Dài 14 ở phía sau (từ Z=26 đến 40)
+const bacSau = move(box(70, 16, 28), 0, 8, 40);
+res = cut(res, bacSau);
+
+// 5. Cắt vát nghiêng 2 bên (từ bề rộng 60 xuống 42 trên mặt phẳng dài 52):
+const daoVatL = move(rotate(box(30, 30, 60), 0, 0, 45), -30, 20, -5);
+const daoVatR = move(rotate(box(30, 30, 60), 0, 0, -45), 30, 20, -5);
+res = cut(res, daoVatL, daoVatR);
+
+// 6. Trụ tròn đỉnh Ø30 x Cao 30 đặt giữa mặt phẳng 42x52 (Y=15 lên Y=45)
+const tru = move(cylinder(15, 30, 'y'), 0, 30, -5);
+res = union(res, tru);
+
+return res;`,
+
   starter_block: `// Phôi hộp 60x40x50 bo cạnh R3 + khoan lỗ Ø20 (OpenCascade B-Rep)
 const block = fillet(box(60, 40, 50), 3);
 const hole = cylinder(10, 60, 'y');
@@ -195,15 +222,42 @@ export async function executeCadScript(code, cadEngine, dims = { w: 6, h: 4, d: 
     throw new Error('Script phải trả về 1 khối 3D replicad (ví dụ: return cut(a, b);)');
   }
 
-  const bounds = result.boundingBox.bounds;
+  const rotDeg = Number(dims?.frontRotDeg) || 0;
+  let finalShape = result.clone();
+  if (rotDeg !== 0) {
+    finalShape = finalShape.rotate(rotDeg, [0, 0, 0], [0, 1, 0]);
+  }
+
+  const bounds = finalShape.boundingBox.bounds;
   const minX = bounds[0][0], minY = bounds[0][1], minZ = bounds[0][2];
   const maxX = bounds[1][0], maxY = bounds[1][1], maxZ = bounds[1][2];
 
-  const alignedShape = result.clone().translate(-minX, -minY, -minZ);
+  const alignedShape = finalShape.translate(-minX, -minY, -minZ);
   const w = Math.max(1, Math.round((maxX - minX) * 100) / 100);
   const h = Math.max(1, Math.round((maxY - minY) * 100) / 100);
   const d = Math.max(1, Math.round((maxZ - minZ) * 100) / 100);
 
   const brush = replicadToBrush(alignedShape, cadEngine.material);
   return { brush, w, h, d };
+}
+
+/**
+ * Rotate an existing B-Rep brush around the Y axis by `deg` degrees (e.g. +90)
+ * and re-align its bounding box to [0..W, 0..H, 0..D].
+ */
+export async function rotateBrushAroundY(brush, cadEngine, deg = 90) {
+  await initOCCT();
+  if (!brush || !brush._replicadShape) {
+    throw new Error('Khối hiện tại chưa có dữ liệu B-Rep để xoay');
+  }
+  const rotated = brush._replicadShape.clone().rotate(deg, [0, 0, 0], [0, 1, 0]);
+  const bounds = rotated.boundingBox.bounds;
+  const minX = bounds[0][0], minY = bounds[0][1], minZ = bounds[0][2];
+  const maxX = bounds[1][0], maxY = bounds[1][1], maxZ = bounds[1][2];
+  const aligned = rotated.translate(-minX, -minY, -minZ);
+  const w = Math.max(1, Math.round((maxX - minX) * 100) / 100);
+  const h = Math.max(1, Math.round((maxY - minY) * 100) / 100);
+  const d = Math.max(1, Math.round((maxZ - minZ) * 100) / 100);
+  const nextBrush = replicadToBrush(aligned, cadEngine.material);
+  return { brush: nextBrush, w, h, d };
 }

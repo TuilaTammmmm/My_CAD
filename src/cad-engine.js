@@ -39,16 +39,18 @@ export class CadEngine {
   }
 
   // Cắt hình hộp nhiều ô: X from x1..x2, Y from y1..y2, Z from z1..z2
-  cutBox(targetBrush, x1, x2, y1, y2, z1, z2) {
+  cutBox(targetBrush, x1, x2, y1, y2, z1, z2, op = 'cut') {
     let minX = Math.min(x1, x2), maxX = Math.max(x1, x2);
     let minY = Math.min(y1, y2), maxY = Math.max(y1, y2);
     let minZ = Math.min(z1, z2), maxZ = Math.max(z1, z2);
 
-    const EPS = 0.2;
-    // Mở rộng nhẹ dao cắt ra ngoài biên hở nếu chạm mép ngoài
-    if (minX <= 0) minX -= EPS;
-    if (minY <= 0) minY -= EPS;
-    if (minZ <= 0) minZ -= EPS;
+    if (op === 'cut') {
+      const EPS = 0.2;
+      // Mở rộng nhẹ dao cắt ra ngoài biên hở nếu chạm mép ngoài
+      if (minX <= 0) minX -= EPS;
+      if (minY <= 0) minY -= EPS;
+      if (minZ <= 0) minZ -= EPS;
+    }
 
     const w = maxX - minX;
     const h = maxY - minY;
@@ -57,8 +59,9 @@ export class CadEngine {
 
     if (isOCCTReady() && targetBrush?._replicadShape) {
       try {
-        const cutter = replicad.makeBox([minX, minY, minZ], [maxX, maxY, maxZ]);
-        const nextShape = targetBrush.userData.replicadShape.cut(cutter);
+        const boxShape = replicad.makeBox([minX, minY, minZ], [maxX, maxY, maxZ]);
+        const targetShape = targetBrush._replicadShape || targetBrush.userData.replicadShape;
+        const nextShape = (op === 'add') ? targetShape.fuse(boxShape) : targetShape.cut(boxShape);
         return replicadToBrush(nextShape, this.material);
       } catch (err) {
         console.warn('OCCT cutBox fallback:', err);
@@ -71,18 +74,19 @@ export class CadEngine {
     const uvCount = geom.attributes.position.count * 2;
     geom.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(uvCount), 2));
 
-    const cutter = new Brush(geom);
-    cutter.updateMatrixWorld();
+    const toolBrush = new Brush(geom);
+    toolBrush.updateMatrixWorld();
     targetBrush.updateMatrixWorld();
 
-    const result = this.evaluator.evaluate(targetBrush, cutter, SUBTRACTION);
+    const result = this.evaluator.evaluate(targetBrush, toolBrush, (op === 'add') ? ADDITION : SUBTRACTION);
     result.material = this.material;
     result.geometry.computeVertexNormals();
+    result.geometry.computeBoundingBox();
     return result;
   }
 
   // Tạo khối dao cắt vát nghiêng nửa không gian (Half-Space Slanted Cutter)
-  createSlantCutterGeometry(planeType, p1_2d, p2_2d, depthMin, depthMax, cutAbove) {
+  createSlantCutterGeometry(planeType, p1_2d, p2_2d, depthMin, depthMax, cutAbove, targetBrush = null) {
     const u1 = p1_2d.u, v1 = p1_2d.v;
     const u2 = p2_2d.u, v2 = p2_2d.v;
 
@@ -99,10 +103,17 @@ export class CadEngine {
       nV = -nV;
     }
 
-    const midU = (u1 + u2) / 2;
-    const midV = (v1 + v2) / 2;
-
-    const BOX_SPAN = 60;
+    const bounds = targetBrush?.geometry?.boundingBox || {
+      min: new THREE.Vector3(0, 0, 0),
+      max: new THREE.Vector3(60, 60, 60)
+    };
+    const maxDim = Math.max(
+      Math.abs(bounds.max.x - bounds.min.x),
+      Math.abs(bounds.max.y - bounds.min.y),
+      Math.abs(bounds.max.z - bounds.min.z),
+      60
+    );
+    const BOX_SPAN = Math.max(maxDim * 3, 200);
     const depthSpan = Math.abs(depthMax - depthMin) + 0.4;
     const midDepth = (depthMin + depthMax) / 2;
 
@@ -130,17 +141,18 @@ export class CadEngine {
   }
 
   // Cắt vát chéo nghiêng
-  cutSlant(targetBrush, planeType, p1, p2, depthMin, depthMax, cutAbove = true) {
-    const geom = this.createSlantCutterGeometry(planeType, p1, p2, depthMin, depthMax, cutAbove);
+  cutSlant(targetBrush, planeType, p1, p2, depthMin, depthMax, cutAbove = true, op = 'cut') {
+    const geom = this.createSlantCutterGeometry(planeType, p1, p2, depthMin, depthMax, cutAbove, targetBrush);
     if (!geom) return targetBrush;
 
-    const cutter = new Brush(geom);
-    cutter.updateMatrixWorld();
+    const toolBrush = new Brush(geom);
+    toolBrush.updateMatrixWorld();
     targetBrush.updateMatrixWorld();
 
-    const result = this.evaluator.evaluate(targetBrush, cutter, SUBTRACTION);
+    const result = this.evaluator.evaluate(targetBrush, toolBrush, (op === 'add') ? ADDITION : SUBTRACTION);
     result.material = this.material;
     result.geometry.computeVertexNormals();
+    result.geometry.computeBoundingBox();
     return result;
   }
 
@@ -170,8 +182,8 @@ export class CadEngine {
 
     const mid = new THREE.Vector3().add(P1).add(P2).add(P3).multiplyScalar(1 / 3);
 
-    // Khối hộp đồng nhất lớn (Half-space box)
-    const SPAN = 100;
+    // Khối hộp đồng nhất lớn (Half-space box) bao phủ toàn bộ khối vật thể
+    const SPAN = 500;
     const geom = new THREE.BoxGeometry(SPAN, SPAN, SPAN);
     // Dời tâm để mặt phẳng cắt đi đúng qua z=0
     geom.translate(0, 0, SPAN / 2);
@@ -226,21 +238,22 @@ export class CadEngine {
   }
 
   // Cắt vát qua 3 điểm: Tự động phân loại rãnh tam giác trên mặt hoặc mặt phẳng 3D
-  cutPlane3Points(targetBrush, p1, p2, p3, cutPositive = true, isFullDepth = false, customDepth = 0) {
+  cutPlane3Points(targetBrush, p1, p2, p3, cutPositive = true, isFullDepth = false, customDepth = 0, op = 'cut') {
     if (this.isCoplanarOnFace(p1, p2, p3)) {
-      return this.cutMultiPointVolume(targetBrush, [p1, p2, p3], customDepth, isFullDepth);
+      return this.cutMultiPointVolume(targetBrush, [p1, p2, p3], customDepth, isFullDepth, op);
     }
 
     const geom = this.createPlaneCutterGeometry(p1, p2, p3, cutPositive, isFullDepth);
     if (!geom) return targetBrush;
 
-    const cutter = new Brush(geom);
-    cutter.updateMatrixWorld();
+    const toolBrush = new Brush(geom);
+    toolBrush.updateMatrixWorld();
     targetBrush.updateMatrixWorld();
 
-    const result = this.evaluator.evaluate(targetBrush, cutter, SUBTRACTION);
+    const result = this.evaluator.evaluate(targetBrush, toolBrush, (op === 'add') ? ADDITION : SUBTRACTION);
     result.material = this.material;
     result.geometry.computeVertexNormals();
+    result.geometry.computeBoundingBox();
     return result;
   }
 
@@ -276,7 +289,7 @@ export class CadEngine {
         cutter.updateMatrixWorld();
         targetBrush.updateMatrixWorld();
 
-        const result = this.evaluator.evaluate(targetBrush, cutter, SUBTRACTION);
+        const result = this.evaluator.evaluate(targetBrush, cutter, (op === 'add') ? ADDITION : SUBTRACTION);
         result.material = this.material;
         result.geometry.computeVertexNormals();
         return result;
@@ -294,9 +307,20 @@ export class CadEngine {
     const minY = Math.min(...ys), maxY = Math.max(...ys);
     const minZ = Math.min(...zs), maxZ = Math.max(...zs);
 
+    const bounds = targetBrush?.geometry?.boundingBox || {
+      min: new THREE.Vector3(0, 0, 0),
+      max: new THREE.Vector3(60, 60, 60)
+    };
+    const maxDimension = Math.max(
+      Math.abs(bounds.max.x - bounds.min.x),
+      Math.abs(bounds.max.y - bounds.min.y),
+      Math.abs(bounds.max.z - bounds.min.z),
+      60
+    );
+
     let planeType = 'XY';
     let pts2d = [];
-    let depthSpan = isFullDepth ? 60 : (customDepth || 4);
+    let depthSpan = isFullDepth ? (maxDimension * 2 + 10) : (customDepth || 4);
     let faceCoord = 0;
 
     const spanX = maxX - minX;
@@ -351,9 +375,10 @@ export class CadEngine {
     cutter.updateMatrixWorld();
     targetBrush.updateMatrixWorld();
 
-    const result = this.evaluator.evaluate(targetBrush, cutter, SUBTRACTION);
+    const result = this.evaluator.evaluate(targetBrush, cutter, (op === 'add') ? ADDITION : SUBTRACTION);
     result.material = this.material;
     result.geometry.computeVertexNormals();
+    result.geometry.computeBoundingBox();
     return result;
   }
 
@@ -609,33 +634,58 @@ export class CadEngine {
     return geom;
   }
 
-  cutHole(targetBrush, hitPoint, hitNormal, radius, depth = 0, isThrough = true, maxSpan = 100) {
+  cutHole(targetBrush, hitPoint, hitNormal, radius, depth = 0, isThrough = true, maxSpan = 100, op = 'cut') {
     if (isOCCTReady() && targetBrush?._replicadShape) {
       try {
         const n = hitNormal.clone().normalize();
-        const len = isThrough ? (maxSpan * 2 + 2) : (depth + 0.08);
-        const startOffset = isThrough ? maxSpan : 0.04;
-        const start = hitPoint.clone().addScaledVector(n, startOffset);
-        const cutter = replicad.makeCylinder(
-          radius,
-          len,
-          [start.x, start.y, start.z],
-          [-n.x, -n.y, -n.z]
-        );
-        const nextShape = targetBrush.userData.replicadShape.cut(cutter);
-        return replicadToBrush(nextShape, this.material);
+        const targetShape = targetBrush._replicadShape || targetBrush.userData.replicadShape;
+        if (op === 'add') {
+          const bossLen = depth > 0.01 ? depth : 10;
+          const boss = replicad.makeCylinder(
+            radius,
+            bossLen,
+            [hitPoint.x, hitPoint.y, hitPoint.z],
+            [n.x, n.y, n.z]
+          );
+          const nextShape = targetShape.fuse(boss);
+          return replicadToBrush(nextShape, this.material);
+        } else {
+          const len = isThrough ? (maxSpan * 2 + 2) : (depth + 0.08);
+          const startOffset = isThrough ? maxSpan : 0.04;
+          const start = hitPoint.clone().addScaledVector(n, startOffset);
+          const cutter = replicad.makeCylinder(
+            radius,
+            len,
+            [start.x, start.y, start.z],
+            [-n.x, -n.y, -n.z]
+          );
+          const nextShape = targetShape.cut(cutter);
+          return replicadToBrush(nextShape, this.material);
+        }
       } catch (err) {
         console.warn('OCCT cutHole fallback:', err);
       }
     }
 
-    const geom = this.createHoleCutterGeometry(hitPoint, hitNormal, radius, depth, isThrough, maxSpan);
-    const cutter = new Brush(geom);
-    cutter.updateMatrixWorld();
+    let geom;
+    if (op === 'add') {
+      const bossLen = depth > 0.01 ? depth : 10;
+      geom = new THREE.CylinderGeometry(radius, radius, bossLen, 32);
+      geom.translate(0, bossLen / 2, 0);
+      const defaultDir = new THREE.Vector3(0, 1, 0);
+      const quat = new THREE.Quaternion().setFromUnitVectors(defaultDir, hitNormal.clone().normalize());
+      geom.applyQuaternion(quat);
+      geom.translate(hitPoint.x, hitPoint.y, hitPoint.z);
+    } else {
+      geom = this.createHoleCutterGeometry(hitPoint, hitNormal, radius, depth, isThrough, maxSpan);
+    }
+    const toolBrush = new Brush(geom);
+    toolBrush.updateMatrixWorld();
 
-    const result = this.evaluator.evaluate(targetBrush, cutter, SUBTRACTION);
+    const result = this.evaluator.evaluate(targetBrush, toolBrush, (op === 'add') ? ADDITION : SUBTRACTION);
     result.material = this.material;
     result.geometry.computeVertexNormals();
+    result.geometry.computeBoundingBox();
     return result;
   }
 
@@ -722,7 +772,8 @@ export class CadEngine {
     if (isOCCTReady() && targetBrush?._replicadShape && radius > 1e-4) {
       try {
         const midTarget = new THREE.Vector3().addVectors(edgeStart, edgeEnd).multiplyScalar(0.5);
-        const nextShape = targetBrush.userData.replicadShape.fillet(radius, (ef) =>
+        const targetShape = targetBrush._replicadShape || targetBrush.userData.replicadShape;
+        const nextShape = targetShape.fillet(radius, (ef) =>
           ef.inBox(
             [midTarget.x - 0.5, midTarget.y - 0.5, midTarget.z - 0.5],
             [midTarget.x + 0.5, midTarget.y + 0.5, midTarget.z + 0.5]
@@ -751,7 +802,7 @@ export class CadEngine {
       return new THREE.LineSegments(mesh.userData.occtEdges, this.edgeMaterial);
     }
     const nonIndexedGeom = mesh.geometry.index ? mesh.geometry.toNonIndexed() : mesh.geometry;
-    const cleanGeom = mergeVertices(nonIndexedGeom, 0.001);
+    const cleanGeom = mergeVertices(nonIndexedGeom, 0.005);
     const rawEdges = new THREE.EdgesGeometry(cleanGeom, 25);
     const ePos = rawEdges.attributes.position;
     if (!ePos || ePos.count === 0) {
@@ -824,7 +875,18 @@ export class CadEngine {
 
       // 1. Lọc nét dư apex rãnh chữ V (nét sống lưng bên trong hầm chữ V)
       const adjNorms = getAdjacentFaceNormals(A, B);
-      if (adjNorms.length === 2) {
+      if (adjNorms.length >= 2) {
+        let allCoplanar = true;
+        for (let j = 1; j < adjNorms.length; j++) {
+          if (adjNorms[0].dot(adjNorms[j]) < 0.96) {
+            allCoplanar = false;
+            break;
+          }
+        }
+        if (allCoplanar) {
+          // Nét thừa ranh giới giữa 2 mặt phẳng tiếp giáp cùng hướng (khi vẽ thêm lấp đầy góc)
+          continue;
+        }
         const n1 = adjNorms[0], n2 = adjNorms[1];
         const dot = n1.dot(n2);
         const oppX = n1.x * n2.x < -0.2;

@@ -48,6 +48,29 @@ export class InteractivePicker {
     this.selectedFilletEdge = null;
     this.cachedSharpEdges = [];
     this.preferOuterGrid = false;
+    this.opMode = 'cut'; // 'cut' (Cắt gọt) hoặc 'add' (Vẽ thêm / Hợp nhất)
+    this._tsrCollapsed = false;
+
+    this.tsrElement = document.getElementById('tool-sidebar-right');
+    this.tsrBody = document.getElementById('tsr-body');
+    this.tsrTitle = document.getElementById('tsr-title');
+    this.tsrIcon = document.getElementById('tsr-icon');
+    this.tsrInstruction = document.getElementById('tsr-instruction');
+    this.btnFloatingOpenTsr = document.getElementById('btn-floating-open-tsr');
+    this.btnToggleTsr = document.getElementById('btn-toggle-tsr');
+
+    if (this.btnToggleTsr) {
+      this.btnToggleTsr.addEventListener('click', () => {
+        this._tsrCollapsed = true;
+        this.updateRightToolbar();
+      });
+    }
+    if (this.btnFloatingOpenTsr) {
+      this.btnFloatingOpenTsr.addEventListener('click', () => {
+        this._tsrCollapsed = false;
+        this.updateRightToolbar();
+      });
+    }
 
     // Selected points in 3D: [ { x, y, z }, ... ]
     this.selectedPoints = [];
@@ -298,6 +321,7 @@ export class InteractivePicker {
   }
 
   updateVisibleGridNodes() {
+    this.updateRightToolbar();
     if (this.mode === 'view') {
       if (this.localNodesMesh) this.localNodesMesh.visible = false;
       return;
@@ -314,6 +338,29 @@ export class InteractivePicker {
       this.localNodesMesh.visible = false;
     }
     return;
+  }
+
+  
+  setOpMode(op) {
+    this.opMode = (op === 'add') ? 'add' : 'cut';
+    if (this.preview) this.preview.setOpMode(this.opMode);
+    this.updatePreviewForCurrentMode();
+    this.updateRightToolbar();
+    this.updateHUD();
+  }
+
+  updatePreviewForCurrentMode() {
+    if (this.preview) this.preview.setOpMode(this.opMode);
+    if (this.mode === 'vgroove') this.updatePreviewForVGroove();
+    else if (this.mode === 'slant') {
+      if (this.selectedPoints.length === 3) this.updatePreviewForPlane3Points();
+      else if (this.selectedPoints.length === 2) this.updatePreviewForSlant();
+    }
+    else if (this.mode === 'box') this.updatePreviewForBox();
+    else if (this.mode === 'poly') this.updatePreviewForPoly();
+    else if (this.mode === 'corner') this.updatePreviewForCorner();
+    else if (this.mode === 'hole') this.updatePreviewForHole();
+    else if (this.mode === 'fillet3d') this.updatePreviewForFillet();
   }
 
   setMode(mode) {
@@ -1369,7 +1416,8 @@ export class InteractivePicker {
           this.currentBrush,
           this.selectedPoints,
           this.customDepth,
-          this.isFullDepth
+          this.isFullDepth,
+          this.opMode
         );
 
       } else if (this.mode === 'slant') {
@@ -1387,7 +1435,9 @@ export class InteractivePicker {
               this.currentBrush,
               p1, p2, p3,
               this.slantCutAbove,
-              this.isFullDepth
+              this.isFullDepth,
+              0,
+              this.opMode
             );
           }
         } else if (this.selectedPoints.length === 2) {
@@ -1400,7 +1450,8 @@ export class InteractivePicker {
             params.p2_2d,
             params.dMin,
             params.dMax,
-            this.slantCutAbove
+            this.slantCutAbove,
+            this.opMode
           );
         }
 
@@ -1411,7 +1462,8 @@ export class InteractivePicker {
           this.currentBrush,
           params.x1, params.x2,
           params.y1, params.y2,
-          params.z1, params.z2
+          params.z1, params.z2,
+          this.opMode
         );
 
       } else if (this.mode === 'vgroove') {
@@ -1437,7 +1489,8 @@ export class InteractivePicker {
           this.holeRadius,
           this.holeDepth,
           this.holeThrough,
-          maxSpan
+          maxSpan,
+          this.opMode
         );
 
       } else if (this.mode === 'fillet3d') {
@@ -1464,6 +1517,433 @@ export class InteractivePicker {
   }
 
   // CẬP NHẬT THANH HUD VỚI ĐIỀU KHIỂN ĐỘ SÂU TRỰC TIẾP TẠI CHỖ
+  
+  updateRightToolbar() {
+    if (!this.tsrElement || !this.tsrBody) return;
+
+    if (this.mode === 'view') {
+      this.tsrElement.style.display = 'none';
+      if (this.btnFloatingOpenTsr) this.btnFloatingOpenTsr.style.display = 'none';
+      return;
+    }
+
+    if (!this._tsrCollapsed) {
+      this.tsrElement.style.display = 'flex';
+      if (this.btnFloatingOpenTsr) this.btnFloatingOpenTsr.style.display = 'none';
+    } else {
+      this.tsrElement.style.display = 'none';
+      if (this.btnFloatingOpenTsr) this.btnFloatingOpenTsr.style.display = 'flex';
+    }
+
+    // Đừng vẽ lại hoàn toàn nếu người dùng đang gõ trong một ô input để không bị mất focus
+    const activeEl = document.activeElement;
+    if (activeEl && this.tsrBody.contains(activeEl) && activeEl.tagName === 'INPUT') {
+      return;
+    }
+
+    const toolMeta = {
+      poly: { icon: '⬡', title: 'CẮT / VẼ ĐA GIÁC (POLY)', desc: 'Click các điểm liên tiếp tạo hình kín. Có thể chỉnh sửa tọa độ từng điểm hoặc độ sâu trực tiếp bên dưới.' },
+      slant: { icon: '📐', title: 'CẮT / VẼ VÁT NGHIÊNG (SLANT)', desc: 'Chọn 2 điểm (vát chéo) hoặc 3 điểm (mặt phẳng 3D). Có thể gõ tọa độ và đổi sang vẽ đắp khối.' },
+      box: { icon: '📦', title: 'CẮT / VẼ HỘP (BOX)', desc: 'Chọn 2 góc chéo để xác định hộp cắt hoặc hộp đắp thêm vào khối gốc.' },
+      vgroove: { icon: '✂️', title: 'CẮT / VẼ RÃNH CHỮ V (V-GROOVE)', desc: 'Chọn điểm đỉnh V và 2 chân đáy.' },
+      corner: { icon: '🔻', title: 'CẮT / VẼ GÓC (CORNER)', desc: 'Chọn 3 điểm góc để cắt chóp hoặc đắp góc.' },
+      hole: { icon: '⭕', title: 'KHOAN LỖ / TẠO TRỤ LỒI (CYLINDER)', desc: 'Click mặt để khoan lỗ hoặc đắp thêm trụ lồi (boss) với đường kính và chiều cao tùy ý.' },
+      fillet3d: { icon: '🔘', title: 'BO TRÒN CẠNH (FILLET)', desc: 'Click chọn cạnh 3D và nhập bán kính R bo tròn.' }
+    };
+
+    const currentMeta = toolMeta[this.mode] || { icon: '✂️', title: 'CÔNG CỤ CẮT GỌT 3D', desc: 'Chọn điểm để thao tác trên mô hình.' };
+    if (this.tsrIcon) this.tsrIcon.textContent = currentMeta.icon;
+    if (this.tsrTitle) this.tsrTitle.textContent = currentMeta.title;
+    if (this.tsrInstruction) {
+      this.tsrInstruction.textContent = (this.opMode === 'add')
+        ? `➕ Đang ở chế độ VẼ THÊM: ${currentMeta.desc} Khối sẽ được hợp nhất (Union) vào vật thể, các mặt phẳng nối tiếp không bị thừa nét rác ở góc.`
+        : `✂️ Đang ở chế độ CẮT GỌT: ${currentMeta.desc}`;
+    }
+
+    let html = '';
+
+    // 1. Chuyển đổi Cắt Gọt <--> Vẽ Thêm
+    html += `
+      <div class="tsr-mode-switch">
+        <button class="tsr-mode-btn ${this.opMode === 'cut' ? 'active-cut' : ''}" id="tsr-btn-mode-cut">
+          ✂️ Cắt Gọt
+        </button>
+        <button class="tsr-mode-btn ${this.opMode === 'add' ? 'active-add' : ''}" id="tsr-btn-mode-add">
+          ➕ Vẽ Thêm
+        </button>
+      </div>
+    `;
+
+    // 2. Danh sách tọa độ các điểm đã chọn (cho phép gõ trực tiếp)
+    if (this.selectedPoints.length > 0) {
+      html += `
+        <div class="tsr-section">
+          <div class="tsr-section-title">
+            <span>📍 TỌA ĐỘ ĐIỂM (${this.selectedPoints.length})</span>
+            <span style="font-size:0.68rem; opacity:0.8;">Gõ để sửa</span>
+          </div>
+      `;
+
+      this.selectedPoints.forEach((pt, idx) => {
+        const stepVal = this.snapStep || 0.5;
+        html += `
+          <div class="tsr-point-row">
+            <div class="tsr-point-header">
+              <span>Điểm ${idx + 1}</span>
+              <button class="tsr-btn-del-pt" data-pt-idx="${idx}" style="background:none; border:none; color:#f87171; cursor:pointer; font-size:11px;" title="Xóa điểm này">🗑️ Xóa</button>
+            </div>
+            <div class="tsr-coord-inputs">
+              <div class="tsr-input-group">
+                <label>X</label>
+                <input type="number" step="${stepVal}" class="tsr-coord-input" data-pt-idx="${idx}" data-axis="x" value="${pt.x}">
+              </div>
+              <div class="tsr-input-group">
+                <label>Y</label>
+                <input type="number" step="${stepVal}" class="tsr-coord-input" data-pt-idx="${idx}" data-axis="y" value="${pt.y}">
+              </div>
+              <div class="tsr-input-group">
+                <label>Z</label>
+                <input type="number" step="${stepVal}" class="tsr-coord-input" data-pt-idx="${idx}" data-axis="z" value="${pt.z}">
+              </div>
+            </div>
+          </div>
+        `;
+      });
+
+      html += `</div>`;
+    }
+
+    // 3. Điều khiển độ sâu cắt / đắp
+    if (this.mode !== 'fillet3d') {
+      const stepVal = this.snapStep || 0.5;
+      const isDepthTool = (this.mode === 'poly' || this.mode === 'slant' || this.mode === 'box' || this.mode === 'vgroove');
+      if (isDepthTool) {
+        html += `
+          <div class="tsr-section">
+            <div class="tsr-section-title">
+              <span>📏 ĐỘ SÂU ${this.opMode === 'add' ? 'ĐẮP KHỐI' : 'CẮT'}</span>
+              <span style="font-size:0.7rem; color:#cbd5e1;">${this.isFullDepth ? 'Xuyên suốt' : this.customDepth + ' ô'}</span>
+            </div>
+            <div class="tsr-depth-control">
+              <div class="tsr-depth-row">
+                <input type="number" id="tsr-input-depth" min="0.1" step="${stepVal}" value="${this.customDepth}" placeholder="Nhập độ sâu...">
+                <button class="tsr-btn-secondary ${this.isFullDepth ? 'active' : ''}" id="tsr-btn-full-depth">
+                  ${this.isFullDepth ? '✓ Xuyên suốt' : 'Xuyên suốt'}
+                </button>
+              </div>
+              <div class="tsr-btn-row">
+                <button class="tsr-btn-secondary" id="tsr-btn-depth-minus">➖ Giảm 1 ô</button>
+                <button class="tsr-btn-secondary" id="tsr-btn-depth-plus">➕ Tăng 1 ô</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    // 4. Các điều khiển riêng biệt của từng tool
+    if (this.mode === 'slant' && this.selectedPoints.length >= 2) {
+      html += `
+        <div class="tsr-section">
+          <div class="tsr-section-title">
+            <span>🔄 HƯỚNG MẶT PHẲNG CẮT</span>
+          </div>
+          <button class="tsr-btn-secondary" id="tsr-btn-toggle-dir" style="width:100%;">
+            🔄 Đổi Phía Vát / Cắt (${this.slantCutAbove ? 'Phía TRÊN / PHẢI' : 'Phía DƯỚI / TRÁI'})
+          </button>
+        </div>
+      `;
+    }
+
+    if (this.mode === 'hole') {
+      html += `
+        <div class="tsr-section">
+          <div class="tsr-section-title">
+            <span>⭕ THÔNG SỐ ${this.opMode === 'add' ? 'TRỤ LỒI' : 'LỖ KHOAN'}</span>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <div class="tsr-depth-row">
+              <span style="font-size:0.75rem; color:#94a3b8; width:70px;">Đường kính:</span>
+              <input type="number" id="tsr-hole-dia" min="0.2" step="0.5" value="${this.holeRadius * 2}">
+            </div>
+            <div class="tsr-depth-row">
+              <span style="font-size:0.75rem; color:#94a3b8; width:70px;">Độ sâu/Cao:</span>
+              <input type="number" id="tsr-hole-depth" min="0.5" step="0.5" value="${this.holeDepth}">
+              <button class="tsr-btn-secondary ${this.holeThrough ? 'active' : ''}" id="tsr-hole-through">
+                ${this.holeThrough ? '✓ Xuyên' : 'Xuyên'}
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    if (this.mode === 'fillet3d') {
+      html += `
+        <div class="tsr-section">
+          <div class="tsr-section-title">
+            <span>🔘 BÁN KÍNH BO (R)</span>
+          </div>
+          <div class="tsr-depth-row">
+            <input type="number" id="tsr-fillet-r" min="0.1" step="0.5" value="${this.filletRadius}">
+            <button class="tsr-btn-secondary" id="tsr-fillet-minus">➖ 0.5</button>
+            <button class="tsr-btn-secondary" id="tsr-fillet-plus">➕ 0.5</button>
+          </div>
+        </div>
+      `;
+    }
+
+    // 5. Nút thực hiện thao tác
+    const canExecute = (
+      (this.mode === 'poly' && this.selectedPoints.length >= 3) ||
+      (this.mode === 'slant' && this.selectedPoints.length >= 2) ||
+      (this.mode === 'box' && this.selectedPoints.length >= 2) ||
+      (this.mode === 'vgroove' && this.selectedPoints.length >= 3) ||
+      (this.mode === 'corner' && this.selectedPoints.length >= 3) ||
+      (this.mode === 'hole' && this.holeCenter) ||
+      (this.mode === 'fillet3d' && this.selectedFilletEdge)
+    );
+
+    const execClass = (this.opMode === 'add') ? 'add-action' : 'cut-action';
+    const execLabel = (this.opMode === 'add') ? '➕ THỰC HIỆN VẼ THÊM (Enter)' : '✂️ THỰC HIỆN CẮT (Enter)';
+
+    html += `
+      <div style="display:flex; flex-direction:column; gap:8px; margin-top:4px;">
+        <button class="tsr-btn-primary ${execClass}" id="tsr-btn-execute" ${canExecute ? '' : 'disabled style="opacity:0.5; cursor:not-allowed;"'}>
+          ${execLabel}
+        </button>
+        <div class="tsr-btn-row">
+          <button class="tsr-btn-secondary" id="tsr-btn-del-last" ${this.selectedPoints.length > 0 ? '' : 'disabled style="opacity:0.5;"'}>
+            ↩️ Xóa Điểm Cuối
+          </button>
+          <button class="tsr-btn-secondary" id="tsr-btn-cancel" style="color:#f87171;">
+            ✖️ Hủy Thao Tác
+          </button>
+        </div>
+      </div>
+    `;
+
+    // 6. Bước bắt dính & Lưới nhanh
+    let stepBadge = '🎯 1 Ô';
+    if (Math.abs(this.snapStep - 0.5) < 0.01) stepBadge = '✂️ 1/2 Ô';
+    else if (Math.abs(this.snapStep - 0.25) < 0.01) stepBadge = '✂️ 1/4 Ô';
+    else if (Math.abs(this.snapStep - 0.125) < 0.01) stepBadge = '✂️ 1/8 Ô';
+
+    html += `
+      <div class="tsr-section" style="margin-top:auto;">
+        <div class="tsr-section-title">
+          <span>⚙️ BẮT DÍNH & LƯỚI</span>
+        </div>
+        <div class="tsr-btn-row">
+          <button class="tsr-btn-secondary" id="tsr-toggle-step" title="Đổi bước lưới (Phím tắt: S)">${stepBadge}</button>
+          <button class="tsr-btn-secondary ${this.preferOuterGrid ? 'active' : ''}" id="tsr-toggle-outer-grid" title="Bắt dính hộp bao ngoài để cắt/vẽ mặt cong dễ hơn">🧲 Lưới Ngoài</button>
+        </div>
+      </div>
+    `;
+
+    this.tsrBody.innerHTML = html;
+    this.bindRightToolbarEvents();
+  }
+
+  bindRightToolbarEvents() {
+    const btnModeCut = document.getElementById('tsr-btn-mode-cut');
+    if (btnModeCut) btnModeCut.addEventListener('click', () => this.setOpMode('cut'));
+
+    const btnModeAdd = document.getElementById('tsr-btn-mode-add');
+    if (btnModeAdd) btnModeAdd.addEventListener('click', () => this.setOpMode('add'));
+
+    // Bắt sự kiện chỉnh sửa tọa độ các điểm
+    const coordInputs = this.tsrBody.querySelectorAll('.tsr-coord-input');
+    coordInputs.forEach(input => {
+      input.addEventListener('input', (e) => {
+        const ptIdx = parseInt(e.target.dataset.ptIdx);
+        const axis = e.target.dataset.axis;
+        const val = parseFloat(e.target.value);
+        if (!isNaN(val) && this.selectedPoints[ptIdx]) {
+          this.selectedPoints[ptIdx][axis] = val;
+          this.renderPointMarkers();
+          this.updatePreviewForCurrentMode();
+        }
+      });
+    });
+
+    // Nút xóa từng điểm
+    const delPtBtns = this.tsrBody.querySelectorAll('.tsr-btn-del-pt');
+    delPtBtns.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const ptIdx = parseInt(e.currentTarget.dataset.ptIdx);
+        if (!isNaN(ptIdx) && this.selectedPoints[ptIdx]) {
+          this.selectedPoints.splice(ptIdx, 1);
+          this.renderPointMarkers();
+          this.updatePreviewForCurrentMode();
+          this.updateRightToolbar();
+          this.updateHUD();
+        }
+      });
+    });
+
+    // Độ sâu cắt / đắp
+    const inputDepth = document.getElementById('tsr-input-depth');
+    if (inputDepth) {
+      inputDepth.addEventListener('input', (e) => {
+        const val = parseFloat(e.target.value);
+        if (!isNaN(val) && val > 0) {
+          this.customDepth = val;
+          this.isFullDepth = false;
+          this.updatePreviewForCurrentMode();
+        }
+      });
+    }
+
+    const btnFullDepth = document.getElementById('tsr-btn-full-depth');
+    if (btnFullDepth) {
+      btnFullDepth.addEventListener('click', () => {
+        this.isFullDepth = !this.isFullDepth;
+        this.updatePreviewForCurrentMode();
+        this.updateRightToolbar();
+        this.updateHUD();
+      });
+    }
+
+    const btnDepthMinus = document.getElementById('tsr-btn-depth-minus');
+    if (btnDepthMinus) {
+      btnDepthMinus.addEventListener('click', () => {
+        this.customDepth = Math.max(0.5, this.customDepth - (this.snapStep || 1));
+        this.isFullDepth = false;
+        this.updatePreviewForCurrentMode();
+        this.updateRightToolbar();
+        this.updateHUD();
+      });
+    }
+
+    const btnDepthPlus = document.getElementById('tsr-btn-depth-plus');
+    if (btnDepthPlus) {
+      btnDepthPlus.addEventListener('click', () => {
+        this.customDepth += (this.snapStep || 1);
+        this.isFullDepth = false;
+        this.updatePreviewForCurrentMode();
+        this.updateRightToolbar();
+        this.updateHUD();
+      });
+    }
+
+    const btnToggleDir = document.getElementById('tsr-btn-toggle-dir');
+    if (btnToggleDir) {
+      btnToggleDir.addEventListener('click', () => {
+        this.slantCutAbove = !this.slantCutAbove;
+        this.updatePreviewForCurrentMode();
+        this.updateRightToolbar();
+        this.updateHUD();
+      });
+    }
+
+    // Lỗ / Trụ
+    const inputHoleDia = document.getElementById('tsr-hole-dia');
+    if (inputHoleDia) {
+      inputHoleDia.addEventListener('input', (e) => {
+        const dia = parseFloat(e.target.value);
+        if (!isNaN(dia) && dia > 0) {
+          this.holeRadius = dia / 2;
+          this.updatePreviewForCurrentMode();
+        }
+      });
+    }
+
+    const inputHoleDepth = document.getElementById('tsr-hole-depth');
+    if (inputHoleDepth) {
+      inputHoleDepth.addEventListener('input', (e) => {
+        const dep = parseFloat(e.target.value);
+        if (!isNaN(dep) && dep > 0) {
+          this.holeDepth = dep;
+          this.holeThrough = false;
+          this.updatePreviewForCurrentMode();
+        }
+      });
+    }
+
+    const btnHoleThrough = document.getElementById('tsr-hole-through');
+    if (btnHoleThrough) {
+      btnHoleThrough.addEventListener('click', () => {
+        this.holeThrough = !this.holeThrough;
+        this.updatePreviewForCurrentMode();
+        this.updateRightToolbar();
+        this.updateHUD();
+      });
+    }
+
+    // Bo cạnh
+    const inputFilletR = document.getElementById('tsr-fillet-r');
+    if (inputFilletR) {
+      inputFilletR.addEventListener('input', (e) => {
+        const r = parseFloat(e.target.value);
+        if (!isNaN(r) && r > 0) {
+          this.filletRadius = r;
+          this.updatePreviewForCurrentMode();
+        }
+      });
+    }
+
+    const btnFilletMinus = document.getElementById('tsr-fillet-minus');
+    if (btnFilletMinus) {
+      btnFilletMinus.addEventListener('click', () => {
+        this.filletRadius = Math.max(0.2, this.filletRadius - 0.5);
+        this.updatePreviewForCurrentMode();
+        this.updateRightToolbar();
+        this.updateHUD();
+      });
+    }
+
+    const btnFilletPlus = document.getElementById('tsr-fillet-plus');
+    if (btnFilletPlus) {
+      btnFilletPlus.addEventListener('click', () => {
+        this.filletRadius += 0.5;
+        this.updatePreviewForCurrentMode();
+        this.updateRightToolbar();
+        this.updateHUD();
+      });
+    }
+
+    // Nút thực hiện & hủy
+    const btnExecute = document.getElementById('tsr-btn-execute');
+    if (btnExecute) {
+      btnExecute.addEventListener('click', () => this.executeCurrentCut());
+    }
+
+    const btnDelLast = document.getElementById('tsr-btn-del-last');
+    if (btnDelLast) {
+      btnDelLast.addEventListener('click', () => {
+        this.removeLastPoint();
+        this.updateRightToolbar();
+      });
+    }
+
+    const btnCancel = document.getElementById('tsr-btn-cancel');
+    if (btnCancel) {
+      btnCancel.addEventListener('click', () => {
+        this.clearSelection();
+        this.updateRightToolbar();
+      });
+    }
+
+    const btnToggleStep = document.getElementById('tsr-toggle-step');
+    if (btnToggleStep) {
+      btnToggleStep.addEventListener('click', () => {
+        this.toggleSnapStep();
+        this.updateRightToolbar();
+        this.updateHUD();
+      });
+    }
+
+    const btnToggleOuterGrid = document.getElementById('tsr-toggle-outer-grid');
+    if (btnToggleOuterGrid) {
+      btnToggleOuterGrid.addEventListener('click', () => {
+        this.preferOuterGrid = !this.preferOuterGrid;
+        this.updateRightToolbar();
+        this.updateHUD();
+      });
+    }
+  }
+
   updateHUD() {
     if (!this.hudElement) return;
 
@@ -1512,8 +1992,11 @@ export class InteractivePicker {
     else if (Math.abs(this.snapStep - 0.25) < 0.01) stepBadge = '✂️ 1/4 Ô';
     else if (Math.abs(this.snapStep - 0.125) < 0.01) stepBadge = '✂️ 1/8 Ô';
 
+    const opBtnClass = (this.opMode === 'add') ? 'active-add' : 'active-cut';
+    const opBtnText = (this.opMode === 'add') ? '➕ Vẽ Thêm' : '✂️ Cắt Gọt';
     const quickControlsHtml = `
       <div style="display:inline-flex; align-items:center; gap:5px; margin-left:6px;">
+        <button class="hud-btn-toggle" id="hud-toggle-op-mode" style="${this.opMode === 'add' ? 'background:#059669;color:#fff;border-color:#10b981;' : 'background:#b91c1c;color:#fff;border-color:#ef4444;'}" title="Chuyển đổi giữa chế độ Cắt Gọt và Vẽ Thêm / Đắp khối">${opBtnText}</button>
         <button class="hud-btn-toggle" id="hud-toggle-step" title="Đổi bước lưới (1 ➔ 1/2 ➔ 1/4 ➔ 1/8) (Phím tắt: S)">${stepBadge}</button>
         <button class="hud-btn-toggle" id="hud-toggle-grid" title="Bật/Tắt lưới ô vuông trên mặt khối (Phím tắt: G)">🔲 Ô Vuông</button>
         <button class="hud-btn-toggle ${this.preferOuterGrid ? 'active' : ''}" id="hud-toggle-outer-grid" style="${this.preferOuterGrid ? 'background:#0284c7;color:#fff;border-color:#38bdf8;' : ''}" title="Ưu tiên chọn điểm trên lưới vuông bao ngoài [0..W, 0..H, 0..D] để cắt mặt cong dễ hơn">🧲 Lưới Ngoài</button>
@@ -1866,6 +2349,12 @@ export class InteractivePicker {
 
     this.hudElement.innerHTML = html;
 
+    const btnToggleOpMode = document.getElementById('hud-toggle-op-mode');
+    if (btnToggleOpMode) {
+      btnToggleOpMode.addEventListener('click', () => {
+        this.setOpMode(this.opMode === 'cut' ? 'add' : 'cut');
+      });
+    }
     const btnToggleStep = document.getElementById('hud-toggle-step');
     if (btnToggleStep) btnToggleStep.addEventListener('click', () => this.toggleSnapStep());
 

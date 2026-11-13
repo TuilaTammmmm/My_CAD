@@ -13,7 +13,7 @@ import { CAD2DEditor } from './cad2d-editor.js';
 import { DimensionOverlay } from './dimension-overlay.js';
 import { InspectionTool } from './measure-tool.js';
 import { ProjectionScreensOverlay } from './projection-screens.js';
-import { executeCadScript, CAD_SCRIPT_PRESETS } from './cad-script.js';
+import { executeCadScript, rotateBrushAroundY, CAD_SCRIPT_PRESETS } from './cad-script.js';
 import { initOCCT } from './occt-kernel.js';
 import { inject } from '@vercel/analytics';
 import { injectSpeedInsights } from '@vercel/speed-insights';
@@ -705,6 +705,8 @@ function switchTo3D() {
   if (sidebar2d) sidebar2d.style.display = 'none';
 
   // Hiện lại HUD và helper 3D theo trạng thái mode hiện tại
+  const hud = document.getElementById('interactive-hud');
+  if (hud) hud.style.display = '';
   const helper = document.querySelector('.hud-helper');
   if (helper) helper.style.display = '';
   if (picker && picker.updateHUD) picker.updateHUD();
@@ -911,7 +913,9 @@ async function runCadScriptFromModal() {
     runBtn.textContent = '⏳ Đang dựng B-Rep...';
   }
   try {
-    const { brush, w, h, d } = await executeCadScript(scriptInput.value, cad, { w: W, h: H, d: D });
+    const rotSel = document.getElementById('script-front-rot');
+    const frontRotDeg = rotSel ? (Number(rotSel.value) || 0) : 0;
+    const { brush, w, h, d } = await executeCadScript(scriptInput.value, cad, { w: W, h: H, d: D, frontRotDeg });
     W = w;
     H = h;
     D = d;
@@ -941,6 +945,27 @@ async function runCadScriptFromModal() {
 }
 
 document.getElementById('btn-run-script')?.addEventListener('click', runCadScriptFromModal);
+document.getElementById('btn-rotate-model-90')?.addEventListener('click', async () => {
+  if (!currentBrush) return;
+  try {
+    const { brush, w, h, d } = await rotateBrushAroundY(currentBrush, cad, 90);
+    W = w;
+    H = h;
+    D = d;
+    const dimW = document.getElementById('dim-w');
+    const dimH = document.getElementById('dim-h');
+    const dimD = document.getElementById('dim-d');
+    if (dimW) dimW.value = W;
+    if (dimH) dimH.value = H;
+    if (dimD) dimD.value = D;
+    setModel(brush, true);
+    gridOverlay.update(W, H, D, currentBrush, picker.snapStep);
+    dimOverlay.updateBounds(W, H, D, picker.snapStep);
+    centerCamera();
+  } catch (err) {
+    alert(`Không thể xoay khối: ${err.message || err}`);
+  }
+});
 scriptInput?.addEventListener('keydown', (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
     e.preventDefault();

@@ -39,12 +39,15 @@ export class CutterPreview {
   }
 
   setOpMode(opMode = 'cut') {
+    this.opMode = opMode;
     if (opMode === 'add') {
       this.material.color.setHex(0x10b981);
       this.edgeMaterial.color.setHex(0x34d399);
+      this.material.opacity = 0.62;
     } else {
       this.material.color.setHex(0xf43f5e);
       this.edgeMaterial.color.setHex(0xff1744);
+      this.material.opacity = 0.42;
     }
   }
 
@@ -62,6 +65,13 @@ export class CutterPreview {
   setPreviewCutter(cutterGeom, currentBrush = null, cadEngine = null) {
     if (!cutterGeom) {
       this.clear();
+      return;
+    }
+
+    // Khi ở chế độ VẼ THÊM (opMode === 'add'): Luôn hiển thị toàn bộ khối vẽ thêm màu xanh ngọc
+    // Tuyệt đối không cắt giao thể tích INTERSECTION với phôi cũ vì khối vẽ thêm nằm đắp lên ngoài vật thể!
+    if (this.opMode === 'add') {
+      this.setPreviewGeom(cutterGeom);
       return;
     }
 
@@ -318,22 +328,34 @@ export class CutterPreview {
     const geom = new THREE.ExtrudeGeometry(shape, { steps: 1, depth: depthSpan, bevelEnabled: false });
 
     if (planeType === 'XY') {
-      if (faceCoord > 0.05) {
-        geom.translate(0, 0, faceCoord - depthSpan);
+      if (this.opMode === 'add') {
+        geom.translate(0, 0, (faceCoord > 0.05) ? faceCoord : (faceCoord - depthSpan));
+      } else {
+        if (faceCoord > 0.05) {
+          geom.translate(0, 0, faceCoord - depthSpan);
+        }
       }
     } else if (planeType === 'ZY') {
       geom.rotateY(-Math.PI / 2);
-      if (faceCoord > 0.05) {
-        geom.translate(faceCoord, 0, 0);
+      if (this.opMode === 'add') {
+        geom.translate((faceCoord > 0.05) ? (faceCoord + depthSpan) : faceCoord, 0, 0);
       } else {
-        geom.translate(faceCoord + depthSpan, 0, 0);
+        if (faceCoord > 0.05) {
+          geom.translate(faceCoord, 0, 0);
+        } else {
+          geom.translate(faceCoord + depthSpan, 0, 0);
+        }
       }
     } else if (planeType === 'XZ') {
       geom.rotateX(Math.PI / 2);
-      if (faceCoord > 0.05) {
-        geom.translate(0, faceCoord, 0);
+      if (this.opMode === 'add') {
+        geom.translate(0, (faceCoord > 0.05) ? (faceCoord + depthSpan) : faceCoord, 0);
       } else {
-        geom.translate(0, faceCoord + depthSpan, 0);
+        if (faceCoord > 0.05) {
+          geom.translate(0, faceCoord, 0);
+        } else {
+          geom.translate(0, faceCoord + depthSpan, 0);
+        }
       }
     }
 
@@ -430,8 +452,20 @@ export class CutterPreview {
 
   // Xem trước Khoan Lỗ Tròn (Hole / Cylinder Cut)
   showHole(hitPoint, hitNormal, radius, depth, isThrough, maxSpan, currentBrush = null, cadEngine = null) {
-    if (!cadEngine || !cadEngine.createHoleCutterGeometry) return;
-    const geom = cadEngine.createHoleCutterGeometry(hitPoint, hitNormal, radius, depth, isThrough, maxSpan);
+    if (!cadEngine) return;
+    let geom;
+    if (this.opMode === 'add') {
+      const bossLen = depth > 0.01 ? depth : 10;
+      geom = new THREE.CylinderGeometry(radius, radius, bossLen, 32);
+      geom.translate(0, bossLen / 2, 0);
+      const defaultDir = new THREE.Vector3(0, 1, 0);
+      const quat = new THREE.Quaternion().setFromUnitVectors(defaultDir, hitNormal.clone().normalize());
+      geom.applyQuaternion(quat);
+      geom.translate(hitPoint.x, hitPoint.y, hitPoint.z);
+    } else {
+      if (!cadEngine.createHoleCutterGeometry) return;
+      geom = cadEngine.createHoleCutterGeometry(hitPoint, hitNormal, radius, depth, isThrough, maxSpan);
+    }
     this.setPreviewCutter(geom, currentBrush, cadEngine);
   }
 

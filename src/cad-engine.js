@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Brush, Evaluator, SUBTRACTION } from 'three-bvh-csg';
+import { Brush, Evaluator, SUBTRACTION, ADDITION } from 'three-bvh-csg';
 import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { ConvexGeometry } from 'three/addons/geometries/ConvexGeometry.js';
 import { isOCCTReady, replicad, replicadToBrush } from './occt-kernel.js';
@@ -346,24 +346,36 @@ export class CadEngine {
     const geom = new THREE.ExtrudeGeometry(shape, extrudeSettings);
 
     if (planeType === 'XY') {
-      if (faceCoord > 0.05) {
-        geom.translate(0, 0, faceCoord - depthSpan);
+      if (op === 'add') {
+        geom.translate(0, 0, (faceCoord > 0.05) ? faceCoord : (faceCoord - depthSpan));
       } else {
-        geom.translate(0, 0, -0.05);
+        if (faceCoord > 0.05) {
+          geom.translate(0, 0, faceCoord - depthSpan);
+        } else {
+          geom.translate(0, 0, -0.05);
+        }
       }
     } else if (planeType === 'ZY') {
       geom.rotateY(-Math.PI / 2);
-      if (faceCoord > 0.05) {
-        geom.translate(faceCoord, 0, 0);
+      if (op === 'add') {
+        geom.translate((faceCoord > 0.05) ? (faceCoord + depthSpan) : faceCoord, 0, 0);
       } else {
-        geom.translate(faceCoord + depthSpan + 0.05, 0, 0);
+        if (faceCoord > 0.05) {
+          geom.translate(faceCoord, 0, 0);
+        } else {
+          geom.translate(faceCoord + depthSpan + 0.05, 0, 0);
+        }
       }
     } else if (planeType === 'XZ') {
       geom.rotateX(Math.PI / 2);
-      if (faceCoord > 0.05) {
-        geom.translate(0, faceCoord, 0);
+      if (op === 'add') {
+        geom.translate(0, (faceCoord > 0.05) ? (faceCoord + depthSpan) : faceCoord, 0);
       } else {
-        geom.translate(0, faceCoord + depthSpan + 0.05, 0);
+        if (faceCoord > 0.05) {
+          geom.translate(0, faceCoord, 0);
+        } else {
+          geom.translate(0, faceCoord + depthSpan + 0.05, 0);
+        }
       }
     }
 

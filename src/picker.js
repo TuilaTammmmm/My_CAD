@@ -1199,10 +1199,28 @@ export class InteractivePicker {
     let y1 = p1.y, y2 = p2.y;
     let z1 = p1.z, z2 = p2.z;
 
-    const d = this.isFullDepth ? this.bounds.d : this.customDepth;
-    if (x1 === x2) x2 = (x1 === this.bounds.w) ? x1 - d : x1 + d;
-    if (y1 === y2) y2 = (y1 === this.bounds.h) ? y1 - d : y1 + d;
-    if (z1 === z2) z2 = (z1 === this.bounds.d) ? z1 - d : z1 + d;
+    const d = this.isFullDepth ? (this.bounds ? Math.max(this.bounds.w, this.bounds.h, this.bounds.d) : 10) : this.customDepth;
+    if (Math.abs(x1 - x2) < 0.001) {
+      if (this.opMode === 'add') {
+        x2 = (x1 <= 0.01) ? x1 - d : x1 + d;
+      } else {
+        x2 = (x1 >= (this.bounds?.w || 6) - 0.01) ? x1 - d : x1 + d;
+      }
+    }
+    if (Math.abs(y1 - y2) < 0.001) {
+      if (this.opMode === 'add') {
+        y2 = (y1 <= 0.01) ? y1 - d : y1 + d;
+      } else {
+        y2 = (y1 >= (this.bounds?.h || 4) - 0.01) ? y1 - d : y1 + d;
+      }
+    }
+    if (Math.abs(z1 - z2) < 0.001) {
+      if (this.opMode === 'add') {
+        z2 = (z1 <= 0.01) ? z1 - d : z1 + d;
+      } else {
+        z2 = (z1 >= (this.bounds?.d || 4) - 0.01) ? z1 - d : z1 + d;
+      }
+    }
 
     return { x1, x2, y1, y2, z1, z2 };
   }

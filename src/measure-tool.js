@@ -170,6 +170,13 @@ export class InspectionTool {
     this.isCollapsed = false;
     if (this.panelElement) this.panelElement.style.display = 'flex';
     if (this.floatingBtn) this.floatingBtn.style.display = 'none';
+    if (typeof window !== 'undefined' && window.innerWidth <= 768) {
+      const cadSidebar = document.getElementById('cad-sidebar');
+      if (cadSidebar && !cadSidebar.classList.contains('compact')) {
+        cadSidebar.classList.add('compact');
+        document.body.classList.add('sidebar-compact');
+      }
+    }
   }
 
   // Khởi tạo lắng nghe tương tác chuột trên viewport 3D
@@ -251,6 +258,13 @@ export class InspectionTool {
     } else {
       if (this.panelElement) this.panelElement.style.display = 'flex';
       if (this.floatingBtn) this.floatingBtn.style.display = 'none';
+      if (typeof window !== 'undefined' && window.innerWidth <= 768) {
+        const cadSidebar = document.getElementById('cad-sidebar');
+        if (cadSidebar && !cadSidebar.classList.contains('compact')) {
+          cadSidebar.classList.add('compact');
+          document.body.classList.add('sidebar-compact');
+        }
+      }
     }
     this.updateInstruction();
     this.updateUIList();

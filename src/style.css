@@ -829,7 +829,7 @@ body {
   right: 18px;
   top: 18px;
   bottom: 18px;
-  width: 320px;
+  width: 272px;
   background: rgba(15, 23, 42, 0.94);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
@@ -1905,9 +1905,25 @@ body {
     left: 68px;
     right: 8px;
     top: 8px;
-    bottom: auto;
+    bottom: 8px;
     max-height: calc(100dvh - 16px);
     width: auto;
+    max-width: 310px;
+    margin-left: auto;
+    padding: 12px;
+    border-radius: 16px;
+    z-index: 60;
+  }
+
+  .tool-sidebar-right {
+    left: 68px;
+    right: 8px;
+    top: 8px;
+    bottom: 8px;
+    max-height: calc(100dvh - 16px);
+    width: auto;
+    max-width: 310px;
+    margin-left: auto;
     padding: 12px;
     border-radius: 16px;
     z-index: 60;
@@ -1949,6 +1965,38 @@ body {
     border-radius: 12px;
     font-size: 0.72rem;
     line-height: 1.35;
+  }
+}
+
+@media (max-width: 520px) {
+  .cad-sidebar {
+    left: 4px;
+    top: 4px;
+    bottom: 4px;
+  }
+  .cad-sidebar.compact {
+    width: 48px;
+    padding: 6px 3px;
+    gap: 6px;
+  }
+  .cad-sidebar.compact .tool-btn {
+    padding: 6px 2px;
+  }
+  .inspection-panel,
+  .tool-sidebar-right {
+    left: 56px;
+    right: 4px;
+    top: 4px;
+    bottom: 4px;
+    max-width: none;
+    padding: 10px;
+    border-radius: 14px;
+  }
+  .floating-inspect-btn {
+    right: 6px;
+    top: 6px;
+    padding: 6px 10px;
+    font-size: 0.72rem;
   }
 }
 

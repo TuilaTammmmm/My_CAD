@@ -854,10 +854,21 @@ function setSidebarCompact(compact) {
       ? 'Mở rộng thanh công cụ'
       : 'Thu gọn thành tab Icon';
   }
-  // Trên điện thoại: không để bảng đo đạc và sidebar mở rộng đè lên nhau
-  if (!compact && window.innerWidth <= 768 && inspectionTool && !inspectionTool.isCollapsed) {
-    inspectionTool.collapsePanel();
+  // Trên điện thoại & màn nhỏ: không để bảng đo đạc/cắt gọt và sidebar mở rộng đè lên nhau
+  if (!compact && window.innerWidth <= 768) {
+    if (inspectionTool && !inspectionTool.isCollapsed) {
+      inspectionTool.collapsePanel();
+    }
+    if (picker && !picker._tsrCollapsed) {
+      picker._tsrCollapsed = true;
+      picker.updateRightToolbar();
+    }
   }
+}
+
+// Tự động thu gọn thành icon strip trên điện thoại/màn nhỏ khi bắt đầu
+if (window.innerWidth <= 768) {
+  setSidebarCompact(true);
 }
 
 btnToggleCompact?.addEventListener('click', (e) => {

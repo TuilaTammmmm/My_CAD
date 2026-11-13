@@ -86,7 +86,7 @@ export class CadEngine {
   }
 
   // Tạo khối dao cắt vát nghiêng nửa không gian (Half-Space Slanted Cutter)
-  createSlantCutterGeometry(planeType, p1_2d, p2_2d, depthMin, depthMax, cutAbove, targetBrush = null) {
+  createSlantCutterGeometry(planeType, p1_2d, p2_2d, depthMin, depthMax, cutAbove, targetBrush = null, isFullDepth = false) {
     const u1 = p1_2d.u, v1 = p1_2d.v;
     const u2 = p2_2d.u, v2 = p2_2d.v;
 
@@ -106,6 +106,9 @@ export class CadEngine {
       nV = -nV;
     }
 
+    if (targetBrush?.geometry && !targetBrush.geometry.boundingBox) {
+      targetBrush.geometry.computeBoundingBox();
+    }
     const bounds = targetBrush?.geometry?.boundingBox || {
       min: new THREE.Vector3(0, 0, 0),
       max: new THREE.Vector3(60, 60, 60)
@@ -116,9 +119,16 @@ export class CadEngine {
       Math.abs(bounds.max.z - bounds.min.z),
       60
     );
-    const BOX_SPAN = Math.max(maxDim * 3, 200);
-    const depthSpan = Math.abs(depthMax - depthMin) + 0.4;
-    const midDepth = (depthMin + depthMax) / 2;
+    const BOX_SPAN = Math.max(maxDim * 4, 1000);
+    let depthSpan = Math.abs(depthMax - depthMin) + 0.4;
+    let midDepth = (depthMin + depthMax) / 2;
+
+    if (isFullDepth) {
+      depthSpan = Math.max(maxDim * 4, 1000);
+      const bMin = (planeType === 'XY') ? bounds.min.z : (planeType === 'ZY') ? bounds.min.x : bounds.min.y;
+      const bMax = (planeType === 'XY') ? bounds.max.z : (planeType === 'ZY') ? bounds.max.x : bounds.max.y;
+      midDepth = (bMin + bMax) / 2;
+    }
 
     const geom = new THREE.BoxGeometry(BOX_SPAN, BOX_SPAN, depthSpan);
     geom.translate(0, BOX_SPAN / 2, 0);
@@ -144,8 +154,8 @@ export class CadEngine {
   }
 
   // Cắt vát chéo nghiêng
-  cutSlant(targetBrush, planeType, p1, p2, depthMin, depthMax, cutAbove = true, op = 'cut') {
-    const geom = this.createSlantCutterGeometry(planeType, p1, p2, depthMin, depthMax, cutAbove, targetBrush);
+  cutSlant(targetBrush, planeType, p1, p2, depthMin, depthMax, cutAbove = true, op = 'cut', isFullDepth = false) {
+    const geom = this.createSlantCutterGeometry(planeType, p1, p2, depthMin, depthMax, cutAbove, targetBrush, isFullDepth);
     if (!geom) return targetBrush;
 
     const toolBrush = new Brush(geom);
@@ -310,6 +320,9 @@ export class CadEngine {
     const minY = Math.min(...ys), maxY = Math.max(...ys);
     const minZ = Math.min(...zs), maxZ = Math.max(...zs);
 
+    if (targetBrush?.geometry && !targetBrush.geometry.boundingBox) {
+      targetBrush.geometry.computeBoundingBox();
+    }
     const bounds = targetBrush?.geometry?.boundingBox || {
       min: new THREE.Vector3(0, 0, 0),
       max: new THREE.Vector3(60, 60, 60)
@@ -323,7 +336,7 @@ export class CadEngine {
 
     let planeType = 'XY';
     let pts2d = [];
-    let depthSpan = isFullDepth ? (maxDimension * 2 + 10) : (customDepth || 4);
+    let depthSpan = isFullDepth ? Math.max(maxDimension * 4, 1000) : (customDepth || 4);
     let faceCoord = 0;
 
     const spanX = maxX - minX;
@@ -353,7 +366,9 @@ export class CadEngine {
       if (op === 'add') {
         geom.translate(0, 0, (faceCoord > 0.05) ? faceCoord : (faceCoord - depthSpan));
       } else {
-        if (faceCoord > 0.05) {
+        if (isFullDepth) {
+          geom.translate(0, 0, bounds.min.z - 50);
+        } else if (faceCoord > 0.05) {
           geom.translate(0, 0, faceCoord - depthSpan);
         } else {
           geom.translate(0, 0, -0.05);
@@ -364,7 +379,9 @@ export class CadEngine {
       if (op === 'add') {
         geom.translate((faceCoord > 0.05) ? (faceCoord + depthSpan) : faceCoord, 0, 0);
       } else {
-        if (faceCoord > 0.05) {
+        if (isFullDepth) {
+          geom.translate(bounds.max.x + 50, 0, 0);
+        } else if (faceCoord > 0.05) {
           geom.translate(faceCoord, 0, 0);
         } else {
           geom.translate(faceCoord + depthSpan + 0.05, 0, 0);
@@ -375,7 +392,9 @@ export class CadEngine {
       if (op === 'add') {
         geom.translate(0, (faceCoord > 0.05) ? (faceCoord + depthSpan) : faceCoord, 0);
       } else {
-        if (faceCoord > 0.05) {
+        if (isFullDepth) {
+          geom.translate(0, bounds.max.y + 50, 0);
+        } else if (faceCoord > 0.05) {
           geom.translate(0, faceCoord, 0);
         } else {
           geom.translate(0, faceCoord + depthSpan + 0.05, 0);
@@ -634,7 +653,8 @@ export class CadEngine {
 
   // Tạo khối dao cắt hình trụ để khoan lỗ tròn (Hole / Cylinder Cut)
   createHoleCutterGeometry(hitPoint, hitNormal, radius, depth = 0, isThrough = true, maxSpan = 100) {
-    const len = isThrough ? (maxSpan * 2 + 2) : (depth + 0.08);
+    const span = Math.max(maxSpan, 1000);
+    const len = isThrough ? (span * 2 + 20) : (depth + 0.08);
     const geom = new THREE.CylinderGeometry(radius, radius, len, 48);
     const n = hitNormal.clone().normalize();
     const quat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), n);
@@ -642,7 +662,7 @@ export class CadEngine {
 
     const center = hitPoint.clone();
     if (isThrough) {
-      center.addScaledVector(n, -maxSpan * 0.5);
+      center.addScaledVector(n, -span * 0.5);
     } else {
       center.addScaledVector(n, -(depth * 0.5 - 0.04));
     }
@@ -666,8 +686,9 @@ export class CadEngine {
           const nextShape = targetShape.fuse(boss);
           return replicadToBrush(nextShape, this.material);
         } else {
-          const len = isThrough ? (maxSpan * 2 + 2) : (depth + 0.08);
-          const startOffset = isThrough ? maxSpan : 0.04;
+          const span = Math.max(maxSpan, 1000);
+          const len = isThrough ? (span * 2) : (depth + 0.08);
+          const startOffset = isThrough ? span : 0.04;
           const start = hitPoint.clone().addScaledVector(n, startOffset);
           const cutter = replicad.makeCylinder(
             radius,

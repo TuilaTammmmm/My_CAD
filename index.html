@@ -33,8 +33,8 @@
           <div class="brand-info">
             <span class="brand-title" id="app-mode-title">My CAD</span>
             <span class="brand-badge" id="app-mode-sub">⚡ ĐỔI SANG 2D CAD</span>
-            <span id="occt-kernel-status" style="font-size:10px; color:#f59e0b; margin-top:2px; display:block;">⏳ Đang nạp OpenCascade B-Rep...</span>
-            <span id="autosave-status" style="font-size:10px; color:#38bdf8; margin-top:2px; display:block;" title="Tự động lưu vào trình duyệt (F5 không mất)">💾 Đã lưu tạm</span>
+            <span id="occt-kernel-status" style="display:none;"></span>
+            <span id="autosave-status" style="display:none;"></span>
           </div>
         </div>
         <button class="sidebar-compact-btn" id="btn-toggle-sidebar-compact" title="Thu gọn / Mở rộng thanh công cụ (Tab Icon)">
@@ -74,49 +74,49 @@
               <span class="tool-icon">
                 <svg viewBox="0 0 24 24"><polygon points="3 3 21 3 3 21"/><line x1="3" y1="21" x2="21" y2="3" stroke-dasharray="2 2"/></svg>
               </span>
-              <span class="tool-text">Vát Chéo (2/3 Điểm)</span>
+              <span class="tool-text">Vát Chéo</span>
             </button>
 
             <button class="tool-btn mode-btn" data-mode="poly" title="Cắt đa giác / khối tự do: Click chọn N điểm tự kết nối kín để khoét vùng trong đó">
               <span class="tool-icon">
                 <svg viewBox="0 0 24 24"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5"/></svg>
               </span>
-              <span class="tool-text">Cắt Đa Giác (N Điểm)</span>
+              <span class="tool-text">Đa Giác</span>
             </button>
 
             <button class="tool-btn mode-btn" data-mode="corner" title="Vát góc tam giác 3D: Click chọn 3 điểm xuất phát từ đỉnh góc">
               <span class="tool-icon">
                 <svg viewBox="0 0 24 24"><path d="M4 20h16M20 20V4M4 20L20 4"/></svg>
               </span>
-              <span class="tool-text">Vát Góc 3D</span>
+              <span class="tool-text">Vát Góc</span>
             </button>
 
             <button class="tool-btn mode-btn" data-mode="box" title="Khoét rãnh hộp chữ nhật: Click 2 góc đối diện">
               <span class="tool-icon">
                 <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><rect x="8" y="8" width="8" height="8" stroke-dasharray="2 2"/></svg>
               </span>
-              <span class="tool-text">Cắt Hộp</span>
+              <span class="tool-text">Hộp</span>
             </button>
 
             <button class="tool-btn mode-btn" data-mode="vgroove" title="Rãnh chữ V: Click Đỉnh và 2 chân rãnh đáy">
               <span class="tool-icon">
                 <svg viewBox="0 0 24 24"><path d="M3 4h6l3 12 3-12h6"/></svg>
               </span>
-              <span class="tool-text">Rãnh Chữ V</span>
+              <span class="tool-text">Rãnh V</span>
             </button>
 
             <button class="tool-btn mode-btn" data-mode="hole" title="Khoan lỗ tròn: Click chọn tâm trên mặt khối để cắt lỗ trụ Ø/R">
               <span class="tool-icon">
                 <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2" stroke-dasharray="2 2"/></svg>
               </span>
-              <span class="tool-text">Khoan Lỗ Tròn (Ø)</span>
+              <span class="tool-text">Lỗ Tròn</span>
             </button>
 
             <button class="tool-btn mode-btn" data-mode="fillet3d" title="Bo tròn cạnh 3D: Click vào cạnh sắc để bo cung tròn bán kính R">
               <span class="tool-icon">
                 <svg viewBox="0 0 24 24"><path d="M4 20V10a6 6 0 0 1 6-6h10"/></svg>
               </span>
-              <span class="tool-text">Bo Tròn Cạnh (R)</span>
+              <span class="tool-text">Bo Tròn</span>
             </button>
           </div>
         </div>
@@ -515,18 +515,16 @@
           <span class="panel-title" id="tsr-title">THÔNG SỐ CẮT GỌT</span>
         </div>
         <div class="panel-header-actions">
-          <button id="btn-toggle-tsr" class="panel-collapse-btn" title="Thu gọn / Mở rộng bảng">▶</button>
+          <button id="btn-toggle-tsr" class="panel-collapse-btn" title="Thu gọn bảng (Esc)">✕</button>
         </div>
       </div>
-      <div class="tsr-instruction" id="tsr-instruction">
-        👉 Chọn các điểm trên khối để cắt gọt. Bạn có thể tự chỉnh trực tiếp tọa độ và độ sâu ở đây.
-      </div>
+      <div class="tsr-instruction" id="tsr-instruction" style="display: none !important;"></div>
       <div id="tsr-body" class="tsr-body"></div>
     </aside>
 
     <!-- NÚT NỔI MỞ BẢNG THÔNG SỐ CẮT GỌT KHI ĐÃ BỊ THU GỌN -->
-    <button id="btn-floating-open-tsr" class="floating-inspect-btn" style="display: none;" title="Mở bảng thông số cắt gọt bên phải">
-      <span>⚙️ Thông Số Cắt</span>
+    <button id="btn-floating-open-tsr" class="floating-inspect-btn" style="display: none;" title="Mở bảng thông số">
+      <span>⚙️ Thông Số</span>
       <span>◀</span>
     </button>
 
@@ -535,18 +533,16 @@
       <div class="panel-header">
         <div class="panel-title-group">
           <span class="panel-icon">🔍</span>
-          <span class="panel-title">KIỂM TRA & ĐO ĐẠC</span>
+          <span class="panel-title">ĐO ĐẠC 3D</span>
         </div>
         <div class="panel-header-actions">
           <span class="panel-mode-badge">Chỉ Xem</span>
-          <button id="btn-toggle-inspection-panel" class="panel-collapse-btn" title="Thu gọn / Mở rộng bảng">▶</button>
+          <button id="btn-toggle-inspection-panel" class="panel-collapse-btn" title="Thu gọn bảng (Esc)">✕</button>
         </div>
       </div>
 
       <!-- HƯỚNG DẪN THAO TÁC THEO CHẾ ĐỘ -->
-      <div class="measure-instruction" id="measure-instruction">
-        👉 <b>Rê chuột vào cạnh</b> để bắt dính, <b>Click</b> để hiển thị chiều dài CAD.
-      </div>
+      <div class="measure-instruction" id="measure-instruction" style="display: none !important;"></div>
 
       <!-- BẬT TẮT HIỂN THỊ KỸ THUẬT (3D) -->
       <div class="measure-tool-group">

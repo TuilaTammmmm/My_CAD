@@ -1148,19 +1148,22 @@ export class InteractivePicker {
     const p2 = this.selectedPoints[1];
 
     const slantParams = this.computeSlantParameters(p1, p2);
-    let maxD = slantParams.depthMax;
+    let maxD = this.isFullDepth ? 1000 : slantParams.depthMax;
     const depth = this.isFullDepth ? maxD : Math.min(this.customDepth, maxD);
 
     let dMin = 0, dMax = maxD;
     if (!this.isFullDepth) {
       let faceCoord = (slantParams.plane === 'XY') ? p1.z : (slantParams.plane === 'ZY') ? p1.x : p1.y;
-      if (faceCoord >= maxD - 0.001) {
-        dMin = maxD - depth;
-        dMax = maxD;
+      if (faceCoord >= slantParams.depthMax - 0.001) {
+        dMin = slantParams.depthMax - depth;
+        dMax = slantParams.depthMax;
       } else {
         dMin = 0;
         dMax = depth;
       }
+    } else {
+      dMin = -100;
+      dMax = 1000;
     }
 
     return {
@@ -1169,7 +1172,7 @@ export class InteractivePicker {
       p2_2d: slantParams.p2_2d,
       dMin,
       dMax,
-      maxD
+      maxD: slantParams.depthMax
     };
   }
 
@@ -1227,7 +1230,7 @@ export class InteractivePicker {
     let y1 = p1.y, y2 = p2.y;
     let z1 = p1.z, z2 = p2.z;
 
-    const d = this.isFullDepth ? (this.bounds ? Math.max(this.bounds.w, this.bounds.h, this.bounds.d) : 10) : this.customDepth;
+    const d = this.isFullDepth ? 1000 : this.customDepth;
     if (Math.abs(x1 - x2) < 0.001) {
       if (this.opMode === 'add') {
         x2 = (x1 <= 0.01) ? x1 - d : x1 + d;
@@ -1288,7 +1291,7 @@ export class InteractivePicker {
       faceCoord = apex.y;
     }
 
-    const depth = this.isFullDepth ? maxD : Math.min(this.customDepth, maxD);
+    const depth = this.isFullDepth ? 1000 : Math.min(this.customDepth, maxD);
     let dMin = 0, dMax = maxD;
     if (!this.isFullDepth) {
       if (faceCoord >= maxD - 0.001) {
@@ -1300,6 +1303,9 @@ export class InteractivePicker {
         dMin = 0;
         dMax = depth;
       }
+    } else {
+      dMin = -50;
+      dMax = 1000;
     }
 
     return { plane, a2d, b1_2d, b2_2d, dMin, dMax, maxD, apex, base1, base2 };
@@ -1499,7 +1505,8 @@ export class InteractivePicker {
             params.dMin,
             params.dMax,
             this.slantCutAbove,
-            this.opMode
+            this.opMode,
+            this.isFullDepth
           );
         }
 
@@ -1530,7 +1537,7 @@ export class InteractivePicker {
 
       } else if (this.mode === 'hole') {
         if (!this.holeCenter || !this.holeNormal) return;
-        const maxSpan = Math.max(this.bounds.w, this.bounds.h, this.bounds.d);
+        const maxSpan = Math.max(this.bounds.w, this.bounds.h, this.bounds.d, 1000);
         newBrush = this.cad.cutHole(
           this.currentBrush,
           this.holeCenter,
@@ -1580,6 +1587,13 @@ export class InteractivePicker {
     if (!this._tsrCollapsed) {
       this.tsrElement.style.display = 'flex';
       if (this.btnFloatingOpenTsr) this.btnFloatingOpenTsr.style.display = 'none';
+      if (typeof window !== 'undefined' && window.innerWidth <= 768) {
+        const cadSidebar = document.getElementById('cad-sidebar');
+        if (cadSidebar && !cadSidebar.classList.contains('compact')) {
+          cadSidebar.classList.add('compact');
+          document.body.classList.add('sidebar-compact');
+        }
+      }
     } else {
       this.tsrElement.style.display = 'none';
       if (this.btnFloatingOpenTsr) this.btnFloatingOpenTsr.style.display = 'flex';
@@ -1593,23 +1607,18 @@ export class InteractivePicker {
     this._lastRenderedMode = this.mode;
 
     const toolMeta = {
-      poly: { icon: '⬡', title: 'CẮT / VẼ ĐA GIÁC (POLY)', desc: 'Click các điểm liên tiếp tạo hình kín. Có thể chỉnh sửa tọa độ từng điểm hoặc độ sâu trực tiếp bên dưới.' },
-      slant: { icon: '📐', title: 'CẮT / VẼ VÁT NGHIÊNG (SLANT)', desc: 'Chọn 2 điểm (vát chéo) hoặc 3 điểm (mặt phẳng 3D). Có thể gõ tọa độ và đổi sang vẽ đắp khối.' },
-      box: { icon: '📦', title: 'CẮT / VẼ HỘP (BOX)', desc: 'Chọn 2 góc chéo để xác định hộp cắt hoặc hộp đắp thêm vào khối gốc.' },
-      vgroove: { icon: '✂️', title: 'CẮT / VẼ RÃNH CHỮ V (V-GROOVE)', desc: 'Chọn điểm đỉnh V và 2 chân đáy.' },
-      corner: { icon: '🔻', title: 'CẮT / VẼ GÓC (CORNER)', desc: 'Chọn 3 điểm góc để cắt chóp hoặc đắp góc.' },
-      hole: { icon: '⭕', title: 'KHOAN LỖ / TẠO TRỤ LỒI (CYLINDER)', desc: 'Click mặt để khoan lỗ hoặc đắp thêm trụ lồi (boss) với đường kính và chiều cao tùy ý.' },
-      fillet3d: { icon: '🔘', title: 'BO TRÒN CẠNH (FILLET)', desc: 'Click chọn cạnh 3D và nhập bán kính R bo tròn.' }
+      poly: { icon: '⬡', title: 'ĐA GIÁC' },
+      slant: { icon: '📐', title: 'VÁT CHÉO' },
+      box: { icon: '📦', title: 'HỘP KHỐI' },
+      vgroove: { icon: '✂️', title: 'RÃNH CHỮ V' },
+      corner: { icon: '🔻', title: 'VÁT GÓC' },
+      hole: { icon: '⭕', title: 'LỖ TRÒN / TRỤ' },
+      fillet3d: { icon: '🔘', title: 'BO TRÒN' }
     };
 
-    const currentMeta = toolMeta[this.mode] || { icon: '✂️', title: 'CÔNG CỤ CẮT GỌT 3D', desc: 'Chọn điểm để thao tác trên mô hình.' };
+    const currentMeta = toolMeta[this.mode] || { icon: '✂️', title: 'CÔNG CỤ CẮT GỌT' };
     if (this.tsrIcon) this.tsrIcon.textContent = currentMeta.icon;
     if (this.tsrTitle) this.tsrTitle.textContent = currentMeta.title;
-    if (this.tsrInstruction) {
-      this.tsrInstruction.textContent = (this.opMode === 'add')
-        ? `➕ Đang ở chế độ VẼ THÊM: ${currentMeta.desc} Khối sẽ được hợp nhất (Union) vào vật thể, các mặt phẳng nối tiếp không bị thừa nét rác ở góc.`
-        : `✂️ Đang ở chế độ CẮT GỌT: ${currentMeta.desc}`;
-    }
 
     let html = '';
 
@@ -1772,7 +1781,7 @@ export class InteractivePicker {
     );
 
     const execClass = (this.opMode === 'add') ? 'add-action' : 'cut-action';
-    const execLabel = (this.opMode === 'add') ? '➕ THỰC HIỆN VẼ THÊM (Enter)' : '✂️ THỰC HIỆN CẮT (Enter)';
+    const execLabel = (this.opMode === 'add') ? '➕ VẼ THÊM (Enter)' : '✂️ CẮT GỌT (Enter)';
 
     html += `
       <div style="display:flex; flex-direction:column; gap:8px; margin-top:4px;">
@@ -1781,10 +1790,10 @@ export class InteractivePicker {
         </button>
         <div class="tsr-btn-row">
           <button class="tsr-btn-secondary" id="tsr-btn-del-last" ${this.selectedPoints.length > 0 ? '' : 'disabled style="opacity:0.5;"'}>
-            ↩️ Xóa Điểm Cuối
+            ↩️ Xóa Điểm
           </button>
           <button class="tsr-btn-secondary" id="tsr-btn-cancel" style="color:#f87171;">
-            ✖️ Hủy Thao Tác
+            ✖️ Hủy Bỏ
           </button>
         </div>
       </div>

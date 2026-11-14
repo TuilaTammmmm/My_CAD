@@ -485,12 +485,18 @@ export class InteractivePicker {
       }
     });
 
+    let hoverRAF = null;
     dom.addEventListener('pointermove', (e) => {
       if (!this.enabled) return;
       updateMouseFromEvent(e);
 
       if (!this.isPointerDown && this.mode !== 'view') {
-        this.handleHover(e);
+        if (!hoverRAF) {
+          hoverRAF = requestAnimationFrame(() => {
+            hoverRAF = null;
+            this.handleHover(e);
+          });
+        }
       }
     });
 
@@ -689,24 +695,34 @@ export class InteractivePicker {
 
     const scaleK = Math.max(1, Math.max(this.bounds.w, this.bounds.h, this.bounds.d) / 14);
 
-    // 2. Bắt dính nhanh vào đỉnh góc sắc gần nhất (không bắt đỉnh trơn trên mặt trụ)
+    // 2. Bắt dính thông minh vào đỉnh góc sắc gần nhất (kết hợp Screen-Space NDC và khoảng cách 3D thực tế)
     if (this.cachedVertices && this.cachedVertices.length > 0) {
       let closestVert = null;
-      let minVDist = Math.min(0.45, this.snapStep * 0.48);
+      let minScreenDist = 0.045; // Ngưỡng bắt dính trên màn hình (~35px)
+      const modelScale = Math.max(this.bounds.w, this.bounds.h, this.bounds.d);
+      const max3DDist = Math.max(0.65, Math.min(modelScale * 0.08, this.snapStep * 1.6));
+
       for (const v of this.cachedVertices) {
-        const d = hitPoint.distanceTo(v.pos);
-        if (d < minVDist) {
-          let facing = false;
-          for (const n of v.normals) {
-            if (n.dot(camDir) < -0.01) {
-              facing = true;
-              break;
-            }
+        const d3d = hitPoint.distanceTo(v.pos);
+        if (d3d > max3DDist * 2.5) continue;
+
+        // Kiểm tra hướng nhìn camera (facing)
+        let facing = false;
+        for (const n of v.normals) {
+          if (n.dot(camDir) < 0.1) {
+            facing = true;
+            break;
           }
-          if (facing) {
-            minVDist = d;
-            closestVert = v.pos;
-          }
+        }
+        if (!facing) continue;
+
+        // Tính khoảng cách pixel chuẩn hóa trên màn hình (NDC)
+        const vScreen = v.pos.clone().project(this.camera);
+        const sDist = Math.hypot(vScreen.x - this.mouse.x, vScreen.y - this.mouse.y);
+
+        if (sDist < minScreenDist || d3d < Math.min(0.4, this.snapStep * 0.45)) {
+          minScreenDist = sDist;
+          closestVert = v.pos;
         }
       }
       if (closestVert) {
@@ -720,19 +736,16 @@ export class InteractivePicker {
     let sy = snapVal(hitPoint.y);
     let sz = snapVal(hitPoint.z);
 
-    // Nếu là mặt nghiêng/trụ, chiếu điểm snap trở lại mặt phẳng tiếp xúc
+    // Nếu là mặt phẳng trực giao, giữ nguyên mức cao độ chính xác của mặt (tránh kẹp cứng về 0 làm hỏng bậc thang)
     const absX = Math.abs(hitNormal.x), absY = Math.abs(hitNormal.y), absZ = Math.abs(hitNormal.z);
     if (absZ > 0.98) {
-      sz = (hitPoint.z > this.bounds.d / 2) ? this.bounds.d : 0;
-      if (Math.abs(hitPoint.z - sz) > 0.05) sz = Number(hitPoint.z.toFixed(4));
+      sz = Number(hitPoint.z.toFixed(4));
     } else if (absX > 0.98) {
-      sx = (hitPoint.x > this.bounds.w / 2) ? this.bounds.w : 0;
-      if (Math.abs(hitPoint.x - sx) > 0.05) sx = Number(hitPoint.x.toFixed(4));
+      sx = Number(hitPoint.x.toFixed(4));
     } else if (absY > 0.98) {
-      sy = (hitPoint.y > this.bounds.h / 2) ? this.bounds.h : 0;
-      if (Math.abs(hitPoint.y - sy) > 0.05) sy = Number(hitPoint.y.toFixed(4));
+      sy = Number(hitPoint.y.toFixed(4));
     } else {
-      // Mặt vát nghiêng hoặc trụ tròn: giải tọa độ trên mặt phẳng (hitPoint, hitNormal)
+      // Mặt vát nghiêng hoặc trụ tròn: giải tọa độ trên mặt phẳng tiếp xúc (hitPoint, hitNormal)
       if (absZ >= absX && absZ >= absY) {
         sz = hitPoint.z - (hitNormal.x * (sx - hitPoint.x) + hitNormal.y * (sy - hitPoint.y)) / hitNormal.z;
       } else if (absX >= absY) {

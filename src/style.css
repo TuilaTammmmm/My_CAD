@@ -2137,3 +2137,221 @@ body {
   font-size: 0.72rem;
   color: #64748b;
 }
+
+/* ==========================================
+   AI ASSISTANT MODAL & UI
+   ========================================== */
+.btn-ai-highlight {
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.22), rgba(168, 85, 247, 0.22)) !important;
+  border: 1px solid rgba(168, 85, 247, 0.45) !important;
+  color: #f1f5f9 !important;
+  font-weight: 500 !important;
+}
+
+.btn-ai-highlight:hover {
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.35), rgba(168, 85, 247, 0.35)) !important;
+  border-color: #c084fc !important;
+  box-shadow: 0 0 12px rgba(168, 85, 247, 0.3);
+}
+
+.ai-modal {
+  width: min(620px, 95vw);
+}
+
+.ai-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ai-input-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ai-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #93c5fd;
+}
+
+.ai-upload-zone {
+  border: 2px dashed rgba(56, 189, 248, 0.35);
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.6);
+  padding: 14px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ai-upload-zone:hover,
+.ai-upload-zone.dragover {
+  border-color: #38bdf8;
+  background: rgba(56, 189, 248, 0.1);
+}
+
+.ai-upload-prompt {
+  font-size: 0.8rem;
+  color: #cbd5e1;
+  user-select: none;
+}
+
+.ai-preview-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.ai-preview-box img {
+  max-width: 100%;
+  max-height: 180px;
+  object-fit: contain;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.btn-remove-preview {
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #fca5a5;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 0.74rem;
+  cursor: pointer;
+}
+
+.btn-remove-preview:hover {
+  background: rgba(239, 68, 68, 0.35);
+}
+
+#ai-prompt-input {
+  width: 100%;
+  resize: vertical;
+  background: #020617;
+  color: #e2e8f0;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-family: inherit;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  outline: none;
+}
+
+#ai-prompt-input:focus {
+  border-color: #38bdf8;
+}
+
+.ai-key-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ai-key-link {
+  font-size: 0.72rem;
+  color: #38bdf8;
+  text-decoration: none;
+}
+
+.ai-key-link:hover {
+  text-decoration: underline;
+}
+
+.ai-key-input-wrapper {
+  display: flex;
+  gap: 6px;
+}
+
+#ai-api-key {
+  flex: 1;
+  background: #020617;
+  color: #f8fafc;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 0.78rem;
+  outline: none;
+}
+
+#ai-api-key:focus {
+  border-color: #38bdf8;
+}
+
+.btn-small-key {
+  background: rgba(56, 189, 248, 0.15);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  color: #38bdf8;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.76rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn-small-key:hover {
+  background: rgba(56, 189, 248, 0.28);
+}
+
+.ai-key-note {
+  font-size: 0.68rem;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.ai-status-msg {
+  font-size: 0.78rem;
+  padding: 8px 12px;
+  border-radius: 8px;
+  line-height: 1.4;
+}
+
+.ai-status-info {
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  color: #7dd3fc;
+}
+
+.ai-status-success {
+  background: rgba(34, 197, 94, 0.15);
+  border: 1px solid rgba(34, 197, 94, 0.4);
+  color: #86efac;
+}
+
+.ai-status-error {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #fca5a5;
+}
+
+/* TỐI ƯU BẢNG ĐO ĐẠC & DANH SÁCH SỐ ĐO */
+.inspection-panel {
+  width: 310px;
+}
+
+.measure-history-section {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  gap: 8px;
+}
+
+.measure-list {
+  flex: 1;
+  min-height: 150px;
+  max-height: 380px;
+  overflow-y: auto;
+}
+
+.brand-version {
+  font-size: 0.66rem;
+  color: #94a3b8;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+

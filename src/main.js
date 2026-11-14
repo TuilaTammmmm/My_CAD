@@ -14,6 +14,7 @@ import { DimensionOverlay } from './dimension-overlay.js';
 import { InspectionTool } from './measure-tool.js';
 import { ProjectionScreensOverlay } from './projection-screens.js';
 import { executeCadScript, rotateBrushAroundY, CAD_SCRIPT_PRESETS } from './cad-script.js';
+import { AIAssistant } from './ai-assistant.js';
 import { initOCCT } from './occt-kernel.js';
 import { saveProjectState, loadProjectState } from './storage.js';
 import { inject } from '@vercel/analytics';
@@ -145,7 +146,46 @@ function triggerAutoSave3D() {
   }, 250);
 }
 
+function syncBoundsWithModel(brush, force = false) {
+  if (!brush || !brush.geometry) return;
+  brush.geometry.computeVertexNormals();
+  brush.geometry.computeBoundingBox();
+  const bb = brush.geometry.boundingBox;
+  if (!bb) return;
+
+  if (brush.geometry.computeBoundsTree) {
+    try {
+      brush.geometry.computeBoundsTree();
+    } catch (e) {}
+  }
+
+  // Nếu min lệch khỏi (0,0,0) đáng kể (như khi nạp script hay import OBJ), đưa về (0,0,0)
+  if (Math.abs(bb.min.x) > 0.05 || Math.abs(bb.min.y) > 0.05 || Math.abs(bb.min.z) > 0.05) {
+    brush.geometry.translate(-bb.min.x, -bb.min.y, -bb.min.z);
+    brush.geometry.computeBoundingBox();
+  }
+
+  const realW = Math.max(1, Math.round(brush.geometry.boundingBox.max.x));
+  const realH = Math.max(1, Math.round(brush.geometry.boundingBox.max.y));
+  const realD = Math.max(1, Math.round(brush.geometry.boundingBox.max.z));
+
+  if (force || realW > W || realH > H || realD > D) {
+    W = realW;
+    H = realH;
+    D = realD;
+
+    const dimW = document.getElementById('dim-w');
+    const dimH = document.getElementById('dim-h');
+    const dimD = document.getElementById('dim-d');
+    if (dimW) dimW.value = W;
+    if (dimH) dimH.value = H;
+    if (dimD) dimD.value = D;
+  }
+}
+
 function setModel(brush, recordHistory = true) {
+  syncBoundsWithModel(brush);
+
   if (currentBrush) {
     modelGroup.remove(currentBrush);
     if (currentEdges) modelGroup.remove(currentEdges);
@@ -178,6 +218,8 @@ function setModel(brush, recordHistory = true) {
   if (projectionScreens) {
     projectionScreens.update(W, H, D, currentBrush);
   }
+
+  requestRender();
 }
 
 // Cờ đánh dấu mô hình được khôi phục từ bộ nhớ tạm trình duyệt (F5)
@@ -215,9 +257,19 @@ async function initAppStorage() {
       geom.computeVertexNormals();
       geom.computeBoundingBox();
 
-      W = Number(saved3D.w) > 0 ? Number(saved3D.w) : 6;
-      H = Number(saved3D.h) > 0 ? Number(saved3D.h) : 4;
-      D = Number(saved3D.d) > 0 ? Number(saved3D.d) : 4;
+      const bb = geom.boundingBox;
+      if (bb && (Math.abs(bb.min.x) > 0.05 || Math.abs(bb.min.y) > 0.05 || Math.abs(bb.min.z) > 0.05)) {
+        geom.translate(-bb.min.x, -bb.min.y, -bb.min.z);
+        geom.computeBoundingBox();
+      }
+
+      const realW = Math.max(1, Math.round(geom.boundingBox.max.x));
+      const realH = Math.max(1, Math.round(geom.boundingBox.max.y));
+      const realD = Math.max(1, Math.round(geom.boundingBox.max.z));
+
+      W = Math.max(Number(saved3D.w) > 0 ? Number(saved3D.w) : 6, realW);
+      H = Math.max(Number(saved3D.h) > 0 ? Number(saved3D.h) : 4, realH);
+      D = Math.max(Number(saved3D.d) > 0 ? Number(saved3D.d) : 4, realD);
 
       const dimW = document.getElementById('dim-w');
       const dimH = document.getElementById('dim-h');
@@ -1117,10 +1169,80 @@ initOCCT()
     console.warn('OCCT init failed, using mesh CSG fallback:', err);
   });
 
-// Animation loop
+// Khởi tạo Trợ lý AI (Gemini Multimodal Vision & Script Assistant)
+const aiAssistant = new AIAssistant(cad, {
+  getBounds: () => ({ w: W, h: H, d: D }),
+  onModelCreated: (brush, w, h, d) => {
+    W = w;
+    H = h;
+    D = d;
+    const dimW = document.getElementById('dim-w');
+    const dimH = document.getElementById('dim-h');
+    const dimD = document.getElementById('dim-d');
+    if (dimW) dimW.value = W;
+    if (dimH) dimH.value = H;
+    if (dimD) dimD.value = D;
+
+    setModel(brush, true);
+    gridOverlay.update(W, H, D, currentBrush, picker.snapStep);
+    dimOverlay.updateBounds(W, H, D, picker.snapStep);
+    centerCamera();
+    requestRender();
+  }
+});
+
+// Nút tự động khớp khung lưới với kích thước khối thực tế (Auto Fit Frame)
+document.getElementById('btn-fit-frame')?.addEventListener('click', () => {
+  if (!currentBrush) return;
+  syncBoundsWithModel(currentBrush, true);
+  const snapStep = (typeof picker !== 'undefined' && picker) ? picker.snapStep : 1.0;
+  gridOverlay.update(W, H, D, currentBrush, snapStep);
+  dimOverlay.updateBounds(W, H, D, snapStep);
+  if (picker) picker.updateModel(currentBrush, W, H, D);
+  if (projectionScreens) projectionScreens.update(W, H, D, currentBrush);
+  triggerAutoSave3D();
+  centerCamera();
+  requestRender();
+});
+
+// Nút mở / đóng nhanh bảng Đo đạc 3D từ sidebar bên trái
+document.getElementById('btn-sidebar-toggle-inspect')?.addEventListener('click', () => {
+  if (!inspectionTool) return;
+  const panel = document.getElementById('inspection-panel');
+  if (panel && panel.style.display !== 'none') {
+    inspectionTool.hide();
+  } else {
+    inspectionTool.show();
+  }
+  requestRender();
+});
+
+// On-demand Rendering & Tối ưu hiệu năng / giảm giật lag
+let needsRender = true;
+export function requestRender() {
+  needsRender = true;
+}
+
+controls.addEventListener('change', () => {
+  needsRender = true;
+});
+
+// Animation loop tiết kiệm GPU / CPU (chỉ render khi camera di chuyển hoặc scene thay đổi)
+let idleCounter = 0;
 function animate() {
   requestAnimationFrame(animate);
-  controls.update();
-  renderer.render(scene, camera);
+  const controlsMoved = controls.update();
+  if (controlsMoved) {
+    needsRender = true;
+    idleCounter = 10; // Giữ render thêm vài frames sau khi buông chuột để damping dừng mượt mà
+  } else if (idleCounter > 0) {
+    needsRender = true;
+    idleCounter--;
+  }
+
+  if (needsRender) {
+    renderer.render(scene, camera);
+    needsRender = false;
+  }
 }
 animate();

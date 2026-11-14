@@ -21,9 +21,9 @@
     <!-- THANH CÔNG CỤ DỌC DÙNG CHUNG DUY NHẤT (UNIFIED CAD SIDEBAR) -->
     <aside class="cad-sidebar" id="cad-sidebar">
       
-      <!-- HEADER SIDEBAR: LOGO ĐỔI CHẾ ĐỘ + NÚT THU GỌN THÀNH TAB ICON -->
+      <!-- HEADER SIDEBAR: LOGO THƯƠNG HIỆU + NÚT THU GỌN -->
       <div class="sidebar-top-row">
-        <div class="sidebar-brand clickable-brand" id="btn-toggle-app-mode" title="Nhấn để chuyển đổi giữa 3D Block CAD và Vẽ 2D">
+        <div class="sidebar-brand" id="sidebar-brand-header">
           <div class="brand-logo-glow">
             <svg class="brand-svg" viewBox="0 0 32 32" fill="none">
               <path d="M16 2L28 8.5V23.5L16 30L4 23.5V8.5L16 2Z" stroke="#38bdf8" stroke-width="2.2" stroke-linejoin="round"/>
@@ -32,7 +32,7 @@
           </div>
           <div class="brand-info">
             <span class="brand-title" id="app-mode-title">My CAD</span>
-            <span class="brand-badge" id="app-mode-sub">⚡ ĐỔI SANG 2D CAD</span>
+            <span class="brand-version">B-Rep Studio</span>
             <span id="occt-kernel-status" style="display:none;"></span>
             <span id="autosave-status" style="display:none;"></span>
           </div>
@@ -193,11 +193,11 @@
             <span class="accordion-chevron">▾</span>
           </button>
           <div class="accordion-body">
-            <button class="tool-btn" id="btn-open-dim" title="Cài đặt kích thước ô lưới khối ban đầu">
+            <button class="tool-btn btn-ai-highlight" id="btn-open-ai-modal" title="Trợ lý AI: Tải ảnh bản vẽ kỹ thuật hoặc nhập mô tả để tự động dựng khối 3D">
               <span class="tool-icon">
-                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                <svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z"/></svg>
               </span>
-              <span class="tool-text">Kích Thước Khối</span>
+              <span class="tool-text">✨ Trợ Lý AI (Ảnh → 3D)</span>
             </button>
 
             <button class="tool-btn" id="btn-open-script" title="Viết hoặc dán code CAD Script để tự động dựng khối 3D phức tạp">
@@ -205,6 +205,27 @@
                 <svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
               </span>
               <span class="tool-text">Code → 3D (Script)</span>
+            </button>
+
+            <button class="tool-btn" id="btn-fit-frame" title="Tự động tính toán kích thước khối thực tế và co giãn khung lưới vừa khít (Auto Fit Frame)">
+              <span class="tool-icon">
+                <svg viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+              </span>
+              <span class="tool-text">Khớp Khung Tự Động</span>
+            </button>
+
+            <button class="tool-btn" id="btn-open-dim" title="Cài đặt kích thước ô lưới khối ban đầu">
+              <span class="tool-icon">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+              </span>
+              <span class="tool-text">Kích Thước Khối</span>
+            </button>
+
+            <button class="tool-btn" id="btn-sidebar-toggle-inspect" title="Mở / Đóng bảng Đo Đạc 3D">
+              <span class="tool-icon">
+                <svg viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+              </span>
+              <span class="tool-text">Bảng Đo Đạc 3D</span>
             </button>
 
             <div class="sidebar-grid-2">
@@ -504,6 +525,53 @@
       <div class="script-footer">
         <span class="script-hint">Ctrl + Enter để chạy nhanh</span>
         <button class="btn-primary-reset" id="btn-run-script" style="width:auto; padding:8px 16px;">▶ Chạy Code → Tạo 3D</button>
+      </div>
+    </div>
+
+    <!-- MODAL TRỢ LÝ AI: PHÂN TÍCH ẢNH & PROMPT -> 3D -->
+    <div id="ai-modal" class="script-modal ai-modal" style="display: none;">
+      <div class="popover-header">
+        <span>✨ Trợ Lý AI: Bản Vẽ & Ảnh → Khối 3D</span>
+        <button id="btn-close-ai" class="close-x">✖️</button>
+      </div>
+      <div class="ai-modal-body">
+        <div class="ai-input-row">
+          <label class="ai-label">1. Tải ảnh đề bài / bản vẽ kỹ thuật (tùy chọn):</label>
+          <div class="ai-upload-zone" id="ai-upload-zone">
+            <input type="file" id="ai-image-input" accept="image/*" style="display: none;">
+            <div id="ai-upload-prompt" class="ai-upload-prompt">
+              <span>📷 Kéo thả hoặc click để chọn ảnh (Đề bài, hình chiếu, bản vẽ phác)</span>
+            </div>
+            <div id="ai-image-preview-container" style="display: none;" class="ai-preview-box">
+              <img id="ai-image-preview" src="" alt="Bản vẽ xem trước">
+              <button id="btn-remove-ai-image" class="btn-remove-preview" title="Gỡ ảnh">✕ Xóa ảnh</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="ai-input-row">
+          <label class="ai-label" for="ai-prompt-input">2. Mô tả yêu cầu / Kích thước (tùy chọn nếu đã có ảnh):</label>
+          <textarea id="ai-prompt-input" rows="3" placeholder="Ví dụ: Đọc các kích thước từ ảnh trên và dựng khối 3D hoàn chỉnh... hoặc: Tạo gối đỡ đế 60x80x30, có hầm 40x20 xuyên đáy và lỗ trục ngang Ø30."></textarea>
+        </div>
+
+        <div class="ai-input-row ai-key-row">
+          <div class="ai-key-header">
+            <label class="ai-label" for="ai-api-key">3. Google Gemini API Key:</label>
+            <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener" class="ai-key-link">Lấy API Key miễn phí ↗</a>
+          </div>
+          <div class="ai-key-input-wrapper">
+            <input type="password" id="ai-api-key" placeholder="Dán Gemini API Key (AIzaSy...)">
+            <button id="btn-save-ai-key" class="btn-small-key" title="Lưu khóa">💾 Lưu</button>
+          </div>
+          <span class="ai-key-note">Khóa API được lưu an toàn tại trình duyệt của bạn (localStorage), không gửi về máy chủ ngoài.</span>
+        </div>
+
+        <div id="ai-status-msg" class="ai-status-msg" style="display: none;"></div>
+
+        <div class="script-footer">
+          <span class="script-hint">Sử dụng mô hình Gemini Flash thông minh & chuẩn xác</span>
+          <button class="btn-primary-reset" id="btn-generate-ai-cad" style="width:auto; padding:8px 18px;">✨ Phân Tích & Dựng 3D</button>
+        </div>
       </div>
     </div>
 

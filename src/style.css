@@ -1538,6 +1538,12 @@ body {
   transform: translateX(-2px);
 }
 
+.measure-item.selected {
+  border-color: #38bdf8 !important;
+  background: rgba(56, 189, 248, 0.18) !important;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.35);
+}
+
 .measure-item-icon {
   font-size: 1rem;
 }

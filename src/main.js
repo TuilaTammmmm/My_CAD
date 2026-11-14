@@ -938,6 +938,9 @@ function setSidebarCompact(compact) {
     if (inspectionTool && !inspectionTool.isCollapsed) {
       inspectionTool.collapsePanel();
     }
+    if (cad2dEditor && !cad2dEditor.isCollapsed && cad2dEditor.collapsePanel) {
+      cad2dEditor.collapsePanel();
+    }
     if (picker && !picker._tsrCollapsed) {
       picker._tsrCollapsed = true;
       picker.updateRightToolbar();

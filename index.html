@@ -636,6 +636,66 @@
       <span>◀</span>
     </button>
 
+    <!-- BẢNG CÔNG CỤ SỐ ĐO 2D BÊN PHẢI (CHỈ XUẤT HIỆN KHI Ở CHẾ ĐỘ 2D CAD) -->
+    <aside id="cad2d-inspect-panel" class="inspection-panel" style="display: none;">
+      <div class="panel-header">
+        <div class="panel-title-group">
+          <span class="panel-icon">📐</span>
+          <span class="panel-title">SỐ ĐO 2D</span>
+        </div>
+        <div class="panel-header-actions">
+          <span class="panel-mode-badge">2D CAD</span>
+          <button id="btn-toggle-2d-inspect" class="panel-collapse-btn" title="Thu gọn bảng (Esc)" aria-label="Thu gọn bảng số đo 2D">✕</button>
+        </div>
+      </div>
+
+      <!-- CÁC CHẾ ĐỘ ĐO 2D -->
+      <div class="measure-tool-group">
+        <div class="measure-section-label">CHẾ ĐỘ ĐO 2D</div>
+        <div class="measure-modes-grid">
+          <button class="measure-mode-btn active" id="btn-2d-dim-edge" data-tool="dim" title="Đo chiều dài cạnh">
+            <span class="m-icon">📏</span>
+            <span class="m-text">Đo Cạnh</span>
+          </button>
+          <button class="measure-mode-btn" id="btn-2d-dim-points" data-tool="dim-points" title="Đo khoảng cách giữa 2 điểm">
+            <span class="m-icon">🎯</span>
+            <span class="m-text">2 Điểm</span>
+          </button>
+          <button class="measure-mode-btn" id="btn-2d-dim-radial" data-tool="dim-radial" title="Đo bán kính (R) hoặc đường kính (Ø) tròn">
+            <span class="m-icon">⭕</span>
+            <span class="m-text">Tròn (R/Ø)</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- CÁC NÚT THAO TÁC XÓA & COPY SỐ ĐO 2D -->
+      <div class="measure-actions-bar">
+        <button id="btn-clear-all-2d-dims" class="btn-measure-danger" title="Xóa toàn bộ các số đo 2D trên bản vẽ (Delete)">
+          🗑️ Xóa Hết Số Đo
+        </button>
+        <button id="btn-copy-2d-dims" class="btn-measure-secondary" title="Sao chép danh sách số đo 2D vào Clipboard">
+          📋 Copy
+        </button>
+      </div>
+
+      <!-- DANH SÁCH CÁC SỐ ĐO 2D ĐÃ TẠO -->
+      <div class="measure-history-section">
+        <div class="measure-history-header">
+          <span>DANH SÁCH SỐ ĐO 2D</span>
+          <span class="badge-count" id="cad2d-measure-count">0</span>
+        </div>
+        <div class="measure-list" id="cad2d-measure-list">
+          <div class="empty-measure-hint">Chưa có số đo nào.<br>Click vào cạnh hoặc 2 điểm trên bản vẽ 2D để đo!</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- NÚT NỔI MỞ BẢNG SỐ ĐO 2D KHI ĐÃ BỊ THU GỌN -->
+    <button id="btn-floating-open-2d-inspect" class="floating-inspect-btn" style="display: none;" title="Mở lại bảng số đo 2D" aria-label="Mở lại bảng số đo 2D">
+      <span>📐 Số Đo 2D</span>
+      <span>◀</span>
+    </button>
+
     <!-- BANNER SỐ ĐO KỸ THUẬT NỔI PHÍA TRÊN KHI ĐỔI GÓC NHÌN -->
     <div id="view-dim-badge" class="view-dim-badge" style="display: none;">
       <div class="badge-icon">📐</div>

@@ -58,7 +58,17 @@ export class CAD2DEditor {
     this.pendingPoints = [];
     this.hoverSnap = null;
 
+    // Trạng thái số đo 2D & Bảng bên phải
+    this.hoveredDim = null;
+    this.highlightedDim = null;
+    this.panelElement = document.getElementById('cad2d-inspect-panel');
+    this.floatingBtn = document.getElementById('btn-floating-open-2d-inspect');
+    this.measureListElement = document.getElementById('cad2d-measure-list');
+    this.measureCountElement = document.getElementById('cad2d-measure-count');
+    this.isCollapsed = (window.innerWidth <= 768);
+
     this.bindCanvasEvents();
+    this.initInspectionPanel();
   }
 
   setFilletRadius(r) {
@@ -146,6 +156,7 @@ export class CAD2DEditor {
       this.historyIndex = 0;
       if (bounds) this.bounds = bounds;
       this.updateUndoButtons();
+      this.updateDimensionsList();
       this.render();
     }
   }
@@ -163,6 +174,7 @@ export class CAD2DEditor {
     this.history.push(JSON.parse(JSON.stringify(this.elements)));
     this.historyIndex = this.history.length - 1;
     this.updateUndoButtons();
+    this.updateDimensionsList();
     this.triggerAutoSave();
   }
 
@@ -174,8 +186,9 @@ export class CAD2DEditor {
       this.filletFirst = null;
       this.tangentStartVec = null;
       this.updateHUDHint();
-      this.render();
       this.updateUndoButtons();
+      this.updateDimensionsList();
+      this.render();
       this.triggerAutoSave();
     }
   }
@@ -188,8 +201,9 @@ export class CAD2DEditor {
       this.filletFirst = null;
       this.tangentStartVec = null;
       this.updateHUDHint();
-      this.render();
       this.updateUndoButtons();
+      this.updateDimensionsList();
+      this.render();
       this.triggerAutoSave();
     }
   }
@@ -199,6 +213,285 @@ export class CAD2DEditor {
     const btnRedo = document.getElementById('btn-2d-redo');
     if (btnUndo) btnUndo.disabled = (this.historyIndex <= 0);
     if (btnRedo) btnRedo.disabled = (this.historyIndex >= this.history.length - 1);
+  }
+
+  // Khởi tạo bảng danh sách số đo bên phải cho 2D CAD
+  initInspectionPanel() {
+    this.panelElement = document.getElementById('cad2d-inspect-panel');
+    this.floatingBtn = document.getElementById('btn-floating-open-2d-inspect');
+    this.measureListElement = document.getElementById('cad2d-measure-list');
+    this.measureCountElement = document.getElementById('cad2d-measure-count');
+
+    // Nút thu gọn bảng
+    document.getElementById('btn-toggle-2d-inspect')?.addEventListener('click', () => {
+      this.collapsePanel();
+    });
+
+    // Nút nổi mở lại bảng
+    this.floatingBtn?.addEventListener('click', () => {
+      this.expandPanel();
+    });
+
+    // Nút xóa sạch toàn bộ số đo 2D
+    document.getElementById('btn-clear-all-2d-dims')?.addEventListener('click', () => {
+      this.clearAllDimensions();
+    });
+
+    // Nút copy danh sách số đo 2D
+    document.getElementById('btn-copy-2d-dims')?.addEventListener('click', () => {
+      this.copyDimensionsToClipboard();
+    });
+
+    // Các nút chuyển chế độ đo trên bảng bên phải
+    this.panelElement?.querySelectorAll('.measure-mode-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const tool = btn.getAttribute('data-tool');
+        if (tool) this.setTool(tool);
+      });
+    });
+  }
+
+  collapsePanel() {
+    this.isCollapsed = true;
+    if (this.panelElement) this.panelElement.style.display = 'none';
+    if (this.floatingBtn && this.isVisible) this.floatingBtn.style.display = 'flex';
+  }
+
+  expandPanel() {
+    this.isCollapsed = false;
+    if (this.panelElement && this.isVisible) this.panelElement.style.display = 'flex';
+    if (this.floatingBtn) this.floatingBtn.style.display = 'none';
+    this.updateDimensionsList();
+  }
+
+  clearAllDimensions() {
+    const dims = this.elements.filter(e => e.type && e.type.startsWith('dim'));
+    if (dims.length === 0) return;
+    if (!confirm(`Bạn có chắc chắn muốn xóa toàn bộ ${dims.length} số đo trên bản vẽ 2D không?`)) return;
+    this.elements = this.elements.filter(e => !e.type || !e.type.startsWith('dim'));
+    this.hoveredDim = null;
+    this.highlightedDim = null;
+    this.saveHistory();
+    this.render();
+    this.updateDimensionsList();
+  }
+
+  copyDimensionsToClipboard() {
+    const dims = this.elements.filter(e => e.type && e.type.startsWith('dim'));
+    if (dims.length === 0) {
+      alert('Chưa có số đo 2D nào để copy!');
+      return;
+    }
+    const lines = ['--- DANH SÁCH SỐ ĐO 2D CAD ---'];
+    dims.forEach((d, i) => {
+      if (d.type === 'dim-radial') {
+        const prefix = d.isDiameter ? 'Ø' : 'R';
+        lines.push(`${i + 1}. ${prefix} = ${d.dist} (Tâm: ${d.cx.toFixed(1)}, ${d.cy.toFixed(1)})`);
+      } else if (d.type === 'dim-angle') {
+        lines.push(`${i + 1}. Góc = ${d.angle}°`);
+      } else {
+        lines.push(`${i + 1}. Chiều dài = ${d.dist} (Điểm 1: ${d.p1.u.toFixed(1)}, ${d.p1.v.toFixed(1)} ➔ Điểm 2: ${d.p2.u.toFixed(1)}, ${d.p2.v.toFixed(1)})`);
+      }
+    });
+    navigator.clipboard.writeText(lines.join('\n')).then(() => {
+      alert(`Đã copy ${dims.length} số đo 2D vào Clipboard!`);
+    }).catch(err => {
+      console.warn('Clipboard write failed:', err);
+    });
+  }
+
+  removeDimension(dimElem) {
+    const idx = this.elements.indexOf(dimElem);
+    if (idx !== -1) {
+      this.elements.splice(idx, 1);
+      if (this.hoveredDim === dimElem) this.hoveredDim = null;
+      if (this.highlightedDim === dimElem) this.highlightedDim = null;
+      this.saveHistory();
+      this.render();
+      this.updateDimensionsList();
+    }
+  }
+
+  focusOnDimension(dim) {
+    if (!dim) return;
+    let targetU = 0, targetV = 0;
+    if (dim.type === 'dim-radial') {
+      targetU = dim.cx;
+      targetV = dim.cy;
+    } else if (dim.p1 && dim.p2) {
+      targetU = (dim.p1.u + dim.p2.u) / 2;
+      targetV = (dim.p1.v + dim.p2.v) / 2;
+    }
+    const parent = this.canvas.parentElement;
+    const rect = parent.getBoundingClientRect();
+    this.offsetX = Math.round(rect.width / 2 - targetU * this.scale);
+    this.offsetY = Math.round(rect.height / 2 + targetV * this.scale);
+    this.highlightedDim = dim;
+    this.render();
+  }
+
+  scrollToDimensionItem(dim) {
+    if (!dim || !this.measureListElement) return;
+    const dims = this.elements.filter(e => e.type && e.type.startsWith('dim'));
+    const idx = dims.indexOf(dim);
+    if (idx !== -1) {
+      const itemEl = this.measureListElement.querySelector(`[data-dim-index="${idx}"]`);
+      if (itemEl) {
+        itemEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        itemEl.classList.add('selected');
+        setTimeout(() => itemEl.classList.remove('selected'), 1500);
+      }
+    }
+  }
+
+  updateDimensionsList() {
+    if (!this.measureListElement) return;
+    const dims = this.elements.filter(e => e.type && e.type.startsWith('dim'));
+    if (this.measureCountElement) {
+      this.measureCountElement.textContent = dims.length;
+    }
+
+    if (dims.length === 0) {
+      this.measureListElement.innerHTML = `
+        <div class="empty-measure-hint">
+          Chưa có số đo nào.<br>Chọn "Đo Cạnh" hoặc "2 Điểm" để tạo số đo trên bản vẽ!
+        </div>
+      `;
+      return;
+    }
+
+    let html = '';
+    dims.forEach((elem, idx) => {
+      let icon = '📏';
+      let title = '';
+      let sub = '';
+
+      if (elem.type === 'dim-radial') {
+        icon = '⭕';
+        if (elem.isDiameter) {
+          title = `Đường Kính: Ø ${elem.dist}`;
+          sub = `Tâm (${elem.cx.toFixed(1)}, ${elem.cy.toFixed(1)}) · R=${elem.r.toFixed(1)}`;
+        } else {
+          title = `Bán Kính: R ${elem.dist}`;
+          sub = `Tâm (${elem.cx.toFixed(1)}, ${elem.cy.toFixed(1)})`;
+        }
+      } else if (elem.type === 'dim-angle') {
+        icon = '📐';
+        title = `Góc: ${elem.angle}°`;
+        sub = `Góc giữa 2 đoạn nét`;
+      } else {
+        icon = '📏';
+        const dx = Math.abs(elem.p2.u - elem.p1.u);
+        const dy = Math.abs(elem.p2.v - elem.p1.v);
+        let orientation = 'Xiên';
+        if (dy < 0.05) orientation = 'Ngang (↔)';
+        else if (dx < 0.05) orientation = 'Đứng (↕)';
+
+        title = `Kích Thước: ${elem.dist} (${orientation})`;
+        sub = `Từ (${elem.p1.u.toFixed(1)}, ${elem.p1.v.toFixed(1)}) đến (${elem.p2.u.toFixed(1)}, ${elem.p2.v.toFixed(1)})`;
+      }
+
+      html += `
+        <div class="measure-item" data-dim-index="${idx}">
+          <div class="measure-item-icon">${icon}</div>
+          <div class="measure-item-info">
+            <div class="measure-item-title">${title}</div>
+            <div class="measure-item-sub">${sub}</div>
+          </div>
+          <button class="measure-item-del" data-dim-del="${idx}" title="Xóa số đo này (Delete)" aria-label="Xóa số đo">🗑️</button>
+        </div>
+      `;
+    });
+
+    this.measureListElement.innerHTML = html;
+
+    // Gắn sự kiện xóa lẻ cho từng số đo
+    this.measureListElement.querySelectorAll('.measure-item-del').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const dIdx = parseInt(btn.getAttribute('data-dim-del'), 10);
+        if (!isNaN(dIdx) && dims[dIdx]) {
+          this.removeDimension(dims[dIdx]);
+        }
+      });
+    });
+
+    // Sự kiện hover và click vào từng mục trong danh sách
+    this.measureListElement.querySelectorAll('.measure-item').forEach(itemEl => {
+      const dIdx = parseInt(itemEl.getAttribute('data-dim-index'), 10);
+      const targetDim = dims[dIdx];
+      if (!targetDim) return;
+
+      itemEl.addEventListener('mouseenter', () => {
+        this.highlightedDim = targetDim;
+        this.render();
+      });
+      itemEl.addEventListener('mouseleave', () => {
+        if (this.highlightedDim === targetDim) {
+          this.highlightedDim = null;
+          this.render();
+        }
+      });
+      itemEl.addEventListener('click', () => {
+        this.focusOnDimension(targetDim);
+      });
+    });
+  }
+
+  // Tìm số đo tại tọa độ (u, v) - kiểm tra cả đường đo và text badge
+  findDimensionAtPoint(pt) {
+    if (!pt) return null;
+    const clickThreshold = Math.max(0.45, 24 / this.scale);
+    let bestDim = null;
+    let bestDist = Infinity;
+
+    for (let i = this.elements.length - 1; i >= 0; i--) {
+      const elem = this.elements[i];
+      if (!elem.type || !elem.type.startsWith('dim')) continue;
+
+      let d = Infinity;
+      if (elem.type === 'dim') {
+        const dLine = this.pointToSegmentDistance(pt, elem.p1, elem.p2);
+
+        // Khoảng cách tới text badge
+        const dx = elem.p2.u - elem.p1.u;
+        const dy = elem.p2.v - elem.p1.v;
+        const len = Math.hypot(dx, dy);
+        let dText = Infinity;
+        if (len > 0.001) {
+          let nx = -dy / len;
+          let ny = dx / len;
+          if (Math.abs(dx) >= Math.abs(dy)) {
+            if (ny > 0) { nx = -nx; ny = -ny; }
+          } else {
+            if (nx > 0) { nx = -nx; ny = -ny; }
+          }
+          const offsetInUnits = 16 / this.scale;
+          const textU = (elem.p1.u + elem.p2.u) / 2 + nx * offsetInUnits;
+          const textV = (elem.p1.v + elem.p2.v) / 2 + ny * offsetInUnits;
+          dText = Math.hypot(pt.u - textU, pt.v - textV);
+        }
+        d = Math.min(dLine, dText);
+        if (dText <= (20 / this.scale)) {
+          d = d * 0.1; // Ưu tiên tuyệt đối khi click trúng chữ số
+        }
+      } else if (elem.type === 'dim-radial') {
+        const endU = elem.cx + (elem.r + 0.8) * Math.cos(elem.angle);
+        const endV = elem.cy + (elem.r + 0.8) * Math.sin(elem.angle);
+        const dLine = this.pointToSegmentDistance(pt, { u: elem.cx, v: elem.cy }, { u: endU, v: endV });
+        const dText = Math.hypot(pt.u - endU, pt.v - endV);
+        d = Math.min(dLine, dText);
+        if (dText <= (20 / this.scale)) {
+          d = d * 0.1;
+        }
+      }
+
+      if (d < clickThreshold && d < bestDist) {
+        bestDist = d;
+        bestDim = elem;
+      }
+    }
+    return bestDim;
   }
 
   setTool(toolName) {
@@ -213,6 +506,17 @@ export class CAD2DEditor {
     } else {
       this.canvas.style.cursor = 'crosshair';
     }
+
+    // Đồng bộ nút active ở sidebar trái và bảng bên phải
+    document.querySelectorAll('.cad2d-tool-btn').forEach(b => {
+      b.classList.toggle('active', b.getAttribute('data-tool') === toolName);
+    });
+    if (this.panelElement) {
+      this.panelElement.querySelectorAll('.measure-mode-btn').forEach(b => {
+        b.classList.toggle('active', b.getAttribute('data-tool') === toolName);
+      });
+    }
+
     this.updateHUDHint();
     this.updateFrameButton();
     this.render();
@@ -229,12 +533,25 @@ export class CAD2DEditor {
     }
     this.updateHUDHint();
     this.updateFrameButton();
+
+    if (this.panelElement) {
+      if (this.isCollapsed) {
+        this.panelElement.style.display = 'none';
+        if (this.floatingBtn) this.floatingBtn.style.display = 'flex';
+      } else {
+        this.panelElement.style.display = 'flex';
+        if (this.floatingBtn) this.floatingBtn.style.display = 'none';
+      }
+    }
+    this.updateDimensionsList();
     this.render();
   }
 
   hide() {
     this.isVisible = false;
     this.canvas.parentElement.style.display = 'none';
+    if (this.panelElement) this.panelElement.style.display = 'none';
+    if (this.floatingBtn) this.floatingBtn.style.display = 'none';
   }
 
   resize() {
@@ -614,6 +931,27 @@ export class CAD2DEditor {
         const rawU = Number(((mouseX - this.offsetX) / this.scale).toFixed(3));
         const rawV = Number((-(mouseY - this.offsetY) / this.scale).toFixed(3));
         const rawPoint = { u: rawU, v: rawV };
+
+        // 1. Nếu đang ở công cụ Erase: click trúng số đo là xóa ngay lập tức
+        if (this.tool === 'erase') {
+          const clickedDim = this.findDimensionAtPoint(rawPoint);
+          if (clickedDim) {
+            this.removeDimension(clickedDim);
+            return;
+          }
+        }
+
+        // 2. Nếu đang ở công cụ đo và click vào số đo đã có: chọn và cuộn bảng bên phải
+        if (this.tool === 'dim' || this.tool === 'dim-points' || this.tool === 'dim-radial') {
+          const clickedDim = this.findDimensionAtPoint(rawPoint);
+          if (clickedDim && this.pendingPoints.length === 0) {
+            this.highlightedDim = clickedDim;
+            this.render();
+            this.scrollToDimensionItem(clickedDim);
+            return;
+          }
+        }
+
         const snap = this.getSnapPoint(mouseX, mouseY, e.altKey);
         if (!snap) return;
 
@@ -634,6 +972,20 @@ export class CAD2DEditor {
         this.offsetY = mouseY - this.panStart.y;
         this.render();
         return;
+      }
+
+      const rawU = Number(((mouseX - this.offsetX) / this.scale).toFixed(3));
+      const rawV = Number((-(mouseY - this.offsetY) / this.scale).toFixed(3));
+      const pt = { u: rawU, v: rawV };
+      const prevHovered = this.hoveredDim;
+      this.hoveredDim = this.findDimensionAtPoint(pt);
+
+      if (this.hoveredDim !== prevHovered) {
+        if (this.hoveredDim) {
+          this.canvas.style.cursor = (this.tool === 'erase') ? 'not-allowed' : 'pointer';
+        } else {
+          this.canvas.style.cursor = (this.tool === 'pan') ? 'grab' : (this.tool === 'toggle-style' ? 'pointer' : 'crosshair');
+        }
       }
 
       this.hoverSnap = this.getSnapPoint(mouseX, mouseY, e.altKey);
@@ -790,10 +1142,16 @@ export class CAD2DEditor {
       } else if (e.key.toLowerCase() === 'g') {
         e.preventDefault();
         this.toggleSnapMode();
+      } else if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (this.hoveredDim || this.highlightedDim) {
+          e.preventDefault();
+          this.removeDimension(this.hoveredDim || this.highlightedDim);
+        }
       } else if (e.key === 'Escape') {
         this.pendingPoints = [];
         this.filletFirst = null;
         this.tangentStartVec = null;
+        this.highlightedDim = null;
         this.render();
       }
     });
@@ -1357,6 +1715,13 @@ export class CAD2DEditor {
 
   // TỈA ĐOẠN NÉT BỊ CẮT HOẶC XÓA NÉT (AUTOCAD TRIM)
   trimAtPoint(clickPoint) {
+    // 1. ƯU TIÊN SỐ 1: Bắt dính và xóa số đo nếu click trúng bất kỳ số đo nào
+    const targetDim = this.findDimensionAtPoint(clickPoint);
+    if (targetDim) {
+      this.removeDimension(targetDim);
+      return;
+    }
+
     let bestElem = null;
     let bestDist = Infinity;
     let bestIndex = -1;
@@ -2516,6 +2881,12 @@ export class CAD2DEditor {
         }
         drawnDimKeys.add(k1);
 
+        const isHovered = (this.hoveredDim === elem || this.highlightedDim === elem);
+        const strokeColor = isHovered ? (this.tool === 'erase' ? '#ef4444' : '#f59e0b') : '#38bdf8';
+        const textColor = isHovered ? (this.tool === 'erase' ? '#f87171' : '#fbbf24') : '#38bdf8';
+        const boxBg = isHovered ? (this.tool === 'erase' ? 'rgba(239, 68, 68, 0.28)' : 'rgba(245, 158, 11, 0.25)') : 'rgba(8, 12, 21, 0.94)';
+        const boxBorder = isHovered ? (this.tool === 'erase' ? '#ef4444' : '#f59e0b') : 'rgba(56, 189, 248, 0.5)';
+
         // Vẽ kích thước (Dimension line)
         const x1 = this.offsetX + elem.p1.u * s;
         const y1 = this.offsetY - elem.p1.v * s;
@@ -2526,8 +2897,8 @@ export class CAD2DEditor {
         const dy = y2 - y1;
         const len = Math.hypot(dx, dy);
 
-        ctx.strokeStyle = '#38bdf8';
-        ctx.lineWidth = 1.4;
+        ctx.strokeStyle = strokeColor;
+        ctx.lineWidth = isHovered ? 2.4 : 1.4;
         ctx.setLineDash([]);
         ctx.beginPath();
         ctx.moveTo(x1, y1);
@@ -2536,9 +2907,9 @@ export class CAD2DEditor {
 
         // Điểm tròn đánh dấu 2 đầu
         ctx.beginPath();
-        ctx.arc(x1, y1, 3.5, 0, Math.PI * 2);
-        ctx.arc(x2, y2, 3.5, 0, Math.PI * 2);
-        ctx.fillStyle = '#38bdf8';
+        ctx.arc(x1, y1, isHovered ? 4.5 : 3.5, 0, Math.PI * 2);
+        ctx.arc(x2, y2, isHovered ? 4.5 : 3.5, 0, Math.PI * 2);
+        ctx.fillStyle = strokeColor;
         ctx.fill();
 
         if (len > 0.001) {
@@ -2562,7 +2933,7 @@ export class CAD2DEditor {
           const textY = midY + ny * offsetDist;
 
           const text = `${elem.dist}`;
-          ctx.font = 'bold 12px monospace';
+          ctx.font = isHovered ? 'bold 13px monospace' : 'bold 12px monospace';
           const textMetrics = ctx.measureText(text);
           const textW = textMetrics.width;
           const textH = 14;
@@ -2571,16 +2942,16 @@ export class CAD2DEditor {
 
           // Hộp nền tối bảo vệ số đo (Knockout/Background Mask) - không để đường thẳng cắt xuyên qua chữ số
           ctx.save();
-          ctx.fillStyle = 'rgba(8, 12, 21, 0.94)';
+          ctx.fillStyle = boxBg;
           ctx.fillRect(textX - textW / 2 - padX, textY - textH / 2 - padY, textW + padX * 2, textH + padY * 2);
 
           // Khung viền mỏng quanh số đo
-          ctx.strokeStyle = 'rgba(56, 189, 248, 0.5)';
-          ctx.lineWidth = 0.8;
+          ctx.strokeStyle = boxBorder;
+          ctx.lineWidth = isHovered ? 1.6 : 0.8;
           ctx.strokeRect(textX - textW / 2 - padX, textY - textH / 2 - padY, textW + padX * 2, textH + padY * 2);
 
           // Vẽ chữ số đo
-          ctx.fillStyle = '#38bdf8';
+          ctx.fillStyle = textColor;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText(text, textX, textY);
@@ -2588,6 +2959,10 @@ export class CAD2DEditor {
         }
 
       } else if (elem.type === 'dim-radial') {
+        const isHovered = (this.hoveredDim === elem || this.highlightedDim === elem);
+        const strokeColor = isHovered ? (this.tool === 'erase' ? '#ef4444' : '#f59e0b') : '#38bdf8';
+        const textColor = isHovered ? (this.tool === 'erase' ? '#ef4444' : '#fbbf24') : '#38bdf8';
+
         const cx = this.offsetX + elem.cx * s;
         const cy = this.offsetY - elem.cy * s;
         const angle = elem.angle;
@@ -2602,8 +2977,8 @@ export class CAD2DEditor {
         const doglegX = lx + (cosA >= 0 ? 25 : -25);
         const doglegY = ly;
 
-        ctx.strokeStyle = '#38bdf8';
-        ctx.lineWidth = 1.6;
+        ctx.strokeStyle = strokeColor;
+        ctx.lineWidth = isHovered ? 2.4 : 1.6;
         ctx.beginPath();
         ctx.moveTo(cx, cy);
         ctx.lineTo(lx, ly);
@@ -2612,14 +2987,14 @@ export class CAD2DEditor {
 
         const arrLen = 8;
         const backAngle = Math.atan2(cy - py, cx - px);
-        ctx.fillStyle = '#38bdf8';
+        ctx.fillStyle = strokeColor;
         ctx.beginPath();
         ctx.moveTo(px, py);
         ctx.lineTo(px + arrLen * Math.cos(backAngle - 0.35), py + arrLen * Math.sin(backAngle - 0.35));
         ctx.lineTo(px + arrLen * Math.cos(backAngle + 0.35), py + arrLen * Math.sin(backAngle + 0.35));
         ctx.fill();
 
-        ctx.strokeStyle = '#38bdf8';
+        ctx.strokeStyle = strokeColor;
         ctx.lineWidth = 1.0;
         ctx.beginPath();
         ctx.moveTo(cx - 5, cy);
@@ -2629,8 +3004,8 @@ export class CAD2DEditor {
         ctx.stroke();
 
         const labelText = elem.isDiameter ? `Ø ${elem.dist}` : `R ${elem.dist}`;
-        ctx.fillStyle = '#38bdf8';
-        ctx.font = 'bold 12px monospace';
+        ctx.fillStyle = textColor;
+        ctx.font = isHovered ? 'bold 13px monospace' : 'bold 12px monospace';
         ctx.textAlign = (cosA >= 0) ? 'left' : 'right';
         ctx.textBaseline = 'bottom';
         ctx.fillText(labelText, doglegX + (cosA >= 0 ? 4 : -4), doglegY - 2);

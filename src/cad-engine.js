@@ -79,6 +79,7 @@ export class CadEngine {
     targetBrush.updateMatrixWorld();
 
     const result = this.evaluator.evaluate(targetBrush, toolBrush, (op === 'add') ? ADDITION : SUBTRACTION);
+    toolBrush.geometry.dispose();
     result.material = this.material;
     result.geometry.computeVertexNormals();
     result.geometry.computeBoundingBox();
@@ -163,6 +164,7 @@ export class CadEngine {
     targetBrush.updateMatrixWorld();
 
     const result = this.evaluator.evaluate(targetBrush, toolBrush, (op === 'add') ? ADDITION : SUBTRACTION);
+    toolBrush.geometry.dispose();
     result.material = this.material;
     result.geometry.computeVertexNormals();
     result.geometry.computeBoundingBox();
@@ -264,6 +266,7 @@ export class CadEngine {
     targetBrush.updateMatrixWorld();
 
     const result = this.evaluator.evaluate(targetBrush, toolBrush, (op === 'add') ? ADDITION : SUBTRACTION);
+    toolBrush.geometry.dispose();
     result.material = this.material;
     result.geometry.computeVertexNormals();
     result.geometry.computeBoundingBox();
@@ -303,6 +306,7 @@ export class CadEngine {
         targetBrush.updateMatrixWorld();
 
         const result = this.evaluator.evaluate(targetBrush, cutter, (op === 'add') ? ADDITION : SUBTRACTION);
+        cutter.geometry.dispose();
         result.material = this.material;
         result.geometry.computeVertexNormals();
         return result;
@@ -411,6 +415,7 @@ export class CadEngine {
     targetBrush.updateMatrixWorld();
 
     const result = this.evaluator.evaluate(targetBrush, cutter, (op === 'add') ? ADDITION : SUBTRACTION);
+    cutter.geometry.dispose();
     result.material = this.material;
     result.geometry.computeVertexNormals();
     result.geometry.computeBoundingBox();
@@ -438,6 +443,7 @@ export class CadEngine {
     targetBrush.updateMatrixWorld();
 
     const result = this.evaluator.evaluate(targetBrush, cutter, (op === 'add') ? ADDITION : SUBTRACTION);
+    cutter.geometry.dispose();
     result.material = this.material;
     result.geometry.computeVertexNormals();
     return result;
@@ -597,6 +603,7 @@ export class CadEngine {
     targetBrush.updateMatrixWorld();
 
     const result = this.evaluator.evaluate(targetBrush, cutter, (op === 'add') ? ADDITION : SUBTRACTION);
+    cutter.geometry.dispose();
     result.material = this.material;
     result.geometry.computeVertexNormals();
     return result;
@@ -646,6 +653,7 @@ export class CadEngine {
     targetBrush.updateMatrixWorld();
 
     const result = this.evaluator.evaluate(targetBrush, cutter, (op === 'add') ? ADDITION : SUBTRACTION);
+    cutter.geometry.dispose();
     result.material = this.material;
     result.geometry.computeVertexNormals();
     return result;
@@ -720,6 +728,7 @@ export class CadEngine {
     toolBrush.updateMatrixWorld();
 
     const result = this.evaluator.evaluate(targetBrush, toolBrush, (op === 'add') ? ADDITION : SUBTRACTION);
+    toolBrush.geometry.dispose();
     result.material = this.material;
     result.geometry.computeVertexNormals();
     result.geometry.computeBoundingBox();
@@ -828,6 +837,7 @@ export class CadEngine {
     cutter.updateMatrixWorld();
 
     const result = this.evaluator.evaluate(targetBrush, cutter, (op === 'add') ? ADDITION : SUBTRACTION);
+    cutter.geometry.dispose();
     result.material = this.material;
     result.geometry.computeVertexNormals();
     return result;
@@ -843,6 +853,10 @@ export class CadEngine {
     const rawEdges = new THREE.EdgesGeometry(cleanGeom, 25);
     const ePos = rawEdges.attributes.position;
     if (!ePos || ePos.count === 0) {
+      if (mesh.geometry.index && nonIndexedGeom !== mesh.geometry) {
+        nonIndexedGeom.dispose();
+      }
+      cleanGeom.dispose();
       return new THREE.LineSegments(rawEdges, this.edgeMaterial);
     }
 
@@ -1028,6 +1042,13 @@ export class CadEngine {
 
     const finalGeom = new THREE.BufferGeometry();
     finalGeom.setAttribute('position', new THREE.Float32BufferAttribute(finalPositions, 3));
+
+    // Giải phóng bộ nhớ hình học trung gian
+    if (mesh.geometry.index && nonIndexedGeom !== mesh.geometry) {
+      nonIndexedGeom.dispose();
+    }
+    cleanGeom.dispose();
+    rawEdges.dispose();
 
     const edges = new THREE.LineSegments(finalGeom, this.edgeMaterial);
     edges.position.copy(mesh.position);

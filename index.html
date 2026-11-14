@@ -5,13 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>My CAD</title>
   <link rel="stylesheet" href="./src/style.css">
-  <!-- Vercel Web Analytics & Speed Insights -->
-  <script>
-    window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
-    window.si = window.si || function () { (window.siq = window.siq || []).push(arguments); };
-  </script>
-  <script defer src="/_vercel/insights/script.js"></script>
-  <script defer src="/_vercel/speed-insights/script.js"></script>
 </head>
 <body>
 
@@ -37,7 +30,7 @@
             <span id="autosave-status" style="display:none;"></span>
           </div>
         </div>
-        <button class="sidebar-compact-btn" id="btn-toggle-sidebar-compact" title="Thu gọn / Mở rộng thanh công cụ (Tab Icon)">
+        <button class="sidebar-compact-btn" id="btn-toggle-sidebar-compact" title="Thu gọn / Mở rộng thanh công cụ (Tab Icon)" aria-label="Thu gọn hoặc mở rộng thanh công cụ">
           <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
         </button>
       </div>
@@ -123,11 +116,11 @@
 
         <!-- NHÓM 2: UNDO / REDO NHANH KHI CHỈNH SỬA -->
         <div class="sidebar-grid-2 quick-history-row">
-          <button class="tool-btn-compact" id="btn-undo" disabled title="Hoàn tác (Ctrl+Z)">
+          <button class="tool-btn-compact" id="btn-undo" disabled title="Hoàn tác (Ctrl+Z)" aria-label="Hoàn tác (Ctrl+Z)">
             <svg viewBox="0 0 24 24"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
             <span>Undo</span>
           </button>
-          <button class="tool-btn-compact" id="btn-redo" disabled title="Làm lại (Ctrl+Y)">
+          <button class="tool-btn-compact" id="btn-redo" disabled title="Làm lại (Ctrl+Y)" aria-label="Làm lại (Ctrl+Y)">
             <svg viewBox="0 0 24 24"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"/></svg>
             <span>Redo</span>
           </button>
@@ -135,7 +128,7 @@
 
         <!-- TAB ĐÓNG MỞ: GÓC CHIẾU & BƯỚC LƯỚI (VIEW) -->
         <div class="sidebar-accordion" id="acc-3d-view">
-          <button class="accordion-toggle" type="button" title="Mở / Đóng tab Góc Chiếu & Bước Lưới (View)">
+          <button class="accordion-toggle" type="button" title="Mở / Đóng tab Góc Chiếu & Bước Lưới (View)" aria-expanded="true" aria-controls="acc-3d-view">
             <span class="tool-icon">
               <svg viewBox="0 0 24 24"><path d="M12 2l9 5v10l-9 5-9-5V7l9-5z"/><line x1="12" y1="22" x2="12" y2="12"/><line x1="21" y1="7" x2="12" y2="12"/><line x1="3" y1="7" x2="12" y2="12"/></svg>
             </span>
@@ -185,7 +178,7 @@
 
         <!-- TAB ĐÓNG MỞ: KHỐI PHÔI & NHẬP / XUẤT 3D -->
         <div class="sidebar-accordion" id="acc-3d-file">
-          <button class="accordion-toggle" type="button" title="Mở / Đóng tab Khối Phôi & Nhập/Xuất OBJ">
+          <button class="accordion-toggle" type="button" title="Mở / Đóng tab Khối Phôi & Nhập/Xuất OBJ" aria-expanded="true" aria-controls="acc-3d-file">
             <span class="tool-icon">
               <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
             </span>
@@ -217,7 +210,7 @@
                 <span>Xuất OBJ</span>
               </button>
             </div>
-            <input type="file" id="input-import-obj" accept=".obj" style="display: none;">
+            <input type="file" id="input-import-obj" accept=".obj" style="display: none;" aria-label="Chọn file 3D OBJ để nạp vào CAD">
           </div>
         </div>
 
@@ -344,7 +337,7 @@
 
         <!-- TAB ĐÓNG MỞ: HÌNH CHIẾU 2D (VIEWS) -->
         <div class="sidebar-accordion" id="acc-2d-views">
-          <button class="accordion-toggle" type="button" title="Open / Close 3D Projection Views">
+          <button class="accordion-toggle" type="button" title="Open / Close 3D Projection Views" aria-expanded="true" aria-controls="acc-2d-views">
             <span class="tool-icon">
               <svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/></svg>
             </span>
@@ -379,7 +372,7 @@
 
         <!-- TAB ĐÓNG MỞ: KHUNG CAD & BẮT DÍNH -->
         <div class="sidebar-accordion" id="acc-2d-frame">
-          <button class="accordion-toggle" type="button" title="Open / Close Snap & CAD Frame Options">
+          <button class="accordion-toggle" type="button" title="Open / Close Snap & CAD Frame Options" aria-expanded="true" aria-controls="acc-2d-frame">
             <span class="tool-icon">
               <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" stroke-dasharray="4 2"/></svg>
             </span>
@@ -414,7 +407,7 @@
 
         <!-- TAB ĐÓNG MỞ: NHẬP / XUẤT BẢN VẼ 2D -->
         <div class="sidebar-accordion" id="acc-2d-export">
-          <button class="accordion-toggle" type="button" title="Open / Close Export PNG / DXF">
+          <button class="accordion-toggle" type="button" title="Open / Close Export PNG / DXF" aria-expanded="true" aria-controls="acc-2d-export">
             <span class="tool-icon">
               <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             </span>
@@ -448,23 +441,23 @@
     </div>
 
     <!-- POPOVER CÀI ĐẶT KÍCH THƯỚC KHỐI BAN ĐẦU -->
-    <div id="dim-popover" class="dim-popover" style="display: none;">
+    <div id="dim-popover" class="dim-popover" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="dim-popover-title">
       <div class="popover-header">
-        <span>⚙️ Kích Thước Khối Hộp (Số Ô Lưới)</span>
-        <button id="btn-close-dim" class="close-x">✖️</button>
+        <span id="dim-popover-title">⚙️ Kích Thước Khối Hộp (Số Ô Lưới)</span>
+        <button id="btn-close-dim" class="close-x" aria-label="Đóng cài đặt kích thước">✖️</button>
       </div>
       <div class="dim-grid">
         <div class="dim-field">
-          <label>Rộng (W)</label>
-          <input type="number" id="dim-w" value="6" min="1" max="300">
+          <label for="dim-w">Rộng (W)</label>
+          <input type="number" id="dim-w" value="6" min="1" max="300" aria-label="Chiều rộng khối">
         </div>
         <div class="dim-field">
-          <label>Cao (H)</label>
-          <input type="number" id="dim-h" value="4" min="1" max="300">
+          <label for="dim-h">Cao (H)</label>
+          <input type="number" id="dim-h" value="4" min="1" max="300" aria-label="Chiều cao khối">
         </div>
         <div class="dim-field">
-          <label>Sâu (D)</label>
-          <input type="number" id="dim-d" value="4" min="1" max="300">
+          <label for="dim-d">Sâu (D)</label>
+          <input type="number" id="dim-d" value="4" min="1" max="300" aria-label="Chiều sâu khối">
         </div>
       </div>
       <button class="btn-primary-reset" id="btn-reset-block">
@@ -473,10 +466,10 @@
     </div>
 
     <!-- MODAL CODE -> 3D (CAD SCRIPT) -->
-    <div id="script-modal" class="script-modal" style="display: none;">
+    <div id="script-modal" class="script-modal" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="script-modal-title">
       <div class="popover-header">
-        <span>💻 Code → 3D (CAD Script)</span>
-        <button id="btn-close-script" class="close-x">✖️</button>
+        <span id="script-modal-title">💻 Code → 3D (CAD Script)</span>
+        <button id="btn-close-script" class="close-x" aria-label="Đóng bảng mã lệnh CAD Script">✖️</button>
       </div>
       <div class="script-toolbar">
         <div class="script-toolbar-item">
@@ -517,7 +510,7 @@
       <div class="script-cheatsheet">
         <code>hop(w,h,d)</code> · <code>hop_bo(w,h,d,r)</code> · <code>tru(r,h,trục)</code> · <code>ong(rNgoai,rTrong,h,trục)</code> · <code>.khoet(...)</code> · <code>.ghep(...)</code> · <code>.dich(x,y,z)</code> · <code>.xoay(rx,ry,rz)</code> · <code>.bo(r)</code> · <code>.vat(d)</code>
       </div>
-      <textarea id="cad-script-input" spellcheck="false" placeholder="// Viết code CAD và return khối cuối cùng..."></textarea>
+      <textarea id="cad-script-input" spellcheck="false" placeholder="// Viết code CAD và return khối cuối cùng..." aria-label="Mã lệnh CAD Script"></textarea>
       <div id="cad-script-error" class="script-error" style="display: none;"></div>
       <div class="script-footer">
         <span class="script-hint">Hỗ trợ cả Tiếng Việt (hop, tru, khoet...) và Tiếng Anh (box, cylinder, cut...) · Ctrl+Enter để chạy</span>
@@ -533,7 +526,7 @@
           <span class="panel-title" id="tsr-title">THÔNG SỐ CẮT GỌT</span>
         </div>
         <div class="panel-header-actions">
-          <button id="btn-toggle-tsr" class="panel-collapse-btn" title="Thu gọn bảng (Esc)">✕</button>
+          <button id="btn-toggle-tsr" class="panel-collapse-btn" title="Thu gọn bảng (Esc)" aria-label="Thu gọn bảng thông số cắt gọt">✕</button>
         </div>
       </div>
       <div class="tsr-instruction" id="tsr-instruction" style="display: none !important;"></div>
@@ -541,7 +534,7 @@
     </aside>
 
     <!-- NÚT NỔI MỞ BẢNG THÔNG SỐ CẮT GỌT KHI ĐÃ BỊ THU GỌN -->
-    <button id="btn-floating-open-tsr" class="floating-inspect-btn" style="display: none;" title="Mở bảng thông số">
+    <button id="btn-floating-open-tsr" class="floating-inspect-btn" style="display: none;" title="Mở bảng thông số" aria-label="Mở lại bảng thông số cắt gọt">
       <span>⚙️ Thông Số</span>
       <span>◀</span>
     </button>
@@ -555,7 +548,7 @@
         </div>
         <div class="panel-header-actions">
           <span class="panel-mode-badge">Chỉ Xem</span>
-          <button id="btn-toggle-inspection-panel" class="panel-collapse-btn" title="Thu gọn bảng (Esc)">✕</button>
+          <button id="btn-toggle-inspection-panel" class="panel-collapse-btn" title="Thu gọn bảng (Esc)" aria-label="Thu gọn bảng đo đạc">✕</button>
         </div>
       </div>
 
@@ -638,7 +631,7 @@
     </aside>
 
     <!-- NÚT NỔI MỞ BẢNG ĐO ĐẠC KHI ĐÃ BỊ THU GỌN -->
-    <button id="btn-floating-open-inspect" class="floating-inspect-btn" style="display: none;" title="Mở lại bảng kiểm tra & đo đạc">
+    <button id="btn-floating-open-inspect" class="floating-inspect-btn" style="display: none;" title="Mở lại bảng kiểm tra & đo đạc" aria-label="Mở lại bảng kiểm tra và đo đạc">
       <span>🔍 Đo Đạc</span>
       <span>◀</span>
     </button>

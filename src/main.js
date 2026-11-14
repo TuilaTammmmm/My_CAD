@@ -94,7 +94,36 @@ scene.add(modelGroup);
 let history = [];
 let historyIndex = -1;
 
+function clearHistory() {
+  for (const item of history) {
+    if (item && item.geometry) {
+      item.geometry.dispose();
+    }
+  }
+  history = [];
+  historyIndex = -1;
+  updateHistoryButtons();
+}
+
+function disposeEdges(edges) {
+  if (!edges) return;
+  if (edges.geometry) edges.geometry.dispose();
+  if (edges.material) {
+    if (Array.isArray(edges.material)) {
+      edges.material.forEach(m => m && m.dispose && m.dispose());
+    } else if (edges.material.dispose) {
+      edges.material.dispose();
+    }
+  }
+}
+
 function saveHistory(brush) {
+  // Giải phóng các trạng thái redo bị loại bỏ
+  for (let i = historyIndex + 1; i < history.length; i++) {
+    if (history[i] && history[i].geometry) {
+      history[i].geometry.dispose();
+    }
+  }
   history = history.slice(0, historyIndex + 1);
   const clone = brush.clone();
   clone.geometry = brush.geometry.clone();
@@ -185,8 +214,12 @@ function setModel(brush, recordHistory = true) {
 
   if (currentBrush) {
     modelGroup.remove(currentBrush);
-    if (currentEdges) modelGroup.remove(currentEdges);
-    currentBrush.geometry.dispose();
+    if (currentEdges) {
+      modelGroup.remove(currentEdges);
+      disposeEdges(currentEdges);
+      currentEdges = null;
+    }
+    if (currentBrush.geometry) currentBrush.geometry.dispose();
   }
 
   currentBrush = brush;
@@ -229,8 +262,7 @@ function resetBaseBlock() {
   H = parseInt(document.getElementById('dim-h').value) || 4;
   D = parseInt(document.getElementById('dim-d').value) || 4;
 
-  history = [];
-  historyIndex = -1;
+  clearHistory();
 
   const base = cad.createBaseBlock(W, H, D);
   setModel(base, true);
@@ -279,8 +311,7 @@ async function initAppStorage() {
       restoredBrush.updateMatrixWorld();
 
       isRestoredFromAutoSave = true;
-      history = [];
-      historyIndex = -1;
+      clearHistory();
       setModel(restoredBrush, true);
 
       centerCamera();
@@ -640,8 +671,7 @@ if (btnImportObj && inputImportObj) {
         const importedBrush = new Brush(mergedGeom, cad.material);
         importedBrush.updateMatrixWorld();
 
-        history = [];
-        historyIndex = -1;
+        clearHistory();
 
         setModel(importedBrush, true);
         gridOverlay.update(W, H, D);

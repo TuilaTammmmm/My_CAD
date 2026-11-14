@@ -2,104 +2,118 @@ import { initOCCT, replicad, replicadToBrush } from './occt-kernel.js';
 import { Brush } from 'three-bvh-csg';
 
 export const CAD_SCRIPT_PRESETS = {
-  new_box_cut: `// 1. Tạo sẵn phôi hộp mới theo kích thước W x H x D hiện tại
-let phoi = box(W, H, D);
+  starter_block: `// Phôi hộp 60x40x50 bo cạnh R3 + khoan lỗ Ø20 (Cú pháp ngắn gọn)
+const phoi = hop(60, 40, 50).bo(3);
+const loKhoan = tru(10, 60, 'y');
 
-// 2. Tạo dao cắt mẫu (bạn có thể sửa/xóa để giữ nguyên hộp hoặc cắt thêm)
+return phoi.khoet(loKhoan);`,
+
+  new_box_cut: `// 1. Tạo phôi hộp theo kích thước W x H x D
+let phoi = hop(W, H, D);
+
+// 2. Tạo lỗ tròn và rãnh cắt mẫu bằng cú pháp tiếng Việt:
 const rHole = Math.max(0.5, Number((Math.min(W, D) * 0.18).toFixed(2)));
-const loTam = cylinder(rHole, H + 4, 'y');
-const ranh = move(box(W * 0.35, H * 0.25, D + 4), 0, H * 0.38, 0);
+const loTam = tru(rHole, H + 4, 'y');
+const ranh = hop(W * 0.35, H * 0.25, D + 4).dich(0, H * 0.38, 0);
 
-return cut(phoi, loTam, ranh);`,
+return phoi.khoet(loTam, ranh);`,
 
-  empty_box: `// Tạo sẵn 1 phôi hộp mới tinh (W x H x D) để cắt gọt tiếp
-const phoi = box(W, H, D);
-return phoi;`,
+  empty_box: `// Phôi hộp mới tinh (W x H x D) để bắt đầu cắt gọt
+return hop(W, H, D);`,
 
   u_shell_pipe: `// Khối chữ U bo tròn + 2 ống trụ ngang (OpenCascade B-Rep)
-const uOuter = roundBox(50, 50, 50, 8);
-const uInner = move(roundBox(34, 42, 56, 4), 0, 8, 0);
-const uBody = cut(uOuter, uInner);
+const thanU = hop_bo(50, 50, 50, 8);
+const khoetTrong = hop_bo(34, 42, 56, 4).dich(0, 8, 0);
+let voU = thanU.khoet(khoetTrong);
 
-// 2 ống trụ ngang xuyên suốt (B-Rep mặt cong thật)
-const pipeL = move(tube(12, 6, 30, 'x'), -25, 8, 0);
-const pipeR = move(tube(12, 6, 30, 'x'),  25, 8, 0);
+// 2 ống trụ ngang xuyên suốt:
+const ongTrai = ong(12, 6, 30, 'x').dich(-25, 8, 0);
+const ongPhai = ong(12, 6, 30, 'x').dich(25, 8, 0);
 
-// Cắt thông lòng ống vào thân U
-const holeL = move(cylinder(6, 36, 'x'), -22, 8, 0);
-const holeR = move(cylinder(6, 36, 'x'),  22, 8, 0);
+// Cắt thông lòng ống vào thân U:
+const loThongL = tru(6, 36, 'x').dich(-22, 8, 0);
+const loThongR = tru(6, 36, 'x').dich(22, 8, 0);
 
-let res = union(uBody, pipeL, pipeR);
-res = cut(res, holeL, holeR);
-return res;`,
+return voU.ghep(ongTrai, ongPhai).khoet(loThongL, loThongR);`,
 
-  horiz_cyl_mount: `// Đề bài: Trụ nằm ngang Ø50×90 (tâm Y=55, Z=0) + Vách đứng 50×35×15 + Đế dưới 50×20×35
-// (Chừa sẵn 3 phần phôi chuẩn để bạn tự cắt 3 rãnh bằng tay)
-const cyl = move(cylinder(25, 90, 'x'), 0, 55, 0);
-const wall = move(box(50, 35, 15), 0, 37.5, 7.5);
-const base = move(box(50, 20, 35), 0, 10, 17.5);
+  horiz_cyl_mount: `// Trụ nằm ngang Ø50×90 + Vách đứng 50×35×15 + Đế dưới 50×20×35
+const truNgang = tru(25, 90, 'x').dich(0, 55, 0);
+const vachDung = hop(50, 35, 15).dich(0, 37.5, 7.5);
+const deDuoi   = hop(50, 20, 35).dich(0, 10, 17.5);
 
-return union(cyl, wall, base);`,
+return truNgang.ghep(vachDung, deDuoi);`,
 
-    mount_with_boss_slot: `// Hình mẫu: Gối đỡ đế 60x80x30 + Trụ tròn Ø30x30 + Hầm xuyên 40x20 + Vấu 30x10x28 + Vát 52x42
-// 1. Đế chính: Rộng 60 (trục X), Cao 30 (trục Y), Dài 80 (trục Z)
-let de = box(60, 30, 80);
+  mount_with_boss_slot: `// Gối đỡ đế 60x80x30 + Trụ tròn Ø30x30 + Hầm 40x20 + Vấu 30x10 + Vát 52x42
+// 1. Đế chính
+let de = hop(60, 30, 80);
 
-// 2. Rãnh hầm khoét xuyên suốt mặt đáy: Rộng 40, Cao 20 (cắt từ đáy Y=-15 lên Y=5)
-const ham = move(box(70, 20, 40), 0, -5, 0);
-de = cut(de, ham);
+// 2. Rãnh hầm khoét xuyên suốt mặt đáy
+const ham = hop(70, 20, 40).dich(0, -5, 0);
+de = de.khoet(ham);
 
-// 3. Vấu vuông lồi ra phía trước: Rộng 30, Nhô ra 10 (từ Z=-40 đến -50), Cao 28 (từ đáy Y=-15 lên Y=13)
-const vau = move(box(30, 28, 10), 0, -1, -45);
-let res = union(de, vau);
+// 3. Vấu vuông lồi ra phía trước
+const vau = hop(30, 28, 10).dich(0, -1, -45);
+let res = de.ghep(vau);
 
-// 4. Bậc hạ phía sau vuông góc: Hạ sâu 15 (từ Y=15 xuống Y=0), Dài 14 ở phía sau (từ Z=26 đến 40)
-const bacSau = move(box(70, 16, 28), 0, 8, 40);
-res = cut(res, bacSau);
+// 4. Bậc hạ phía sau
+const bacSau = hop(70, 16, 28).dich(0, 8, 40);
+res = res.khoet(bacSau);
 
-// 5. Cắt vát nghiêng 2 bên (từ bề rộng 60 xuống 42 trên mặt phẳng dài 52):
-const daoVatL = move(rotate(box(30, 30, 60), 0, 0, 45), -30, 20, -5);
-const daoVatR = move(rotate(box(30, 30, 60), 0, 0, -45), 30, 20, -5);
-res = cut(res, daoVatL, daoVatR);
+// 5. Cắt vát nghiêng 2 bên
+const daoVatL = hop(30, 30, 60).xoay(0, 0, 45).dich(-30, 20, -5);
+const daoVatR = hop(30, 30, 60).xoay(0, 0, -45).dich(30, 20, -5);
+res = res.khoet(daoVatL, daoVatR);
 
-// 6. Trụ tròn đỉnh Ø30 x Cao 30 đặt giữa mặt phẳng 42x52 (Y=15 lên Y=45)
-const tru = move(cylinder(15, 30, 'y'), 0, 30, -5);
-res = union(res, tru);
-
-return res;`,
-
-  starter_block: `// Phôi hộp 60x40x50 bo cạnh R3 + khoan lỗ Ø20 (OpenCascade B-Rep)
-const block = fillet(box(60, 40, 50), 3);
-const hole = cylinder(10, 60, 'y');
-return cut(block, hole);`
+// 6. Trụ tròn đỉnh Ø30 x Cao 30
+const truDinh = tru(15, 30, 'y').dich(0, 30, -5);
+return res.ghep(truDinh);`
 };
 
+function wrapShape(shape) {
+  if (!shape) return shape;
+  shape.dich = (x = 0, y = 0, z = 0) => wrapShape(move(shape, x, y, z));
+  shape.move = shape.dich;
+  shape.xoay = (rx = 0, ry = 0, rz = 0) => wrapShape(rotate(shape, rx, ry, rz));
+  shape.rotate = shape.xoay;
+  shape.khoet = (...cutters) => wrapShape(cut(shape, ...cutters));
+  shape.cut = shape.khoet;
+  shape.ghep = (...others) => wrapShape(union(shape, ...others));
+  shape.union = shape.ghep;
+  shape.bo = (r) => wrapShape(fillet(shape, r));
+  shape.fillet = shape.bo;
+  shape.vat = (d) => wrapShape(chamfer(shape, d));
+  shape.chamfer = shape.vat;
+  return shape;
+}
+
 function box(w, h, d) {
-  return replicad.makeBox([-w / 2, -h / 2, -d / 2], [w / 2, h / 2, d / 2]);
+  return wrapShape(replicad.makeBox([-w / 2, -h / 2, -d / 2], [w / 2, h / 2, d / 2]));
 }
 
 function roundBox(w, h, d, r = 4) {
   const b = box(w, h, d);
   const maxR = Math.min(w, h, d) * 0.45;
   const rad = Math.max(0.05, Math.min(r, maxR));
-  return b.fillet(rad);
+  return wrapShape(b.fillet(rad));
 }
 
 function cylinder(r, h, axis = 'y') {
   const ax = axis.toLowerCase();
+  let s;
   if (ax === 'x') {
-    return replicad.makeCylinder(r, h, [-h / 2, 0, 0], [1, 0, 0]);
+    s = replicad.makeCylinder(r, h, [-h / 2, 0, 0], [1, 0, 0]);
+  } else if (ax === 'z') {
+    s = replicad.makeCylinder(r, h, [0, 0, -h / 2], [0, 0, 1]);
+  } else {
+    s = replicad.makeCylinder(r, h, [0, -h / 2, 0], [0, 1, 0]);
   }
-  if (ax === 'z') {
-    return replicad.makeCylinder(r, h, [0, 0, -h / 2], [0, 0, 1]);
-  }
-  return replicad.makeCylinder(r, h, [0, -h / 2, 0], [0, 1, 0]);
+  return wrapShape(s);
 }
 
 function tube(rOuter, rInner, h, axis = 'y') {
   const outer = cylinder(rOuter, h, axis);
   const inner = cylinder(rInner, h + 1, axis);
-  return outer.cut(inner);
+  return wrapShape(outer.cut(inner));
 }
 
 function poly(points2D, depth, axis = 'z') {
@@ -112,17 +126,19 @@ function poly(points2D, depth, axis = 'z') {
   }
   const drawing = pen.close();
   const ax = axis.toLowerCase();
+  let s;
   if (ax === 'x') {
-    return drawing.sketchOnPlane('YZ', -depth / 2).extrude(depth);
+    s = drawing.sketchOnPlane('YZ', -depth / 2).extrude(depth);
+  } else if (ax === 'y') {
+    s = drawing.sketchOnPlane('XZ', -depth / 2).extrude(depth);
+  } else {
+    s = drawing.sketchOnPlane('XY', -depth / 2).extrude(depth);
   }
-  if (ax === 'y') {
-    return drawing.sketchOnPlane('XZ', -depth / 2).extrude(depth);
-  }
-  return drawing.sketchOnPlane('XY', -depth / 2).extrude(depth);
+  return wrapShape(s);
 }
 
 function move(target, x = 0, y = 0, z = 0) {
-  return target.clone().translate(x, y, z);
+  return wrapShape(target.clone().translate(x, y, z));
 }
 
 function rotate(target, rxDeg = 0, ryDeg = 0, rzDeg = 0) {
@@ -130,11 +146,11 @@ function rotate(target, rxDeg = 0, ryDeg = 0, rzDeg = 0) {
   if (rxDeg) res = res.rotate(rxDeg, [0, 0, 0], [1, 0, 0]);
   if (ryDeg) res = res.rotate(ryDeg, [0, 0, 0], [0, 1, 0]);
   if (rzDeg) res = res.rotate(rzDeg, [0, 0, 0], [0, 0, 1]);
-  return res;
+  return wrapShape(res);
 }
 
 function scale(target, sx = 1) {
-  return target.clone().scale(sx, [0, 0, 0]);
+  return wrapShape(target.clone().scale(sx, [0, 0, 0]));
 }
 
 function union(...items) {
@@ -144,7 +160,7 @@ function union(...items) {
   for (let i = 1; i < flat.length; i++) {
     res = res.fuse(flat[i]);
   }
-  return res;
+  return wrapShape(res);
 }
 
 function cut(target, ...cutters) {
@@ -154,7 +170,7 @@ function cut(target, ...cutters) {
   for (const c of flat) {
     res = res.cut(c);
   }
-  return res;
+  return wrapShape(res);
 }
 
 function intersect(target, ...others) {
@@ -164,19 +180,19 @@ function intersect(target, ...others) {
   for (const o of flat) {
     res = res.intersect(o);
   }
-  return res;
+  return wrapShape(res);
 }
 
 function fillet(target, radius, filter) {
-  return filter ? target.fillet(radius, filter) : target.fillet(radius);
+  return wrapShape(filter ? target.fillet(radius, filter) : target.fillet(radius));
 }
 
 function chamfer(target, dist, filter) {
-  return filter ? target.chamfer(dist, filter) : target.chamfer(dist);
+  return wrapShape(filter ? target.chamfer(dist, filter) : target.chamfer(dist));
 }
 
 function shell(target, thickness, faceFilter) {
-  return target.shell(thickness, faceFilter);
+  return wrapShape(target.shell(thickness, faceFilter));
 }
 
 /**
@@ -196,20 +212,32 @@ export async function executeCadScript(code, cadEngine, dims = { w: 6, h: 4, d: 
     D,
     baseBox: (w = W, h = H, d = D) => box(w, h, d),
     box,
+    hop: box,
     roundBox,
+    hop_bo: roundBox,
     cylinder,
+    tru: cylinder,
     tube,
+    ong: tube,
     poly,
     shape: poly,
     move,
+    dich: move,
     rotate,
+    xoay: rotate,
     scale,
     union,
+    ghep: union,
+    hop_nhat: union,
     fuse: union,
     cut,
+    khoet: cut,
+    cat: cut,
     intersect,
     fillet,
+    bo: fillet,
     chamfer,
+    vat: chamfer,
     shell,
     replicad
   };

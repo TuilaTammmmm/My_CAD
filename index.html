@@ -193,25 +193,11 @@
             <span class="accordion-chevron">▾</span>
           </button>
           <div class="accordion-body">
-            <button class="tool-btn btn-ai-highlight" id="btn-open-ai-modal" title="Trợ lý AI: Tải ảnh bản vẽ kỹ thuật hoặc nhập mô tả để tự động dựng khối 3D">
-              <span class="tool-icon">
-                <svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z"/></svg>
-              </span>
-              <span class="tool-text">✨ Trợ Lý AI (Ảnh → 3D)</span>
-            </button>
-
-            <button class="tool-btn" id="btn-open-script" title="Viết hoặc dán code CAD Script để tự động dựng khối 3D phức tạp">
+            <button class="tool-btn" id="btn-open-script" title="Viết hoặc dán code CAD Script để tự động dựng khối 3D">
               <span class="tool-icon">
                 <svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
               </span>
               <span class="tool-text">Code → 3D (Script)</span>
-            </button>
-
-            <button class="tool-btn" id="btn-fit-frame" title="Tự động tính toán kích thước khối thực tế và co giãn khung lưới vừa khít (Auto Fit Frame)">
-              <span class="tool-icon">
-                <svg viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
-              </span>
-              <span class="tool-text">Khớp Khung Tự Động</span>
             </button>
 
             <button class="tool-btn" id="btn-open-dim" title="Cài đặt kích thước ô lưới khối ban đầu">
@@ -219,13 +205,6 @@
                 <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
               </span>
               <span class="tool-text">Kích Thước Khối</span>
-            </button>
-
-            <button class="tool-btn" id="btn-sidebar-toggle-inspect" title="Mở / Đóng bảng Đo Đạc 3D">
-              <span class="tool-icon">
-                <svg viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-              </span>
-              <span class="tool-text">Bảng Đo Đạc 3D</span>
             </button>
 
             <div class="sidebar-grid-2">
@@ -500,78 +479,49 @@
         <button id="btn-close-script" class="close-x">✖️</button>
       </div>
       <div class="script-toolbar">
-        <label for="script-preset-select">Mẫu có sẵn:</label>
-        <select id="script-preset-select">
-          <option value="new_box_cut">Mẫu 1: Tạo sẵn phôi hộp mới (W×H×D) + Cắt mẫu</option>
-          <option value="empty_box">Mẫu 2: Phôi hộp mới tinh (W×H×D)</option>
-          <option value="u_shell_pipe">Mẫu 3: Vỏ chữ U (2-R8 / 2-R7) + Trụ Ø12/Ø10</option>
-          <option value="horiz_cyl_mount">Mẫu 4: Gối đỡ trụ ngang Ø50×90 + Rãnh 18×45</option>
-          <option value="mount_with_boss_slot">Mẫu 6: Gối đỡ 60×80×30 + Trụ Ø30 + Rãnh 40×20 + Vấu 30×10 + Vát 52×42</option>
-          <option value="starter_block">Mẫu 5: Khối bo góc + Lỗ tâm</option>
-        </select>
-        <label for="script-front-rot" style="margin-left: 8px;">Hướng Front:</label>
-        <select id="script-front-rot" style="max-width: 155px;">
-          <option value="90" selected>Quay +90° (Front)</option>
-          <option value="0">Mặc định (0°)</option>
-          <option value="180">Quay 180° (Sau)</option>
-          <option value="-90">Quay -90° (Trái)</option>
-        </select>
+        <div class="script-toolbar-item">
+          <label for="script-preset-select">Mẫu có sẵn:</label>
+          <select id="script-preset-select">
+            <option value="starter_block">Mẫu 1: Phôi hộp bo góc + Lỗ tâm (Dễ nhất)</option>
+            <option value="new_box_cut">Mẫu 2: Phôi hộp (W×H×D) + Cắt rãnh</option>
+            <option value="empty_box">Mẫu 3: Phôi hộp mới tinh (W×H×D)</option>
+            <option value="u_shell_pipe">Mẫu 4: Vỏ chữ U + 2 Ống trụ ngang</option>
+            <option value="horiz_cyl_mount">Mẫu 5: Gối đỡ trụ ngang Ø50×90</option>
+            <option value="mount_with_boss_slot">Mẫu 6: Gối đỡ đế 60×80×30 + Trụ Ø30</option>
+          </select>
+        </div>
+        <div class="script-toolbar-item script-toolbar-item-sm">
+          <label for="script-front-rot">Hướng Front:</label>
+          <select id="script-front-rot">
+            <option value="90" selected>Quay +90° (Front)</option>
+            <option value="0">Mặc định (0°)</option>
+            <option value="180">Quay 180° (Sau)</option>
+            <option value="-90">Quay -90° (Trái)</option>
+          </select>
+        </div>
       </div>
+
+      <!-- THANH CHÈN LỆNH NHANH TIẾNG VIỆT & CHAINING -->
+      <div class="script-quick-insert">
+        <span class="quick-insert-label">Chèn mẫu:</span>
+        <button type="button" class="btn-snippet" data-code="const a = hop(60, 40, 50);">+ Hộp</button>
+        <button type="button" class="btn-snippet" data-code="const a = hop_bo(50, 40, 30, 4);">+ Hộp bo góc</button>
+        <button type="button" class="btn-snippet" data-code="const b = tru(15, 60, 'y');">+ Trụ tròn</button>
+        <button type="button" class="btn-snippet" data-code="const c = ong(20, 10, 40, 'x');">+ Ống trụ</button>
+        <button type="button" class="btn-snippet" data-code=".khoet(dao)">.khoet()</button>
+        <button type="button" class="btn-snippet" data-code=".ghep(khoi)">.ghep()</button>
+        <button type="button" class="btn-snippet" data-code=".dich(0, 10, 0)">.dich()</button>
+        <button type="button" class="btn-snippet" data-code=".bo(3)">.bo()</button>
+      </div>
+
       <div class="script-cheatsheet">
-        <code>W, H, D</code> · <code>baseBox()</code> · <code>box(w,h,d)</code> · <code>roundBox(w,h,d,r)</code> · <code>cylinder(r,h,axis)</code> · <code>tube(rO,rI,h,axis)</code> · <code>poly([[u,v],...],d,axis)</code> · <code>move(s,x,y,z)</code> · <code>rotate(s,rx,ry,rz)</code> · <code>fillet(s,r)</code> · <code>chamfer(s,d)</code> · <code>shell(s,t,fn)</code> · <code>union</code> / <code>cut</code> / <code>intersect</code> · <code>replicad</code>
+        <code>hop(w,h,d)</code> · <code>hop_bo(w,h,d,r)</code> · <code>tru(r,h,trục)</code> · <code>ong(rNgoai,rTrong,h,trục)</code> · <code>.khoet(...)</code> · <code>.ghep(...)</code> · <code>.dich(x,y,z)</code> · <code>.xoay(rx,ry,rz)</code> · <code>.bo(r)</code> · <code>.vat(d)</code>
       </div>
       <textarea id="cad-script-input" spellcheck="false" placeholder="// Viết code CAD và return khối cuối cùng..."></textarea>
       <div id="cad-script-error" class="script-error" style="display: none;"></div>
       <div class="script-footer">
-        <span class="script-hint">Ctrl + Enter để chạy nhanh</span>
+        <span class="script-hint">Hỗ trợ cả Tiếng Việt (hop, tru, khoet...) và Tiếng Anh (box, cylinder, cut...) · Ctrl+Enter để chạy</span>
         <button class="btn-primary-reset" id="btn-run-script" style="width:auto; padding:8px 16px;">▶ Chạy Code → Tạo 3D</button>
-      </div>
-    </div>
-
-    <!-- MODAL TRỢ LÝ AI: PHÂN TÍCH ẢNH & PROMPT -> 3D -->
-    <div id="ai-modal" class="script-modal ai-modal" style="display: none;">
-      <div class="popover-header">
-        <span>✨ Trợ Lý AI: Bản Vẽ & Ảnh → Khối 3D</span>
-        <button id="btn-close-ai" class="close-x">✖️</button>
-      </div>
-      <div class="ai-modal-body">
-        <div class="ai-input-row">
-          <label class="ai-label">1. Tải ảnh đề bài / bản vẽ kỹ thuật (tùy chọn):</label>
-          <div class="ai-upload-zone" id="ai-upload-zone">
-            <input type="file" id="ai-image-input" accept="image/*" style="display: none;">
-            <div id="ai-upload-prompt" class="ai-upload-prompt">
-              <span>📷 Kéo thả hoặc click để chọn ảnh (Đề bài, hình chiếu, bản vẽ phác)</span>
-            </div>
-            <div id="ai-image-preview-container" style="display: none;" class="ai-preview-box">
-              <img id="ai-image-preview" src="" alt="Bản vẽ xem trước">
-              <button id="btn-remove-ai-image" class="btn-remove-preview" title="Gỡ ảnh">✕ Xóa ảnh</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="ai-input-row">
-          <label class="ai-label" for="ai-prompt-input">2. Mô tả yêu cầu / Kích thước (tùy chọn nếu đã có ảnh):</label>
-          <textarea id="ai-prompt-input" rows="3" placeholder="Ví dụ: Đọc các kích thước từ ảnh trên và dựng khối 3D hoàn chỉnh... hoặc: Tạo gối đỡ đế 60x80x30, có hầm 40x20 xuyên đáy và lỗ trục ngang Ø30."></textarea>
-        </div>
-
-        <div class="ai-input-row ai-key-row">
-          <div class="ai-key-header">
-            <label class="ai-label" for="ai-api-key">3. Google Gemini API Key:</label>
-            <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener" class="ai-key-link">Lấy API Key miễn phí ↗</a>
-          </div>
-          <div class="ai-key-input-wrapper">
-            <input type="password" id="ai-api-key" placeholder="Dán Gemini API Key (AIzaSy...)">
-            <button id="btn-save-ai-key" class="btn-small-key" title="Lưu khóa">💾 Lưu</button>
-          </div>
-          <span class="ai-key-note">Khóa API được lưu an toàn tại trình duyệt của bạn (localStorage), không gửi về máy chủ ngoài.</span>
-        </div>
-
-        <div id="ai-status-msg" class="ai-status-msg" style="display: none;"></div>
-
-        <div class="script-footer">
-          <span class="script-hint">Sử dụng mô hình Gemini Flash thông minh & chuẩn xác</span>
-          <button class="btn-primary-reset" id="btn-generate-ai-cad" style="width:auto; padding:8px 18px;">✨ Phân Tích & Dựng 3D</button>
-        </div>
       </div>
     </div>
 

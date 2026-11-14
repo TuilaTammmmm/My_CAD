@@ -254,16 +254,18 @@ export class InteractivePicker {
       }
     }
 
-    // Gộp các đoạn cạnh sắc thẳng hàng có cùng cặp pháp tuyến (n1, n2) - giới hạn O(N) khi lưới cong mịn
-    if (rawSharp.length > 600) {
+    // Gộp các đoạn cạnh sắc thẳng hàng - giới hạn N <= 80 để tránh đơ giao diện khi có hình trụ/mặt cong tròn
+    if (rawSharp.length > 80) {
       this.cachedSharpEdges = rawSharp;
     } else {
+      const _dir = new THREE.Vector3();
+      const _eDir = new THREE.Vector3();
       for (const seg of rawSharp) {
-        const dir = new THREE.Vector3().subVectors(seg.p2, seg.p1).normalize();
+        _dir.subVectors(seg.p2, seg.p1).normalize();
         let merged = false;
         for (const existing of this.cachedSharpEdges) {
-          const eDir = new THREE.Vector3().subVectors(existing.p2, existing.p1).normalize();
-          if (Math.abs(dir.dot(eDir)) < 0.999) continue;
+          _eDir.subVectors(existing.p2, existing.p1).normalize();
+          if (Math.abs(_dir.dot(_eDir)) < 0.999) continue;
           const sameNormals =
             (existing.n1.dot(seg.n1) > 0.98 && existing.n2.dot(seg.n2) > 0.98) ||
             (existing.n1.dot(seg.n2) > 0.98 && existing.n2.dot(seg.n1) > 0.98);

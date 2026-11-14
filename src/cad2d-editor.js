@@ -1075,18 +1075,21 @@ export class CAD2DEditor {
         }
 
         if (bestLine) {
-          const dist = Math.hypot(bestLine.p2.u - bestLine.p1.u, bestLine.p2.v - bestLine.p1.v);
+          const chain = this.findCollinearChain(bestLine);
+          const pStart = chain.p1;
+          const pEnd = chain.p2;
+          const dist = Math.hypot(pEnd.u - pStart.u, pEnd.v - pStart.v);
           if (dist > 0.05) {
             const existingDim = this.elements.find(e =>
               e.type === 'dim' &&
-              ((Math.hypot(e.p1.u - bestLine.p1.u, e.p1.v - bestLine.p1.v) < 0.05 && Math.hypot(e.p2.u - bestLine.p2.u, e.p2.v - bestLine.p2.v) < 0.05) ||
-               (Math.hypot(e.p1.u - bestLine.p2.u, e.p1.v - bestLine.p2.v) < 0.05 && Math.hypot(e.p2.u - bestLine.p1.u, e.p2.v - bestLine.p1.v) < 0.05))
+              ((Math.hypot(e.p1.u - pStart.u, e.p1.v - pStart.v) < 0.1 && Math.hypot(e.p2.u - pEnd.u, e.p2.v - pEnd.v) < 0.1) ||
+               (Math.hypot(e.p1.u - pEnd.u, e.p1.v - pEnd.v) < 0.1 && Math.hypot(e.p2.u - pStart.u, e.p2.v - pStart.v) < 0.1))
             );
             if (!existingDim) {
               this.elements.push({
                 type: 'dim',
-                p1: { u: bestLine.p1.u, v: bestLine.p1.v },
-                p2: { u: bestLine.p2.u, v: bestLine.p2.v },
+                p1: { u: pStart.u, v: pStart.v },
+                p2: { u: pEnd.u, v: pEnd.v },
                 dist: Number(dist.toFixed(2))
               });
               this.saveHistory();
@@ -1723,6 +1726,49 @@ export class CAD2DEditor {
         endAngle: aA
       };
     }
+  }
+
+  findCollinearChain(targetLine) {
+    const du = targetLine.p2.u - targetLine.p1.u;
+    const dv = targetLine.p2.v - targetLine.p1.v;
+    const len = Math.hypot(du, dv);
+    if (len < 0.001) return { p1: targetLine.p1, p2: targetLine.p2 };
+
+    const dir = { u: du / len, v: dv / len };
+    let minT = 0;
+    let maxT = len;
+    const p0 = targetLine.p1;
+
+    for (const elem of this.elements) {
+      if (elem.type !== 'line') continue;
+      const edu = elem.p2.u - elem.p1.u;
+      const edv = elem.p2.v - elem.p1.v;
+      const elen = Math.hypot(edu, edv);
+      if (elen < 0.001) continue;
+
+      const edir = { u: edu / elen, v: edv / elen };
+      const dot = Math.abs(dir.u * edir.u + dir.v * edir.v);
+      if (dot < 0.998) continue;
+
+      const cross1 = Math.abs(dir.u * (elem.p1.v - p0.v) - dir.v * (elem.p1.u - p0.u));
+      const cross2 = Math.abs(dir.u * (elem.p2.v - p0.v) - dir.v * (elem.p2.u - p0.u));
+      if (cross1 > 0.08 || cross2 > 0.08) continue;
+
+      const t1 = (elem.p1.u - p0.u) * dir.u + (elem.p1.v - p0.v) * dir.v;
+      const t2 = (elem.p2.u - p0.u) * dir.u + (elem.p2.v - p0.v) * dir.v;
+      const segMin = Math.min(t1, t2);
+      const segMax = Math.max(t1, t2);
+
+      if (segMin <= maxT + 0.1 && segMax >= minT - 0.1) {
+        minT = Math.min(minT, segMin);
+        maxT = Math.max(maxT, segMax);
+      }
+    }
+
+    return {
+      p1: { u: Number((p0.u + minT * dir.u).toFixed(2)), v: Number((p0.v + minT * dir.v).toFixed(2)) },
+      p2: { u: Number((p0.u + maxT * dir.u).toFixed(2)), v: Number((p0.v + maxT * dir.v).toFixed(2)) }
+    };
   }
 
   pointToSegmentDistance(p, a, b) {

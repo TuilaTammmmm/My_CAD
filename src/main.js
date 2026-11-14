@@ -14,7 +14,6 @@ import { DimensionOverlay } from './dimension-overlay.js';
 import { InspectionTool } from './measure-tool.js';
 import { ProjectionScreensOverlay } from './projection-screens.js';
 import { executeCadScript, rotateBrushAroundY, CAD_SCRIPT_PRESETS } from './cad-script.js';
-import { AIAssistant } from './ai-assistant.js';
 import { initOCCT } from './occt-kernel.js';
 import { saveProjectState, loadProjectState } from './storage.js';
 import { inject } from '@vercel/analytics';
@@ -146,7 +145,7 @@ function triggerAutoSave3D() {
   }, 250);
 }
 
-function syncBoundsWithModel(brush, force = false) {
+function syncBoundsWithModel(brush) {
   if (!brush || !brush.geometry) return;
   brush.geometry.computeVertexNormals();
   brush.geometry.computeBoundingBox();
@@ -169,18 +168,16 @@ function syncBoundsWithModel(brush, force = false) {
   const realH = Math.max(1, Math.round(brush.geometry.boundingBox.max.y));
   const realD = Math.max(1, Math.round(brush.geometry.boundingBox.max.z));
 
-  if (force || realW > W || realH > H || realD > D) {
-    W = realW;
-    H = realH;
-    D = realD;
+  W = realW;
+  H = realH;
+  D = realD;
 
-    const dimW = document.getElementById('dim-w');
-    const dimH = document.getElementById('dim-h');
-    const dimD = document.getElementById('dim-d');
-    if (dimW) dimW.value = W;
-    if (dimH) dimH.value = H;
-    if (dimD) dimD.value = D;
-  }
+  const dimW = document.getElementById('dim-w');
+  const dimH = document.getElementById('dim-h');
+  const dimD = document.getElementById('dim-d');
+  if (dimW) dimW.value = W;
+  if (dimH) dimH.value = H;
+  if (dimD) dimD.value = D;
 }
 
 function setModel(brush, recordHistory = true) {
@@ -1077,6 +1074,20 @@ scriptPreset?.addEventListener('change', (e) => {
   }
 });
 
+// Chèn nhanh khối / lệnh mẫu vào khung code
+document.querySelectorAll('.btn-snippet').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const codeToInsert = btn.getAttribute('data-code');
+    if (!codeToInsert || !scriptInput) return;
+    const start = scriptInput.selectionStart;
+    const end = scriptInput.selectionEnd;
+    const val = scriptInput.value;
+    scriptInput.value = val.substring(0, start) + codeToInsert + val.substring(end);
+    scriptInput.focus();
+    scriptInput.selectionStart = scriptInput.selectionEnd = start + codeToInsert.length;
+  });
+});
+
 async function runCadScriptFromModal() {
   if (!scriptInput) return;
   if (scriptError) scriptError.style.display = 'none';
@@ -1168,54 +1179,6 @@ initOCCT()
     }
     console.warn('OCCT init failed, using mesh CSG fallback:', err);
   });
-
-// Khởi tạo Trợ lý AI (Gemini Multimodal Vision & Script Assistant)
-const aiAssistant = new AIAssistant(cad, {
-  getBounds: () => ({ w: W, h: H, d: D }),
-  onModelCreated: (brush, w, h, d) => {
-    W = w;
-    H = h;
-    D = d;
-    const dimW = document.getElementById('dim-w');
-    const dimH = document.getElementById('dim-h');
-    const dimD = document.getElementById('dim-d');
-    if (dimW) dimW.value = W;
-    if (dimH) dimH.value = H;
-    if (dimD) dimD.value = D;
-
-    setModel(brush, true);
-    gridOverlay.update(W, H, D, currentBrush, picker.snapStep);
-    dimOverlay.updateBounds(W, H, D, picker.snapStep);
-    centerCamera();
-    requestRender();
-  }
-});
-
-// Nút tự động khớp khung lưới với kích thước khối thực tế (Auto Fit Frame)
-document.getElementById('btn-fit-frame')?.addEventListener('click', () => {
-  if (!currentBrush) return;
-  syncBoundsWithModel(currentBrush, true);
-  const snapStep = (typeof picker !== 'undefined' && picker) ? picker.snapStep : 1.0;
-  gridOverlay.update(W, H, D, currentBrush, snapStep);
-  dimOverlay.updateBounds(W, H, D, snapStep);
-  if (picker) picker.updateModel(currentBrush, W, H, D);
-  if (projectionScreens) projectionScreens.update(W, H, D, currentBrush);
-  triggerAutoSave3D();
-  centerCamera();
-  requestRender();
-});
-
-// Nút mở / đóng nhanh bảng Đo đạc 3D từ sidebar bên trái
-document.getElementById('btn-sidebar-toggle-inspect')?.addEventListener('click', () => {
-  if (!inspectionTool) return;
-  const panel = document.getElementById('inspection-panel');
-  if (panel && panel.style.display !== 'none') {
-    inspectionTool.hide();
-  } else {
-    inspectionTool.show();
-  }
-  requestRender();
-});
 
 // On-demand Rendering & Tối ưu hiệu năng / giảm giật lag
 let needsRender = true;

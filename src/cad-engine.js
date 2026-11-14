@@ -651,11 +651,11 @@ export class CadEngine {
     return result;
   }
 
-  // Tạo khối dao cắt hình trụ để khoan lỗ tròn (Hole / Cylinder Cut)
+  // Tạo khối dao cắt hình trụ để khoan lỗ tròn (Hole / Cylinder Cut) - Tối ưu lưới 28 phân đoạn nhẹ nhàng
   createHoleCutterGeometry(hitPoint, hitNormal, radius, depth = 0, isThrough = true, maxSpan = 100) {
-    const span = Math.max(maxSpan, 1000);
-    const len = isThrough ? (span * 2 + 20) : (depth + 0.08);
-    const geom = new THREE.CylinderGeometry(radius, radius, len, 48);
+    const span = Math.min(220, Math.max(25, maxSpan * 1.5));
+    const len = isThrough ? (span * 2 + 10) : (depth + 0.08);
+    const geom = new THREE.CylinderGeometry(radius, radius, len, 28);
     const n = hitNormal.clone().normalize();
     const quat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), n);
     geom.applyQuaternion(quat);
@@ -686,7 +686,7 @@ export class CadEngine {
           const nextShape = targetShape.fuse(boss);
           return replicadToBrush(nextShape, this.material);
         } else {
-          const span = Math.max(maxSpan, 1000);
+          const span = Math.min(220, Math.max(25, maxSpan * 1.5));
           const len = isThrough ? (span * 2) : (depth + 0.08);
           const startOffset = isThrough ? span : 0.04;
           const start = hitPoint.clone().addScaledVector(n, startOffset);
@@ -707,7 +707,7 @@ export class CadEngine {
     let geom;
     if (op === 'add') {
       const bossLen = depth > 0.01 ? depth : 10;
-      geom = new THREE.CylinderGeometry(radius, radius, bossLen, 32);
+      geom = new THREE.CylinderGeometry(radius, radius, bossLen, 28);
       geom.translate(0, bossLen / 2, 0);
       const defaultDir = new THREE.Vector3(0, 1, 0);
       const quat = new THREE.Quaternion().setFromUnitVectors(defaultDir, hitNormal.clone().normalize());

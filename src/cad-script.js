@@ -69,20 +69,83 @@ const truDinh = tru(15, 30, 'y').dich(0, 30, -5);
 return res.ghep(truDinh);`
 };
 
+function getNativeMethod(obj, name) {
+  let proto = Object.getPrototypeOf(obj);
+  while (proto) {
+    const desc = Object.getOwnPropertyDescriptor(proto, name);
+    if (desc && typeof desc.value === 'function') {
+      return desc.value;
+    }
+    proto = Object.getPrototypeOf(proto);
+  }
+  if (typeof obj[name] === 'function') return obj[name];
+  return null;
+}
+
+function nativeClone(shape) {
+  const fn = getNativeMethod(shape, 'clone');
+  return fn ? fn.call(shape) : shape;
+}
+
+function nativeTranslate(shape, x, y, z) {
+  const fn = getNativeMethod(shape, 'translate');
+  if (!fn) throw new Error('Đối tượng không hỗ trợ translate');
+  return fn.call(shape, [x, y, z]);
+}
+
+function nativeRotate(shape, angle, position, direction) {
+  const fn = getNativeMethod(shape, 'rotate');
+  if (!fn) throw new Error('Đối tượng không hỗ trợ rotate');
+  return fn.call(shape, angle, position, direction);
+}
+
+function nativeScale(shape, factor, center = [0, 0, 0]) {
+  const fn = getNativeMethod(shape, 'scale');
+  if (!fn) throw new Error('Đối tượng không hỗ trợ scale');
+  return fn.call(shape, factor, center);
+}
+
+function nativeFuse(shape, other) {
+  const fn = getNativeMethod(shape, 'fuse');
+  if (!fn) throw new Error('Đối tượng không hỗ trợ union/fuse');
+  return fn.call(shape, other);
+}
+
+function nativeCut(shape, tool) {
+  const fn = getNativeMethod(shape, 'cut');
+  if (!fn) throw new Error('Đối tượng không hỗ trợ cut');
+  return fn.call(shape, tool);
+}
+
+function nativeIntersect(shape, other) {
+  const fn = getNativeMethod(shape, 'intersect');
+  if (!fn) throw new Error('Đối tượng không hỗ trợ intersect');
+  return fn.call(shape, other);
+}
+
+function nativeFillet(shape, radius, filter) {
+  const fn = getNativeMethod(shape, 'fillet');
+  if (!fn) throw new Error('Đối tượng không hỗ trợ fillet');
+  return filter ? fn.call(shape, radius, filter) : fn.call(shape, radius);
+}
+
+function nativeChamfer(shape, dist, filter) {
+  const fn = getNativeMethod(shape, 'chamfer');
+  if (!fn) throw new Error('Đối tượng không hỗ trợ chamfer');
+  return filter ? fn.call(shape, dist, filter) : fn.call(shape, dist);
+}
+
 function wrapShape(shape) {
   if (!shape) return shape;
-  shape.dich = (x = 0, y = 0, z = 0) => wrapShape(move(shape, x, y, z));
+  shape.dich = (x = 0, y = 0, z = 0) => move(shape, x, y, z);
   shape.move = shape.dich;
-  shape.xoay = (rx = 0, ry = 0, rz = 0) => wrapShape(rotate(shape, rx, ry, rz));
-  shape.rotate = shape.xoay;
-  shape.khoet = (...cutters) => wrapShape(cut(shape, ...cutters));
-  shape.cut = shape.khoet;
-  shape.ghep = (...others) => wrapShape(union(shape, ...others));
-  shape.union = shape.ghep;
-  shape.bo = (r) => wrapShape(fillet(shape, r));
-  shape.fillet = shape.bo;
-  shape.vat = (d) => wrapShape(chamfer(shape, d));
-  shape.chamfer = shape.vat;
+  shape.xoay = (rx = 0, ry = 0, rz = 0) => rotate(shape, rx, ry, rz);
+  shape.khoet = (...cutters) => cut(shape, ...cutters);
+  shape.cat = shape.khoet;
+  shape.ghep = (...others) => union(shape, ...others);
+  shape.hop_nhat = shape.ghep;
+  shape.bo = (r, filter) => fillet(shape, r, filter);
+  shape.vat = (d, filter) => chamfer(shape, d, filter);
   return shape;
 }
 
@@ -94,7 +157,7 @@ function roundBox(w, h, d, r = 4) {
   const b = box(w, h, d);
   const maxR = Math.min(w, h, d) * 0.45;
   const rad = Math.max(0.05, Math.min(r, maxR));
-  return wrapShape(b.fillet(rad));
+  return fillet(b, rad);
 }
 
 function cylinder(r, h, axis = 'y') {
@@ -113,7 +176,7 @@ function cylinder(r, h, axis = 'y') {
 function tube(rOuter, rInner, h, axis = 'y') {
   const outer = cylinder(rOuter, h, axis);
   const inner = cylinder(rInner, h + 1, axis);
-  return wrapShape(outer.cut(inner));
+  return cut(outer, inner);
 }
 
 function poly(points2D, depth, axis = 'z') {
@@ -138,27 +201,32 @@ function poly(points2D, depth, axis = 'z') {
 }
 
 function move(target, x = 0, y = 0, z = 0) {
-  return wrapShape(target.clone().translate(x, y, z));
+  if (!target) return target;
+  const cloned = nativeClone(target);
+  return wrapShape(nativeTranslate(cloned, x, y, z));
 }
 
 function rotate(target, rxDeg = 0, ryDeg = 0, rzDeg = 0) {
-  let res = target.clone();
-  if (rxDeg) res = res.rotate(rxDeg, [0, 0, 0], [1, 0, 0]);
-  if (ryDeg) res = res.rotate(ryDeg, [0, 0, 0], [0, 1, 0]);
-  if (rzDeg) res = res.rotate(rzDeg, [0, 0, 0], [0, 0, 1]);
+  if (!target) return target;
+  let res = nativeClone(target);
+  if (rxDeg) res = nativeRotate(res, rxDeg, [0, 0, 0], [1, 0, 0]);
+  if (ryDeg) res = nativeRotate(res, ryDeg, [0, 0, 0], [0, 1, 0]);
+  if (rzDeg) res = nativeRotate(res, rzDeg, [0, 0, 0], [0, 0, 1]);
   return wrapShape(res);
 }
 
 function scale(target, sx = 1) {
-  return wrapShape(target.clone().scale(sx, [0, 0, 0]));
+  if (!target) return target;
+  const cloned = nativeClone(target);
+  return wrapShape(nativeScale(cloned, sx, [0, 0, 0]));
 }
 
 function union(...items) {
   const flat = items.flat().filter(Boolean);
   if (flat.length === 0) throw new Error('union() cần ít nhất 1 khối');
-  let res = flat[0].clone();
+  let res = nativeClone(flat[0]);
   for (let i = 1; i < flat.length; i++) {
-    res = res.fuse(flat[i]);
+    res = nativeFuse(res, flat[i]);
   }
   return wrapShape(res);
 }
@@ -166,9 +234,9 @@ function union(...items) {
 function cut(target, ...cutters) {
   const flat = cutters.flat().filter(Boolean);
   if (!target) throw new Error('cut() cần khối gốc');
-  let res = target.clone();
+  let res = nativeClone(target);
   for (const c of flat) {
-    res = res.cut(c);
+    res = nativeCut(res, c);
   }
   return wrapShape(res);
 }
@@ -176,23 +244,31 @@ function cut(target, ...cutters) {
 function intersect(target, ...others) {
   const flat = others.flat().filter(Boolean);
   if (!target) throw new Error('intersect() cần khối gốc');
-  let res = target.clone();
+  let res = nativeClone(target);
   for (const o of flat) {
-    res = res.intersect(o);
+    res = nativeIntersect(res, o);
   }
   return wrapShape(res);
 }
 
 function fillet(target, radius, filter) {
-  return wrapShape(filter ? target.fillet(radius, filter) : target.fillet(radius));
+  if (!target) return target;
+  const cloned = nativeClone(target);
+  return wrapShape(nativeFillet(cloned, radius, filter));
 }
 
 function chamfer(target, dist, filter) {
-  return wrapShape(filter ? target.chamfer(dist, filter) : target.chamfer(dist));
+  if (!target) return target;
+  const cloned = nativeClone(target);
+  return wrapShape(nativeChamfer(cloned, dist, filter));
 }
 
 function shell(target, thickness, faceFilter) {
-  return wrapShape(target.shell(thickness, faceFilter));
+  if (!target) return target;
+  const fn = getNativeMethod(target, 'shell');
+  if (!fn) throw new Error('Đối tượng không hỗ trợ shell');
+  const cloned = nativeClone(target);
+  return wrapShape(fn.call(cloned, thickness, faceFilter));
 }
 
 /**
@@ -252,16 +328,16 @@ export async function executeCadScript(code, cadEngine, dims = { w: 6, h: 4, d: 
   }
 
   const rotDeg = Number(dims?.frontRotDeg) || 0;
-  let finalShape = result.clone();
+  let finalShape = nativeClone(result);
   if (rotDeg !== 0) {
-    finalShape = finalShape.rotate(rotDeg, [0, 0, 0], [0, 1, 0]);
+    finalShape = nativeRotate(finalShape, rotDeg, [0, 0, 0], [0, 1, 0]);
   }
 
   const bounds = finalShape.boundingBox.bounds;
   const minX = bounds[0][0], minY = bounds[0][1], minZ = bounds[0][2];
   const maxX = bounds[1][0], maxY = bounds[1][1], maxZ = bounds[1][2];
 
-  const alignedShape = finalShape.translate(-minX, -minY, -minZ);
+  const alignedShape = nativeTranslate(finalShape, -minX, -minY, -minZ);
   const w = Math.max(1, Math.round((maxX - minX) * 100) / 100);
   const h = Math.max(1, Math.round((maxY - minY) * 100) / 100);
   const d = Math.max(1, Math.round((maxZ - minZ) * 100) / 100);

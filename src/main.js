@@ -16,6 +16,8 @@ import { ProjectionScreensOverlay } from './projection-screens.js';
 import { executeCadScript, rotateBrushAroundY, CAD_SCRIPT_PRESETS } from './cad-script.js';
 import { initOCCT } from './occt-kernel.js';
 import { saveProjectState, loadProjectState } from './storage.js';
+import { captureViewportThumbnail } from './cloud-library.js';
+import { initCloudLibraryUI } from './cloud-library-ui.js';
 import { inject } from '@vercel/analytics';
 import { injectSpeedInsights } from '@vercel/speed-insights';
 
@@ -274,48 +276,51 @@ function resetBaseBlock() {
   centerCamera();
 }
 
+function applyLoaded3DState(saved3D) {
+  if (!saved3D || !saved3D.geom) return false;
+  const loader = new THREE.BufferGeometryLoader();
+  const geom = loader.parse(saved3D.geom);
+  geom.computeVertexNormals();
+  geom.computeBoundingBox();
+
+  const bb = geom.boundingBox;
+  if (bb && (Math.abs(bb.min.x) > 0.05 || Math.abs(bb.min.y) > 0.05 || Math.abs(bb.min.z) > 0.05)) {
+    geom.translate(-bb.min.x, -bb.min.y, -bb.min.z);
+    geom.computeBoundingBox();
+  }
+
+  const realW = Math.max(1, Math.round(geom.boundingBox.max.x));
+  const realH = Math.max(1, Math.round(geom.boundingBox.max.y));
+  const realD = Math.max(1, Math.round(geom.boundingBox.max.z));
+
+  W = Math.max(Number(saved3D.w) > 0 ? Number(saved3D.w) : 6, realW);
+  H = Math.max(Number(saved3D.h) > 0 ? Number(saved3D.h) : 4, realH);
+  D = Math.max(Number(saved3D.d) > 0 ? Number(saved3D.d) : 4, realD);
+
+  const dimW = document.getElementById('dim-w');
+  const dimH = document.getElementById('dim-h');
+  const dimD = document.getElementById('dim-d');
+  if (dimW) dimW.value = W;
+  if (dimH) dimH.value = H;
+  if (dimD) dimD.value = D;
+
+  const restoredBrush = new Brush(geom, cad.material);
+  restoredBrush.updateMatrixWorld();
+
+  isRestoredFromAutoSave = true;
+  clearHistory();
+  setModel(restoredBrush, true);
+  centerCamera();
+  return true;
+}
+
 async function initAppStorage() {
   try {
     const saved3D = await loadProjectState('state_3d');
     const saved2D = await loadProjectState('state_2d');
     const savedMode = await loadProjectState('app_mode');
 
-    if (saved3D && saved3D.geom) {
-      const loader = new THREE.BufferGeometryLoader();
-      const geom = loader.parse(saved3D.geom);
-      geom.computeVertexNormals();
-      geom.computeBoundingBox();
-
-      const bb = geom.boundingBox;
-      if (bb && (Math.abs(bb.min.x) > 0.05 || Math.abs(bb.min.y) > 0.05 || Math.abs(bb.min.z) > 0.05)) {
-        geom.translate(-bb.min.x, -bb.min.y, -bb.min.z);
-        geom.computeBoundingBox();
-      }
-
-      const realW = Math.max(1, Math.round(geom.boundingBox.max.x));
-      const realH = Math.max(1, Math.round(geom.boundingBox.max.y));
-      const realD = Math.max(1, Math.round(geom.boundingBox.max.z));
-
-      W = Math.max(Number(saved3D.w) > 0 ? Number(saved3D.w) : 6, realW);
-      H = Math.max(Number(saved3D.h) > 0 ? Number(saved3D.h) : 4, realH);
-      D = Math.max(Number(saved3D.d) > 0 ? Number(saved3D.d) : 4, realD);
-
-      const dimW = document.getElementById('dim-w');
-      const dimH = document.getElementById('dim-h');
-      const dimD = document.getElementById('dim-d');
-      if (dimW) dimW.value = W;
-      if (dimH) dimH.value = H;
-      if (dimD) dimD.value = D;
-
-      const restoredBrush = new Brush(geom, cad.material);
-      restoredBrush.updateMatrixWorld();
-
-      isRestoredFromAutoSave = true;
-      clearHistory();
-      setModel(restoredBrush, true);
-
-      centerCamera();
-
+    if (applyLoaded3DState(saved3D)) {
       const badge = document.getElementById('autosave-status');
       if (badge) {
         badge.textContent = '✓ Đã khôi phục';
@@ -1188,6 +1193,56 @@ scriptInput?.addEventListener('keydown', (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
     e.preventDefault();
     runCadScriptFromModal();
+  }
+});
+
+// --- THƯ VIỆN CAD DÙNG CHUNG (CLOUD LIBRARY) ---
+initCloudLibraryUI({
+  getPayload: async ({ name, author, include3D, include2D, includeScript }) => {
+    const has3DData = Boolean(include3D && currentBrush && currentBrush.geometry);
+    const has2DData = Boolean(
+      include2D &&
+      cad2dEditor &&
+      Array.isArray(cad2dEditor.elements) &&
+      cad2dEditor.elements.length > 0
+    );
+    const scriptText = includeScript && scriptInput ? scriptInput.value : '';
+    const rotSel = document.getElementById('script-front-rot');
+    const frontRotDeg = rotSel ? (Number(rotSel.value) || 0) : 0;
+
+    return {
+      name,
+      author,
+      state3d: has3DData
+        ? { w: W, h: H, d: D, geom: currentBrush.geometry.toJSON() }
+        : null,
+      state2d: has2DData
+        ? { elements: cad2dEditor.elements, bounds: cad2dEditor.bounds }
+        : null,
+      script: scriptText,
+      frontRotDeg,
+      thumbnail: has3DData ? captureViewportThumbnail(renderer, scene, camera) : ''
+    };
+  },
+  applyPayload: async (data) => {
+    if (!data || typeof data !== 'object') return;
+    if (data.script && scriptInput) {
+      scriptInput.value = data.script;
+      const rotSel = document.getElementById('script-front-rot');
+      if (rotSel && data.frontRotDeg !== undefined) {
+        rotSel.value = String(data.frontRotDeg);
+      }
+    }
+    if (data.state2d && Array.isArray(data.state2d.elements)) {
+      cad2dEditor.loadSavedElements(data.state2d.elements, data.state2d.bounds);
+      cad2dEditor.triggerAutoSave();
+    }
+    if (data.state3d && data.state3d.geom) {
+      applyLoaded3DState(data.state3d);
+      if (appMode !== '3d') switchTo3D();
+    } else if (data.state2d && Array.isArray(data.state2d.elements) && data.state2d.elements.length > 0) {
+      if (appMode !== '2d') switchTo2D();
+    }
   }
 });
 

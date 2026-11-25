@@ -1,0 +1,501 @@
+{
+  "nodes": [
+    {
+      "id": ".cursorrules",
+      "type": "file",
+      "language": "unknown",
+      "summary": "",
+      "symbols_count": 0,
+      "exports": []
+    },
+    {
+      "id": ".github/copilot-instructions.md",
+      "type": "file",
+      "language": "markdown",
+      "summary": "",
+      "symbols_count": 0,
+      "exports": []
+    },
+    {
+      "id": ".gitignore",
+      "type": "file",
+      "language": "unknown",
+      "summary": "",
+      "symbols_count": 0,
+      "exports": []
+    },
+    {
+      "id": "AGENTS.md",
+      "type": "file",
+      "language": "markdown",
+      "summary": "",
+      "symbols_count": 0,
+      "exports": []
+    },
+    {
+      "id": "CLAUDE.md",
+      "type": "file",
+      "language": "markdown",
+      "summary": "",
+      "symbols_count": 0,
+      "exports": []
+    },
+    {
+      "id": "GEMINI.md",
+      "type": "file",
+      "language": "markdown",
+      "summary": "",
+      "symbols_count": 0,
+      "exports": []
+    },
+    {
+      "id": "README.md",
+      "type": "file",
+      "language": "markdown",
+      "summary": "",
+      "symbols_count": 0,
+      "exports": []
+    },
+    {
+      "id": "api/models.js",
+      "type": "file",
+      "language": "javascript",
+      "summary": "",
+      "symbols_count": 9,
+      "exports": [
+        "createModelsHandler"
+      ]
+    },
+    {
+      "id": "index.html",
+      "type": "file",
+      "language": "html",
+      "summary": "",
+      "symbols_count": 0,
+      "exports": []
+    },
+    {
+      "id": "package.json",
+      "type": "file",
+      "language": "json",
+      "summary": "",
+      "symbols_count": 0,
+      "exports": []
+    },
+    {
+      "id": "src/cad-engine.js",
+      "type": "file",
+      "language": "javascript",
+      "summary": "",
+      "symbols_count": 6,
+      "exports": [
+        "CadEngine"
+      ]
+    },
+    {
+      "id": "src/cad-script.js",
+      "type": "file",
+      "language": "javascript",
+      "summary": "",
+      "symbols_count": 27,
+      "exports": [
+        "rotateBrushAroundY",
+        "executeCadScript"
+      ]
+    },
+    {
+      "id": "src/cad2d-editor.js",
+      "type": "file",
+      "language": "javascript",
+      "summary": "",
+      "symbols_count": 5,
+      "exports": [
+        "CAD2DEditor"
+      ]
+    },
+    {
+      "id": "src/cloud-library-ui.js",
+      "type": "file",
+      "language": "javascript",
+      "summary": "",
+      "symbols_count": 9,
+      "exports": [
+        "initCloudLibraryUI"
+      ]
+    },
+    {
+      "id": "src/cloud-library.js",
+      "type": "file",
+      "language": "javascript",
+      "summary": "",
+      "symbols_count": 12,
+      "exports": [
+        "getStoredAdminPin",
+        "fetchCloudModels",
+        "setStoredAdminPin",
+        "getOwnDeleteToken",
+        "loadCloudModelData",
+        "saveCloudModel",
+        "verifyAdminPin",
+        "captureViewportThumbnail",
+        "deleteCloudModel"
+      ]
+    },
+    {
+      "id": "src/dimension-overlay.js",
+      "type": "file",
+      "language": "javascript",
+      "summary": "",
+      "symbols_count": 1,
+      "exports": [
+        "DimensionOverlay"
+      ]
+    },
+    {
+      "id": "src/dxf-exporter.js",
+      "type": "file",
+      "language": "javascript",
+      "summary": "",
+      "symbols_count": 5,
+      "exports": [
+        "DXFExporter"
+      ]
+    },
+    {
+      "id": "src/exporter.js",
+      "type": "file",
+      "language": "javascript",
+      "summary": "",
+      "symbols_count": 1,
+      "exports": [
+        "exportToOBJ"
+      ]
+    },
+    {
+      "id": "src/grid-overlay.js",
+      "type": "file",
+      "language": "javascript",
+      "summary": "",
+      "symbols_count": 1,
+      "exports": [
+        "GridOverlay"
+      ]
+    },
+    {
+      "id": "src/main.js",
+      "type": "file",
+      "language": "javascript",
+      "summary": "",
+      "symbols_count": 35,
+      "exports": [
+        "requestRender"
+      ]
+    },
+    {
+      "id": "src/measure-tool.js",
+      "type": "file",
+      "language": "javascript",
+      "summary": "",
+      "symbols_count": 5,
+      "exports": [
+        "InspectionTool"
+      ]
+    },
+    {
+      "id": "src/occt-kernel.js",
+      "type": "file",
+      "language": "javascript",
+      "summary": "",
+      "symbols_count": 5,
+      "exports": [
+        "getOCCTError",
+        "getOC",
+        "isOCCTReady",
+        "replicadToBrush",
+        "replicad",
+        "initOCCT"
+      ]
+    },
+    {
+      "id": "src/picker.js",
+      "type": "file",
+      "language": "javascript",
+      "summary": "",
+      "symbols_count": 7,
+      "exports": [
+        "InteractivePicker"
+      ]
+    },
+    {
+      "id": "src/preview.js",
+      "type": "file",
+      "language": "javascript",
+      "summary": "",
+      "symbols_count": 5,
+      "exports": [
+        "CutterPreview"
+      ]
+    },
+    {
+      "id": "src/projection-engine.js",
+      "type": "file",
+      "language": "javascript",
+      "summary": "",
+      "symbols_count": 2,
+      "exports": [
+        "ProjectionEngine"
+      ]
+    },
+    {
+      "id": "src/projection-screens.js",
+      "type": "file",
+      "language": "javascript",
+      "summary": "",
+      "symbols_count": 1,
+      "exports": [
+        "ProjectionScreensOverlay"
+      ]
+    },
+    {
+      "id": "src/storage.js",
+      "type": "file",
+      "language": "javascript",
+      "summary": "",
+      "symbols_count": 4,
+      "exports": [
+        "clearProjectState",
+        "loadProjectState",
+        "saveProjectState"
+      ]
+    },
+    {
+      "id": "src/style.css",
+      "type": "file",
+      "language": "css",
+      "summary": "",
+      "symbols_count": 0,
+      "exports": []
+    },
+    {
+      "id": "start.bat",
+      "type": "file",
+      "language": "unknown",
+      "summary": "",
+      "symbols_count": 0,
+      "exports": []
+    },
+    {
+      "id": "vite.config.js",
+      "type": "file",
+      "language": "javascript",
+      "summary": "",
+      "symbols_count": 0,
+      "exports": []
+    }
+  ],
+  "edges": [
+    {
+      "source": "src/cad-engine.js",
+      "target": "src/occt-kernel.js",
+      "relation": "imports"
+    },
+    {
+      "source": "src/cad-script.js",
+      "target": "src/occt-kernel.js",
+      "relation": "imports"
+    },
+    {
+      "source": "src/cad2d-editor.js",
+      "target": "src/storage.js",
+      "relation": "imports"
+    },
+    {
+      "source": "src/cad2d-editor.js",
+      "target": "src/dxf-exporter.js",
+      "relation": "imports"
+    },
+    {
+      "source": "src/cloud-library-ui.js",
+      "target": "src/cloud-library.js",
+      "relation": "imports"
+    },
+    {
+      "source": "src/main.js",
+      "target": "src/storage.js",
+      "relation": "imports"
+    },
+    {
+      "source": "src/main.js",
+      "target": "src/cloud-library.js",
+      "relation": "imports"
+    },
+    {
+      "source": "src/main.js",
+      "target": "src/occt-kernel.js",
+      "relation": "imports"
+    },
+    {
+      "source": "src/main.js",
+      "target": "src/cad2d-editor.js",
+      "relation": "imports"
+    },
+    {
+      "source": "src/main.js",
+      "target": "src/dimension-overlay.js",
+      "relation": "imports"
+    },
+    {
+      "source": "src/main.js",
+      "target": "src/cloud-library-ui.js",
+      "relation": "imports"
+    },
+    {
+      "source": "src/main.js",
+      "target": "src/measure-tool.js",
+      "relation": "imports"
+    },
+    {
+      "source": "src/main.js",
+      "target": "src/preview.js",
+      "relation": "imports"
+    },
+    {
+      "source": "src/main.js",
+      "target": "src/grid-overlay.js",
+      "relation": "imports"
+    },
+    {
+      "source": "src/main.js",
+      "target": "src/picker.js",
+      "relation": "imports"
+    },
+    {
+      "source": "src/main.js",
+      "target": "src/exporter.js",
+      "relation": "imports"
+    },
+    {
+      "source": "src/main.js",
+      "target": "src/cad-engine.js",
+      "relation": "imports"
+    },
+    {
+      "source": "src/main.js",
+      "target": "src/projection-screens.js",
+      "relation": "imports"
+    },
+    {
+      "source": "src/main.js",
+      "target": "src/projection-engine.js",
+      "relation": "imports"
+    },
+    {
+      "source": "src/main.js",
+      "target": "src/cad-script.js",
+      "relation": "imports"
+    },
+    {
+      "source": "src/projection-engine.js",
+      "target": "src/occt-kernel.js",
+      "relation": "imports"
+    }
+  ],
+  "stats": {
+    "total_files": 30,
+    "total_symbols": 140,
+    "entry_points": [
+      "index.html",
+      "src/main.js"
+    ],
+    "core_modules": [
+      {
+        "file": "src/occt-kernel.js",
+        "dependent_count": 4
+      },
+      {
+        "file": "src/storage.js",
+        "dependent_count": 2
+      },
+      {
+        "file": "src/cloud-library.js",
+        "dependent_count": 2
+      },
+      {
+        "file": "src/dxf-exporter.js",
+        "dependent_count": 1
+      },
+      {
+        "file": "src/cad-engine.js",
+        "dependent_count": 1
+      },
+      {
+        "file": "src/grid-overlay.js",
+        "dependent_count": 1
+      },
+      {
+        "file": "src/preview.js",
+        "dependent_count": 1
+      },
+      {
+        "file": "src/picker.js",
+        "dependent_count": 1
+      }
+    ],
+    "god_nodes": [
+      {
+        "file": "src/main.js",
+        "in_degree": 0,
+        "out_degree": 15,
+        "symbols_count": 35,
+        "score": 18.5,
+        "role": "Central Orchestrator",
+        "blast_radius": "0 callers affected if modified"
+      },
+      {
+        "file": "src/occt-kernel.js",
+        "in_degree": 4,
+        "out_degree": 0,
+        "symbols_count": 5,
+        "score": 12.5,
+        "role": "Foundational Core",
+        "blast_radius": "4 callers affected if modified"
+      },
+      {
+        "file": "src/cloud-library.js",
+        "in_degree": 2,
+        "out_degree": 0,
+        "symbols_count": 12,
+        "score": 7.2,
+        "role": "Foundational Core",
+        "blast_radius": "2 callers affected if modified"
+      },
+      {
+        "file": "src/cad-script.js",
+        "in_degree": 1,
+        "out_degree": 1,
+        "symbols_count": 27,
+        "score": 6.7,
+        "role": "Foundational Core",
+        "blast_radius": "1 callers affected if modified"
+      },
+      {
+        "file": "src/storage.js",
+        "in_degree": 2,
+        "out_degree": 0,
+        "symbols_count": 4,
+        "score": 6.4,
+        "role": "Foundational Core",
+        "blast_radius": "2 callers affected if modified"
+      },
+      {
+        "file": "src/cad2d-editor.js",
+        "in_degree": 1,
+        "out_degree": 2,
+        "symbols_count": 5,
+        "score": 5.5,
+        "role": "Central Orchestrator",
+        "blast_radius": "1 callers affected if modified"
+      }
+    ]
+  }
+}

@@ -1,0 +1,3049 @@
+{
+  ".gitignore": {
+    "mtime": 1794135056.858492,
+    "size": 370,
+    "hash": "71df07db6e2e899dbeda3490e41f872f051e768a4cabb1818b95a865a55831ae",
+    "analysis": {
+      "file_path": ".gitignore",
+      "language": "unknown",
+      "summary": "",
+      "exports": [],
+      "calls": [],
+      "imports": [],
+      "symbols": []
+    }
+  },
+  "index.html": {
+    "mtime": 1795585342.1347778,
+    "size": 46163,
+    "hash": "f97098d7c7f8b1dbce37d683f72090ae98d05abb434382a490f38d992df6730e",
+    "analysis": {
+      "file_path": "index.html",
+      "language": "html",
+      "summary": "",
+      "exports": [],
+      "calls": [],
+      "imports": [],
+      "symbols": []
+    }
+  },
+  "package.json": {
+    "mtime": 1795585292.1753192,
+    "size": 499,
+    "hash": "7af87325508d1196e005e4d747979e6192056751ed7971dd8bd071e8eb3ff890",
+    "analysis": {
+      "file_path": "package.json",
+      "language": "json",
+      "summary": "",
+      "exports": [],
+      "calls": [],
+      "imports": [],
+      "symbols": []
+    }
+  },
+  "README.md": {
+    "mtime": 1794135056.858492,
+    "size": 4665,
+    "hash": "df40ff720d66b6d14317d57df39c71dd67faeb56352236a68bb4ac16a5d8fc82",
+    "analysis": {
+      "file_path": "README.md",
+      "language": "markdown",
+      "summary": "",
+      "exports": [],
+      "calls": [],
+      "imports": [],
+      "symbols": []
+    }
+  },
+  "start.bat": {
+    "mtime": 1794135056.8755834,
+    "size": 129,
+    "hash": "a3a429fb149a6addd5aeceeced3b339556f368207e99fcff11eac898e2357ac7",
+    "analysis": {
+      "file_path": "start.bat",
+      "language": "unknown",
+      "summary": "",
+      "exports": [],
+      "calls": [],
+      "imports": [],
+      "symbols": []
+    }
+  },
+  "vite.config.js": {
+    "mtime": 1794479072.1238215,
+    "size": 240,
+    "hash": "e92d756ac1a9b8eab6e311dc35b35c5d1c15d5935d523de841b5906c2c6c4482",
+    "analysis": {
+      "file_path": "vite.config.js",
+      "language": "javascript",
+      "summary": "",
+      "exports": [],
+      "calls": [
+        "defineConfig"
+      ],
+      "imports": [
+        {
+          "source": "vite",
+          "symbols": [
+            "defineConfig"
+          ],
+          "is_relative": false
+        }
+      ],
+      "symbols": []
+    }
+  },
+  "src/cad-engine.js": {
+    "mtime": 1794669485.0593567,
+    "size": 42034,
+    "hash": "e85057fc72d024c0f4cedaaab95426bd9a1ff53b9523fe7f203685edfc56635c",
+    "analysis": {
+      "file_path": "src/cad-engine.js",
+      "language": "javascript",
+      "summary": "",
+      "exports": [
+        "CadEngine"
+      ],
+      "calls": [
+        "Evaluator",
+        "MeshLambertMaterial",
+        "LineBasicMaterial",
+        "createBaseBlock",
+        "isOCCTReady",
+        "makeBox",
+        "replicadToBrush",
+        "warn",
+        "BoxGeometry",
+        "translate",
+        "Brush",
+        "updateMatrixWorld",
+        "cutBox",
+        "min",
+        "max",
+        "fuse",
+        "cut",
+        "setAttribute",
+        "Float32BufferAttribute",
+        "Float32Array",
+        "evaluate",
+        "dispose",
+        "computeVertexNormals",
+        "computeBoundingBox",
+        "gian",
+        "createSlantCutterGeometry",
+        "hypot",
+        "abs",
+        "Vector3",
+        "atan2",
+        "rotateZ",
+        "rotateY",
+        "rotateX",
+        "cutSlant",
+        "isCoplanarOnFace",
+        "createPlaneCutterGeometry",
+        "subVectors",
+        "crossVectors",
+        "lengthSq",
+        "normalize",
+        "negate",
+        "add",
+        "multiplyScalar",
+        "Quaternion",
+        "setFromUnitVectors",
+        "applyQuaternion",
+        "cutPlane3Points",
+        "cutMultiPointVolume",
+        "map",
+        "dot"
+      ],
+      "imports": [
+        {
+          "source": "three",
+          "symbols": [
+            "THREE"
+          ],
+          "is_relative": false
+        },
+        {
+          "source": "three-bvh-csg",
+          "symbols": [
+            "Brush",
+            "Evaluator",
+            "SUBTRACTION",
+            "ADDITION",
+            "INTERSECTION"
+          ],
+          "is_relative": false
+        },
+        {
+          "source": "three/addons/utils/BufferGeometryUtils.js",
+          "symbols": [
+            "mergeVertices"
+          ],
+          "is_relative": false
+        },
+        {
+          "source": "three/addons/geometries/ConvexGeometry.js",
+          "symbols": [
+            "ConvexGeometry"
+          ],
+          "is_relative": false
+        },
+        {
+          "source": "./occt-kernel.js",
+          "symbols": [
+            "isOCCTReady",
+            "replicad",
+            "replicadToBrush"
+          ],
+          "is_relative": true
+        }
+      ],
+      "symbols": [
+        {
+          "name": "CadEngine",
+          "kind": "class",
+          "line": 7,
+          "doc": "",
+          "args": [],
+          "methods": []
+        },
+        {
+          "name": "isPointInTriangle",
+          "kind": "function",
+          "line": 877,
+          "doc": "",
+          "args": [
+            "P",
+            "t"
+          ],
+          "methods": []
+        },
+        {
+          "name": "isPointInFace",
+          "kind": "function",
+          "line": 896,
+          "doc": "",
+          "args": [
+            "P",
+            "N"
+          ],
+          "methods": []
+        },
+        {
+          "name": "getAdjacentFaceNormals",
+          "kind": "function",
+          "line": 905,
+          "doc": "",
+          "args": [
+            "A",
+            "B"
+          ],
+          "methods": []
+        },
+        {
+          "name": "to3D",
+          "kind": "function",
+          "line": 457,
+          "doc": "",
+          "args": [
+            "u",
+            "v",
+            "depth"
+          ],
+          "methods": []
+        },
+        {
+          "name": "to2D",
+          "kind": "function",
+          "line": 772,
+          "doc": "",
+          "args": [
+            "v"
+          ],
+          "methods": []
+        }
+      ]
+    }
+  },
+  "src/cad-script.js": {
+    "mtime": 1794662064.4520762,
+    "size": 13147,
+    "hash": "0690b84c31566267888a1cf0eb1a8610ca567986365e7ab4b4ef64856bd14cef",
+    "analysis": {
+      "file_path": "src/cad-script.js",
+      "language": "javascript",
+      "summary": "",
+      "exports": [
+        "rotateBrushAroundY",
+        "executeCadScript"
+      ],
+      "calls": [
+        "hop",
+        "bo",
+        "tru",
+        "khoet",
+        "max",
+        "Number",
+        "min",
+        "toFixed",
+        "dich",
+        "tinh",
+        "ngang",
+        "hop_bo",
+        "ong",
+        "ghep",
+        "xoay",
+        "getNativeMethod",
+        "getPrototypeOf",
+        "getOwnPropertyDescriptor",
+        "nativeClone",
+        "call",
+        "nativeTranslate",
+        "Error",
+        "nativeRotate",
+        "nativeScale",
+        "nativeFuse",
+        "nativeCut",
+        "nativeIntersect",
+        "nativeFillet",
+        "nativeChamfer",
+        "wrapShape",
+        "move",
+        "rotate",
+        "cut",
+        "union",
+        "fillet",
+        "chamfer",
+        "box",
+        "makeBox",
+        "roundBox",
+        "cylinder",
+        "toLowerCase",
+        "makeCylinder",
+        "tube",
+        "poly",
+        "draw",
+        "lineTo",
+        "close",
+        "sketchOnPlane",
+        "extrude",
+        "scale"
+      ],
+      "imports": [
+        {
+          "source": "./occt-kernel.js",
+          "symbols": [
+            "initOCCT",
+            "replicad",
+            "replicadToBrush"
+          ],
+          "is_relative": true
+        },
+        {
+          "source": "three-bvh-csg",
+          "symbols": [
+            "Brush"
+          ],
+          "is_relative": false
+        }
+      ],
+      "symbols": [
+        {
+          "name": "getNativeMethod",
+          "kind": "function",
+          "line": 72,
+          "doc": "",
+          "args": [
+            "obj",
+            "name"
+          ],
+          "methods": []
+        },
+        {
+          "name": "nativeClone",
+          "kind": "function",
+          "line": 85,
+          "doc": "",
+          "args": [
+            "shape"
+          ],
+          "methods": []
+        },
+        {
+          "name": "nativeTranslate",
+          "kind": "function",
+          "line": 90,
+          "doc": "",
+          "args": [
+            "shape",
+            "x",
+            "y",
+            "z"
+          ],
+          "methods": []
+        },
+        {
+          "name": "nativeRotate",
+          "kind": "function",
+          "line": 96,
+          "doc": "",
+          "args": [
+            "shape",
+            "angle",
+            "position",
+            "direction"
+          ],
+          "methods": []
+        },
+        {
+          "name": "nativeScale",
+          "kind": "function",
+          "line": 102,
+          "doc": "",
+          "args": [
+            "shape",
+            "factor",
+            "center"
+          ],
+          "methods": []
+        },
+        {
+          "name": "nativeFuse",
+          "kind": "function",
+          "line": 108,
+          "doc": "",
+          "args": [
+            "shape",
+            "other"
+          ],
+          "methods": []
+        },
+        {
+          "name": "nativeCut",
+          "kind": "function",
+          "line": 114,
+          "doc": "",
+          "args": [
+            "shape",
+            "tool"
+          ],
+          "methods": []
+        },
+        {
+          "name": "nativeIntersect",
+          "kind": "function",
+          "line": 120,
+          "doc": "",
+          "args": [
+            "shape",
+            "other"
+          ],
+          "methods": []
+        },
+        {
+          "name": "nativeFillet",
+          "kind": "function",
+          "line": 126,
+          "doc": "",
+          "args": [
+            "shape",
+            "radius",
+            "filter"
+          ],
+          "methods": []
+        },
+        {
+          "name": "nativeChamfer",
+          "kind": "function",
+          "line": 132,
+          "doc": "",
+          "args": [
+            "shape",
+            "dist",
+            "filter"
+          ],
+          "methods": []
+        },
+        {
+          "name": "wrapShape",
+          "kind": "function",
+          "line": 138,
+          "doc": "",
+          "args": [
+            "shape"
+          ],
+          "methods": []
+        },
+        {
+          "name": "box",
+          "kind": "function",
+          "line": 152,
+          "doc": "",
+          "args": [
+            "w",
+            "h",
+            "d"
+          ],
+          "methods": []
+        },
+        {
+          "name": "roundBox",
+          "kind": "function",
+          "line": 156,
+          "doc": "",
+          "args": [
+            "w",
+            "h",
+            "d",
+            "r"
+          ],
+          "methods": []
+        },
+        {
+          "name": "cylinder",
+          "kind": "function",
+          "line": 163,
+          "doc": "",
+          "args": [
+            "r",
+            "h",
+            "axis"
+          ],
+          "methods": []
+        },
+        {
+          "name": "tube",
+          "kind": "function",
+          "line": 176,
+          "doc": "",
+          "args": [
+            "rOuter",
+            "rInner",
+            "h",
+            "axis"
+          ],
+          "methods": []
+        },
+        {
+          "name": "poly",
+          "kind": "function",
+          "line": 182,
+          "doc": "",
+          "args": [
+            "points2D",
+            "depth",
+            "axis"
+          ],
+          "methods": []
+        },
+        {
+          "name": "move",
+          "kind": "function",
+          "line": 203,
+          "doc": "",
+          "args": [
+            "target",
+            "x",
+            "y",
+            "z"
+          ],
+          "methods": []
+        },
+        {
+          "name": "rotate",
+          "kind": "function",
+          "line": 209,
+          "doc": "",
+          "args": [
+            "target",
+            "rxDeg",
+            "ryDeg",
+            "rzDeg"
+          ],
+          "methods": []
+        },
+        {
+          "name": "scale",
+          "kind": "function",
+          "line": 218,
+          "doc": "",
+          "args": [
+            "target",
+            "sx"
+          ],
+          "methods": []
+        },
+        {
+          "name": "union",
+          "kind": "function",
+          "line": 224,
+          "doc": "",
+          "args": [
+            "...items"
+          ],
+          "methods": []
+        },
+        {
+          "name": "cut",
+          "kind": "function",
+          "line": 234,
+          "doc": "",
+          "args": [
+            "target",
+            "...cutters"
+          ],
+          "methods": []
+        },
+        {
+          "name": "intersect",
+          "kind": "function",
+          "line": 244,
+          "doc": "",
+          "args": [
+            "target",
+            "...others"
+          ],
+          "methods": []
+        },
+        {
+          "name": "fillet",
+          "kind": "function",
+          "line": 254,
+          "doc": "",
+          "args": [
+            "target",
+            "radius",
+            "filter"
+          ],
+          "methods": []
+        },
+        {
+          "name": "chamfer",
+          "kind": "function",
+          "line": 260,
+          "doc": "",
+          "args": [
+            "target",
+            "dist",
+            "filter"
+          ],
+          "methods": []
+        },
+        {
+          "name": "shell",
+          "kind": "function",
+          "line": 266,
+          "doc": "",
+          "args": [
+            "target",
+            "thickness",
+            "faceFilter"
+          ],
+          "methods": []
+        },
+        {
+          "name": "executeCadScript",
+          "kind": "function",
+          "line": 278,
+          "doc": "",
+          "args": [
+            "code",
+            "cadEngine",
+            "dims"
+          ],
+          "methods": []
+        },
+        {
+          "name": "rotateBrushAroundY",
+          "kind": "function",
+          "line": 354,
+          "doc": "",
+          "args": [
+            "brush",
+            "cadEngine",
+            "deg"
+          ],
+          "methods": []
+        }
+      ]
+    }
+  },
+  "src/cad2d-editor.js": {
+    "mtime": 1794670739.218776,
+    "size": 142353,
+    "hash": "20bf78a4dc894b06a64a088686c98cca1e6e28d06535ff516f7e16ce85717629",
+    "analysis": {
+      "file_path": "src/cad2d-editor.js",
+      "language": "javascript",
+      "summary": "",
+      "exports": [
+        "CAD2DEditor"
+      ],
+      "calls": [
+        "2D",
+        "getContext",
+        "cung",
+        "transform",
+        "getElementById",
+        "bindCanvasEvents",
+        "initInspectionPanel",
+        "setFilletRadius",
+        "max",
+        "Number",
+        "parseFloat",
+        "updateHUDHint",
+        "toggleSnapMode",
+        "updateSnapButton",
+        "updateFrameButton",
+        "render",
+        "Grid",
+        "add",
+        "remove",
+        "cycleFrameMode",
+        "Off",
+        "Stock",
+        "A4",
+        "loadSavedElements",
+        "isArray",
+        "parse",
+        "stringify",
+        "updateUndoButtons",
+        "updateDimensionsList",
+        "triggerAutoSave",
+        "saveProjectState",
+        "now",
+        "saveHistory",
+        "slice",
+        "push",
+        "undo",
+        "redo",
+        "addEventListener",
+        "collapsePanel",
+        "expandPanel",
+        "clearAllDimensions",
+        "copyDimensionsToClipboard",
+        "querySelectorAll",
+        "forEach",
+        "getAttribute",
+        "setTool",
+        "filter",
+        "startsWith",
+        "confirm",
+        "alert"
+      ],
+      "imports": [
+        {
+          "source": "./dxf-exporter.js",
+          "symbols": [
+            "DXFExporter"
+          ],
+          "is_relative": true
+        },
+        {
+          "source": "./storage.js",
+          "symbols": [
+            "saveProjectState"
+          ],
+          "is_relative": true
+        }
+      ],
+      "symbols": [
+        {
+          "name": "CAD2DEditor",
+          "kind": "class",
+          "line": 13,
+          "doc": "",
+          "args": [],
+          "methods": []
+        },
+        {
+          "name": "getTouchPoint",
+          "kind": "function",
+          "line": 1029,
+          "doc": "",
+          "args": [
+            "t"
+          ],
+          "methods": []
+        },
+        {
+          "name": "projectPointOnLine",
+          "kind": "function",
+          "line": 2202,
+          "doc": "",
+          "args": [
+            "P",
+            "p1",
+            "p2"
+          ],
+          "methods": []
+        },
+        {
+          "name": "toCanvasX",
+          "kind": "function",
+          "line": 3539,
+          "doc": "",
+          "args": [
+            "u"
+          ],
+          "methods": []
+        },
+        {
+          "name": "toCanvasY",
+          "kind": "function",
+          "line": 3540,
+          "doc": "",
+          "args": [
+            "v"
+          ],
+          "methods": []
+        }
+      ]
+    }
+  },
+  "src/dimension-overlay.js": {
+    "mtime": 1794473575.4324183,
+    "size": 13198,
+    "hash": "7d2808077e751313834f0c65c3af9cbeb183e6c2dedf78b04dbc789bebf733a5",
+    "analysis": {
+      "file_path": "src/dimension-overlay.js",
+      "language": "javascript",
+      "summary": "",
+      "exports": [
+        "DimensionOverlay"
+      ],
+      "calls": [
+        "Group",
+        "add",
+        "LineBasicMaterial",
+        "getElementById",
+        "setEnabled",
+        "toggle",
+        "updateBounds",
+        "rebuild",
+        "setView",
+        "createTextSprite",
+        "rgba",
+        "createElement",
+        "getContext",
+        "scale",
+        "beginPath",
+        "roundRect",
+        "fill",
+        "stroke",
+        "fillText",
+        "CanvasTexture",
+        "SpriteMaterial",
+        "Sprite",
+        "addCadArrows",
+        "Vector3",
+        "subVectors",
+        "normalize",
+        "clone",
+        "p1",
+        "addScaledVector",
+        "push",
+        "p2",
+        "createDimension",
+        "multiplyScalar",
+        "BufferGeometry",
+        "setAttribute",
+        "Float32BufferAttribute",
+        "LineSegments",
+        "lerpVectors",
+        "copy",
+        "remove",
+        "dispose",
+        "Cao",
+        "SAU"
+      ],
+      "imports": [
+        {
+          "source": "three",
+          "symbols": [
+            "THREE"
+          ],
+          "is_relative": false
+        }
+      ],
+      "symbols": [
+        {
+          "name": "DimensionOverlay",
+          "kind": "class",
+          "line": 12,
+          "doc": "",
+          "args": [],
+          "methods": []
+        }
+      ]
+    }
+  },
+  "src/dxf-exporter.js": {
+    "mtime": 1794135056.8665385,
+    "size": 6013,
+    "hash": "75ee0d6fcae0abd7844c52a12d51a0834d7f29b8788f1ffba6389221b26634dc",
+    "analysis": {
+      "file_path": "src/dxf-exporter.js",
+      "language": "javascript",
+      "summary": "",
+      "exports": [
+        "DXFExporter"
+      ],
+      "calls": [
+        "AutoCAD",
+        "downloadPlaneDXF",
+        "push",
+        "toFixed",
+        "addText",
+        "toUpperCase",
+        "addLine",
+        "addCircle",
+        "cong",
+        "addArc",
+        "trong",
+        "join",
+        "Blob",
+        "createObjectURL",
+        "createElement",
+        "appendChild",
+        "click",
+        "removeChild",
+        "revokeObjectURL"
+      ],
+      "imports": [],
+      "symbols": [
+        {
+          "name": "DXFExporter",
+          "kind": "class",
+          "line": 6,
+          "doc": "",
+          "args": [],
+          "methods": []
+        },
+        {
+          "name": "addLine",
+          "kind": "function",
+          "line": 56,
+          "doc": "",
+          "args": [
+            "layer",
+            "x1",
+            "y1",
+            "x2",
+            "y2"
+          ],
+          "methods": []
+        },
+        {
+          "name": "addCircle",
+          "kind": "function",
+          "line": 65,
+          "doc": "",
+          "args": [
+            "layer",
+            "cx",
+            "cy",
+            "r"
+          ],
+          "methods": []
+        },
+        {
+          "name": "addArc",
+          "kind": "function",
+          "line": 74,
+          "doc": "",
+          "args": [
+            "layer",
+            "cx",
+            "cy",
+            "r",
+            "startAngleDeg",
+            "endAngleDeg"
+          ],
+          "methods": []
+        },
+        {
+          "name": "addText",
+          "kind": "function",
+          "line": 85,
+          "doc": "",
+          "args": [
+            "layer",
+            "text",
+            "x",
+            "y",
+            "height"
+          ],
+          "methods": []
+        }
+      ]
+    }
+  },
+  "src/exporter.js": {
+    "mtime": 1794135056.86754,
+    "size": 1363,
+    "hash": "ef64174aab9be2f4d2b18c317a3e81845a55fcd8f55b81a772b658457e4af9d7",
+    "analysis": {
+      "file_path": "src/exporter.js",
+      "language": "javascript",
+      "summary": "",
+      "exports": [
+        "exportToOBJ"
+      ],
+      "calls": [
+        "exportToOBJ",
+        "clone",
+        "toNonIndexed",
+        "getX",
+        "toFixed",
+        "getY",
+        "getZ",
+        "Blob",
+        "createElement",
+        "createObjectURL",
+        "click",
+        "revokeObjectURL"
+      ],
+      "imports": [],
+      "symbols": [
+        {
+          "name": "exportToOBJ",
+          "kind": "function",
+          "line": 2,
+          "doc": "",
+          "args": [
+            "mesh",
+            "filename"
+          ],
+          "methods": []
+        }
+      ]
+    }
+  },
+  "src/grid-overlay.js": {
+    "mtime": 1794474665.3213584,
+    "size": 12270,
+    "hash": "ce5723352dba87d1b1ff449be0733258ddc4fa67d387ce12d7ccad37011f98a4",
+    "analysis": {
+      "file_path": "src/grid-overlay.js",
+      "language": "javascript",
+      "summary": "",
+      "exports": [
+        "GridOverlay"
+      ],
+      "calls": [
+        "2D",
+        "FRONT",
+        "1x1x1",
+        "Group",
+        "add",
+        "GridHelper",
+        "LineBasicMaterial",
+        "setView",
+        "rebuild",
+        "setVisible",
+        "updateVisibility",
+        "setAllVisible",
+        "toggleGridSquares",
+        "setGridSquaresVisible",
+        "getDisplayStep",
+        "update",
+        "max",
+        "ceil",
+        "min",
+        "round",
+        "remove",
+        "dispose",
+        "isArray",
+        "forEach",
+        "3D",
+        "Vector3",
+        "ArrowHelper",
+        "build3DBoxGrid",
+        "build2DProjectedGrid",
+        "push",
+        "BufferGeometry",
+        "setAttribute",
+        "Float32BufferAttribute",
+        "LineSegments",
+        "Sau"
+      ],
+      "imports": [
+        {
+          "source": "three",
+          "symbols": [
+            "THREE"
+          ],
+          "is_relative": false
+        }
+      ],
+      "symbols": [
+        {
+          "name": "GridOverlay",
+          "kind": "class",
+          "line": 13,
+          "doc": "",
+          "args": [],
+          "methods": []
+        }
+      ]
+    }
+  },
+  "src/main.js": {
+    "mtime": 1795585387.07776,
+    "size": 45692,
+    "hash": "d0933f09e5d937b3975b291360ca944406e9b06ff35e81395110772848c9ed8a",
+    "analysis": {
+      "file_path": "src/main.js",
+      "language": "javascript",
+      "summary": "",
+      "exports": [
+        "requestRender"
+      ],
+      "calls": [
+        "inject",
+        "injectSpeedInsights",
+        "getElementById",
+        "Scene",
+        "Color",
+        "max",
+        "OrthographicCamera",
+        "WebGLRenderer",
+        "setSize",
+        "setPixelRatio",
+        "min",
+        "appendChild",
+        "OrbitControls",
+        "AmbientLight",
+        "add",
+        "DirectionalLight",
+        "CadEngine",
+        "ProjectionEngine",
+        "GridOverlay",
+        "CutterPreview",
+        "DimensionOverlay",
+        "ProjectionScreensOverlay",
+        "InspectionTool",
+        "toggleGridSquaresUI",
+        "toggleDimUI",
+        "toggleScreensUI",
+        "setProjectionScreens",
+        "Group",
+        "History",
+        "clearHistory",
+        "dispose",
+        "updateHistoryButtons",
+        "disposeEdges",
+        "isArray",
+        "forEach",
+        "saveHistory",
+        "slice",
+        "clone",
+        "push",
+        "triggerAutoSave3D",
+        "clearTimeout",
+        "setTimeout",
+        "toJSON",
+        "saveProjectState",
+        "now",
+        "warn",
+        "syncBoundsWithModel",
+        "computeVertexNormals",
+        "computeBoundingBox",
+        "computeBoundsTree"
+      ],
+      "imports": [
+        {
+          "source": "three",
+          "symbols": [
+            "THREE"
+          ],
+          "is_relative": false
+        },
+        {
+          "source": "three/addons/controls/OrbitControls.js",
+          "symbols": [
+            "OrbitControls"
+          ],
+          "is_relative": false
+        },
+        {
+          "source": "three/addons/loaders/OBJLoader.js",
+          "symbols": [
+            "OBJLoader"
+          ],
+          "is_relative": false
+        },
+        {
+          "source": "three/addons/utils/BufferGeometryUtils.js",
+          "symbols": [
+            "mergeGeometries"
+          ],
+          "is_relative": false
+        },
+        {
+          "source": "three-bvh-csg",
+          "symbols": [
+            "Brush"
+          ],
+          "is_relative": false
+        },
+        {
+          "source": "./cad-engine.js",
+          "symbols": [
+            "CadEngine"
+          ],
+          "is_relative": true
+        },
+        {
+          "source": "./grid-overlay.js",
+          "symbols": [
+            "GridOverlay"
+          ],
+          "is_relative": true
+        },
+        {
+          "source": "./preview.js",
+          "symbols": [
+            "CutterPreview"
+          ],
+          "is_relative": true
+        },
+        {
+          "source": "./picker.js",
+          "symbols": [
+            "InteractivePicker"
+          ],
+          "is_relative": true
+        },
+        {
+          "source": "./exporter.js",
+          "symbols": [
+            "exportToOBJ"
+          ],
+          "is_relative": true
+        },
+        {
+          "source": "./projection-engine.js",
+          "symbols": [
+            "ProjectionEngine"
+          ],
+          "is_relative": true
+        },
+        {
+          "source": "./cad2d-editor.js",
+          "symbols": [
+            "CAD2DEditor"
+          ],
+          "is_relative": true
+        },
+        {
+          "source": "./dimension-overlay.js",
+          "symbols": [
+            "DimensionOverlay"
+          ],
+          "is_relative": true
+        },
+        {
+          "source": "./measure-tool.js",
+          "symbols": [
+            "InspectionTool"
+          ],
+          "is_relative": true
+        },
+        {
+          "source": "./projection-screens.js",
+          "symbols": [
+            "ProjectionScreensOverlay"
+          ],
+          "is_relative": true
+        },
+        {
+          "source": "./cad-script.js",
+          "symbols": [
+            "executeCadScript",
+            "rotateBrushAroundY",
+            "CAD_SCRIPT_PRESETS"
+          ],
+          "is_relative": true
+        },
+        {
+          "source": "./occt-kernel.js",
+          "symbols": [
+            "initOCCT"
+          ],
+          "is_relative": true
+        },
+        {
+          "source": "./storage.js",
+          "symbols": [
+            "saveProjectState",
+            "loadProjectState"
+          ],
+          "is_relative": true
+        },
+        {
+          "source": "./cloud-library.js",
+          "symbols": [
+            "captureViewportThumbnail"
+          ],
+          "is_relative": true
+        },
+        {
+          "source": "./cloud-library-ui.js",
+          "symbols": [
+            "initCloudLibraryUI"
+          ],
+          "is_relative": true
+        },
+        {
+          "source": "@vercel/analytics",
+          "symbols": [
+            "inject"
+          ],
+          "is_relative": false
+        },
+        {
+          "source": "@vercel/speed-insights",
+          "symbols": [
+            "injectSpeedInsights"
+          ],
+          "is_relative": false
+        }
+      ],
+      "symbols": [
+        {
+          "name": "clearHistory",
+          "kind": "function",
+          "line": 99,
+          "doc": "",
+          "args": [],
+          "methods": []
+        },
+        {
+          "name": "disposeEdges",
+          "kind": "function",
+          "line": 110,
+          "doc": "",
+          "args": [
+            "edges"
+          ],
+          "methods": []
+        },
+        {
+          "name": "saveHistory",
+          "kind": "function",
+          "line": 122,
+          "doc": "",
+          "args": [
+            "brush"
+          ],
+          "methods": []
+        },
+        {
+          "name": "updateHistoryButtons",
+          "kind": "function",
+          "line": 139,
+          "doc": "",
+          "args": [],
+          "methods": []
+        },
+        {
+          "name": "triggerAutoSave3D",
+          "kind": "function",
+          "line": 147,
+          "doc": "",
+          "args": [],
+          "methods": []
+        },
+        {
+          "name": "syncBoundsWithModel",
+          "kind": "function",
+          "line": 179,
+          "doc": "",
+          "args": [
+            "brush"
+          ],
+          "methods": []
+        },
+        {
+          "name": "setModel",
+          "kind": "function",
+          "line": 214,
+          "doc": "",
+          "args": [
+            "brush",
+            "recordHistory"
+          ],
+          "methods": []
+        },
+        {
+          "name": "resetBaseBlock",
+          "kind": "function",
+          "line": 261,
+          "doc": "",
+          "args": [],
+          "methods": []
+        },
+        {
+          "name": "applyLoaded3DState",
+          "kind": "function",
+          "line": 279,
+          "doc": "",
+          "args": [
+            "saved3D"
+          ],
+          "methods": []
+        },
+        {
+          "name": "initAppStorage",
+          "kind": "function",
+          "line": 317,
+          "doc": "",
+          "args": [],
+          "methods": []
+        },
+        {
+          "name": "updateCameraFrustumForView",
+          "kind": "function",
+          "line": 343,
+          "doc": "",
+          "args": [
+            "viewKey"
+          ],
+          "methods": []
+        },
+        {
+          "name": "updateCameraFrustum",
+          "kind": "function",
+          "line": 367,
+          "doc": "",
+          "args": [],
+          "methods": []
+        },
+        {
+          "name": "centerCamera",
+          "kind": "function",
+          "line": 371,
+          "doc": "",
+          "args": [],
+          "methods": []
+        },
+        {
+          "name": "setCameraIsometric",
+          "kind": "function",
+          "line": 376,
+          "doc": "",
+          "args": [],
+          "methods": []
+        },
+        {
+          "name": "setActiveViewButton",
+          "kind": "function",
+          "line": 389,
+          "doc": "",
+          "args": [
+            "id"
+          ],
+          "methods": []
+        },
+        {
+          "name": "syncSnapStepUI",
+          "kind": "function",
+          "line": 438,
+          "doc": "",
+          "args": [
+            "step"
+          ],
+          "methods": []
+        },
+        {
+          "name": "toggleSnapStepUI",
+          "kind": "function",
+          "line": 445,
+          "doc": "",
+          "args": [],
+          "methods": []
+        },
+        {
+          "name": "syncGridSquaresUI",
+          "kind": "function",
+          "line": 450,
+          "doc": "",
+          "args": [
+            "visible"
+          ],
+          "methods": []
+        },
+        {
+          "name": "toggleGridSquaresUI",
+          "kind": "function",
+          "line": 460,
+          "doc": "",
+          "args": [],
+          "methods": []
+        },
+        {
+          "name": "syncDimUI",
+          "kind": "function",
+          "line": 465,
+          "doc": "",
+          "args": [
+            "enabled"
+          ],
+          "methods": []
+        },
+        {
+          "name": "toggleDimUI",
+          "kind": "function",
+          "line": 477,
+          "doc": "",
+          "args": [],
+          "methods": []
+        },
+        {
+          "name": "syncScreensUI",
+          "kind": "function",
+          "line": 482,
+          "doc": "",
+          "args": [
+            "enabled"
+          ],
+          "methods": []
+        },
+        {
+          "name": "toggleScreensUI",
+          "kind": "function",
+          "line": 492,
+          "doc": "",
+          "args": [],
+          "methods": []
+        },
+        {
+          "name": "syncModeUI",
+          "kind": "function",
+          "line": 510,
+          "doc": "",
+          "args": [
+            "mode"
+          ],
+          "methods": []
+        },
+        {
+          "name": "performUndo",
+          "kind": "function",
+          "line": 558,
+          "doc": "",
+          "args": [],
+          "methods": []
+        },
+        {
+          "name": "performRedo",
+          "kind": "function",
+          "line": 572,
+          "doc": "",
+          "args": [],
+          "methods": []
+        },
+        {
+          "name": "applyHorizontalView",
+          "kind": "function",
+          "line": 708,
+          "doc": "",
+          "args": [
+            "stepNext"
+          ],
+          "methods": []
+        },
+        {
+          "name": "switchTo2D",
+          "kind": "function",
+          "line": 828,
+          "doc": "",
+          "args": [],
+          "methods": []
+        },
+        {
+          "name": "switchTo3D",
+          "kind": "function",
+          "line": 878,
+          "doc": "",
+          "args": [],
+          "methods": []
+        },
+        {
+          "name": "toggleAppMode",
+          "kind": "function",
+          "line": 916,
+          "doc": "",
+          "args": [],
+          "methods": []
+        },
+        {
+          "name": "setSidebarCompact",
+          "kind": "function",
+          "line": 932,
+          "doc": "",
+          "args": [
+            "compact"
+          ],
+          "methods": []
+        },
+        {
+          "name": "runCadScriptFromModal",
+          "kind": "function",
+          "line": 1129,
+          "doc": "",
+          "args": [],
+          "methods": []
+        },
+        {
+          "name": "requestRender",
+          "kind": "function",
+          "line": 1273,
+          "doc": "",
+          "args": [],
+          "methods": []
+        },
+        {
+          "name": "animate",
+          "kind": "function",
+          "line": 1283,
+          "doc": "",
+          "args": [],
+          "methods": []
+        },
+        {
+          "name": "handleRadiusInput",
+          "kind": "function",
+          "line": 1017,
+          "doc": "",
+          "args": [
+            "e"
+          ],
+          "methods": []
+        }
+      ]
+    }
+  },
+  "src/measure-tool.js": {
+    "mtime": 1794576684.3583562,
+    "size": 67808,
+    "hash": "99865d0f05680ed2c5bef462d5e7141d9fab4e1cf6dd72f86ed61720875530fb",
+    "analysis": {
+      "file_path": "src/measure-tool.js",
+      "language": "javascript",
+      "summary": "",
+      "exports": [
+        "InspectionTool"
+      ],
+      "calls": [
+        "InspectionTool",
+        "minh",
+        "Group",
+        "add",
+        "Raycaster",
+        "Vector2",
+        "getElementById",
+        "initDOM",
+        "initEvents",
+        "setProjectionScreens",
+        "cacheEdges",
+        "querySelectorAll",
+        "forEach",
+        "addEventListener",
+        "getAttribute",
+        "setSubMode",
+        "clearAll",
+        "copyToClipboard",
+        "collapsePanel",
+        "expandPanel",
+        "onToggleGridSquares",
+        "onToggleDim",
+        "onToggleScreens",
+        "syncGridSquaresUI",
+        "toggle",
+        "syncDimUI",
+        "syncScreensUI",
+        "contains",
+        "Set",
+        "handlePointerMove",
+        "camera",
+        "hypot",
+        "handleClick",
+        "resetSelection",
+        "toLowerCase",
+        "indexOf",
+        "show",
+        "cacheCircles",
+        "cacheFaces",
+        "updateInstruction",
+        "updateUIList",
+        "hide",
+        "clearPreview",
+        "1",
+        "toFixed",
+        "updateModel",
+        "Vector3",
+        "getX",
+        "getY",
+        "getZ"
+      ],
+      "imports": [
+        {
+          "source": "three",
+          "symbols": [
+            "THREE"
+          ],
+          "is_relative": false
+        }
+      ],
+      "symbols": [
+        {
+          "name": "InspectionTool",
+          "kind": "class",
+          "line": 13,
+          "doc": "",
+          "args": [],
+          "methods": []
+        },
+        {
+          "name": "vKey",
+          "kind": "function",
+          "line": 461,
+          "doc": "",
+          "args": [
+            "x",
+            "y",
+            "z"
+          ],
+          "methods": []
+        },
+        {
+          "name": "fmt",
+          "kind": "function",
+          "line": 896,
+          "doc": "",
+          "args": [
+            "n"
+          ],
+          "methods": []
+        },
+        {
+          "name": "fmt",
+          "kind": "function",
+          "line": 1209,
+          "doc": "",
+          "args": [
+            "n"
+          ],
+          "methods": []
+        },
+        {
+          "name": "fmt",
+          "kind": "function",
+          "line": 1474,
+          "doc": "",
+          "args": [
+            "n"
+          ],
+          "methods": []
+        }
+      ]
+    }
+  },
+  "src/occt-kernel.js": {
+    "mtime": 1794480213.0545166,
+    "size": 2878,
+    "hash": "218a320672e185ec5ef4c0ee861ed4366ab5457dfbf0513df76c1710dd1b18c9",
+    "analysis": {
+      "file_path": "src/occt-kernel.js",
+      "language": "javascript",
+      "summary": "",
+      "exports": [
+        "getOCCTError",
+        "getOC",
+        "isOCCTReady",
+        "replicadToBrush",
+        "replicad",
+        "initOCCT"
+      ],
+      "calls": [
+        "OpenCascade",
+        "initOCCT",
+        "async",
+        "opencascade",
+        "setOC",
+        "error",
+        "isOCCTReady",
+        "getOCCTError",
+        "getOC",
+        "Shape3D",
+        "replicadToBrush",
+        "mesh",
+        "meshEdges",
+        "BufferGeometry",
+        "Float32Array",
+        "setAttribute",
+        "BufferAttribute",
+        "setIndex",
+        "computeBoundingBox",
+        "computeBoundingSphere",
+        "computeBoundsTree",
+        "Brush",
+        "updateMatrixWorld"
+      ],
+      "imports": [
+        {
+          "source": "three",
+          "symbols": [
+            "THREE"
+          ],
+          "is_relative": false
+        },
+        {
+          "source": "three-bvh-csg",
+          "symbols": [
+            "Brush"
+          ],
+          "is_relative": false
+        },
+        {
+          "source": "three-mesh-bvh",
+          "symbols": [
+            "computeBoundsTree",
+            "disposeBoundsTree",
+            "acceleratedRaycast"
+          ],
+          "is_relative": false
+        },
+        {
+          "source": "replicad",
+          "symbols": [
+            "replicad"
+          ],
+          "is_relative": false
+        },
+        {
+          "source": "replicad-opencascadejs",
+          "symbols": [
+            "opencascade"
+          ],
+          "is_relative": false
+        },
+        {
+          "source": "replicad-opencascadejs/wasm?url",
+          "symbols": [
+            "opencascadeWasm"
+          ],
+          "is_relative": false
+        }
+      ],
+      "symbols": [
+        {
+          "name": "initOCCT",
+          "kind": "function",
+          "line": 23,
+          "doc": "",
+          "args": [],
+          "methods": []
+        },
+        {
+          "name": "isOCCTReady",
+          "kind": "function",
+          "line": 45,
+          "doc": "",
+          "args": [],
+          "methods": []
+        },
+        {
+          "name": "getOCCTError",
+          "kind": "function",
+          "line": 49,
+          "doc": "",
+          "args": [],
+          "methods": []
+        },
+        {
+          "name": "getOC",
+          "kind": "function",
+          "line": 53,
+          "doc": "",
+          "args": [],
+          "methods": []
+        },
+        {
+          "name": "replicadToBrush",
+          "kind": "function",
+          "line": 63,
+          "doc": "",
+          "args": [
+            "shape3d",
+            "material",
+            "options"
+          ],
+          "methods": []
+        }
+      ]
+    }
+  },
+  "src/picker.js": {
+    "mtime": 1794660485.4120889,
+    "size": 95746,
+    "hash": "df4758b9d75d016003c97926ca16c85cf62de660bc49818b31ed25e2b5631b7a",
+    "analysis": {
+      "file_path": "src/picker.js",
+      "language": "javascript",
+      "summary": "",
+      "exports": [
+        "InteractivePicker"
+      ],
+      "calls": [
+        "Raycaster",
+        "Vector2",
+        "0",
+        "5",
+        "V",
+        "getElementById",
+        "addEventListener",
+        "updateRightToolbar",
+        "Group",
+        "add",
+        "initLocalNodesMesh",
+        "initHoverMarker",
+        "bindEvents",
+        "updateCursor",
+        "updateHUD",
+        "SphereGeometry",
+        "MeshBasicMaterial",
+        "InstancedMesh",
+        "setUsage",
+        "Mesh",
+        "RingGeometry",
+        "setProjectionScreens",
+        "updateModel",
+        "clearSelection",
+        "rebuildSurfaceGridNodes",
+        "toNonIndexed",
+        "floor",
+        "Map",
+        "round",
+        "push",
+        "clone",
+        "Vector3",
+        "getX",
+        "getY",
+        "getZ",
+        "subVectors",
+        "cross",
+        "length",
+        "normalize",
+        "dot",
+        "eKey",
+        "values",
+        "abs",
+        "distanceTo",
+        "copy",
+        "addSharpVert",
+        "isPointInTriangleBary",
+        "updateVisibleGridNodes",
+        "updateLocalNodesAroundCursor",
+        "setOpMode"
+      ],
+      "imports": [
+        {
+          "source": "three",
+          "symbols": [
+            "THREE"
+          ],
+          "is_relative": false
+        }
+      ],
+      "symbols": [
+        {
+          "name": "InteractivePicker",
+          "kind": "class",
+          "line": 3,
+          "doc": "",
+          "args": [],
+          "methods": []
+        },
+        {
+          "name": "addSharpVert",
+          "kind": "function",
+          "line": 181,
+          "doc": "",
+          "args": [
+            "v",
+            "n1",
+            "n2"
+          ],
+          "methods": []
+        },
+        {
+          "name": "eKey",
+          "kind": "function",
+          "line": 221,
+          "doc": "",
+          "args": [
+            "v"
+          ],
+          "methods": []
+        },
+        {
+          "name": "updateMouseFromEvent",
+          "kind": "function",
+          "line": 467,
+          "doc": "",
+          "args": [
+            "e"
+          ],
+          "methods": []
+        },
+        {
+          "name": "snapVal",
+          "kind": "function",
+          "line": 694,
+          "doc": "",
+          "args": [
+            "v"
+          ],
+          "methods": []
+        },
+        {
+          "name": "snapVal",
+          "kind": "function",
+          "line": 736,
+          "doc": "",
+          "args": [
+            "v"
+          ],
+          "methods": []
+        },
+        {
+          "name": "fmt",
+          "kind": "function",
+          "line": 820,
+          "doc": "",
+          "args": [
+            "n"
+          ],
+          "methods": []
+        }
+      ]
+    }
+  },
+  "src/preview.js": {
+    "mtime": 1794533255.680333,
+    "size": 17852,
+    "hash": "2b157f9e371e2b2dea15d587c32e7f9d8cc6fe2f1f0cfd910ce57e2cb0c11784",
+    "analysis": {
+      "file_path": "src/preview.js",
+      "language": "javascript",
+      "summary": "",
+      "exports": [
+        "CutterPreview"
+      ],
+      "calls": [
+        "MeshLambertMaterial",
+        "LineBasicMaterial",
+        "clear",
+        "remove",
+        "dispose",
+        "setOpMode",
+        "setHex",
+        "setPreviewGeom",
+        "Mesh",
+        "LineSegments",
+        "EdgesGeometry",
+        "add",
+        "setPreviewCutter",
+        "Brush",
+        "updateMatrixWorld",
+        "evaluate",
+        "computeVertexNormals",
+        "showBox",
+        "min",
+        "max",
+        "BoxGeometry",
+        "translate",
+        "setAttribute",
+        "Float32BufferAttribute",
+        "Float32Array",
+        "showSlant",
+        "hypot",
+        "abs",
+        "testFn",
+        "push",
+        "intersectFn",
+        "Vector3",
+        "to3D",
+        "multiplyScalar",
+        "subVectors",
+        "cross",
+        "dot",
+        "clone",
+        "sub",
+        "BufferGeometry",
+        "showPlane3Points",
+        "isCoplanarOnFace",
+        "showMultiPointVolume",
+        "createPlaneCutterGeometry",
+        "map",
+        "crossVectors",
+        "normalize",
+        "ConvexGeometry",
+        "Vector2",
+        "Shape"
+      ],
+      "imports": [
+        {
+          "source": "three",
+          "symbols": [
+            "THREE"
+          ],
+          "is_relative": false
+        },
+        {
+          "source": "three/addons/geometries/ConvexGeometry.js",
+          "symbols": [
+            "ConvexGeometry"
+          ],
+          "is_relative": false
+        },
+        {
+          "source": "three-bvh-csg",
+          "symbols": [
+            "Brush",
+            "INTERSECTION"
+          ],
+          "is_relative": false
+        }
+      ],
+      "symbols": [
+        {
+          "name": "CutterPreview",
+          "kind": "class",
+          "line": 5,
+          "doc": "",
+          "args": [],
+          "methods": []
+        },
+        {
+          "name": "testFn",
+          "kind": "function",
+          "line": 157,
+          "doc": "",
+          "args": [
+            "pt"
+          ],
+          "methods": []
+        },
+        {
+          "name": "intersectFn",
+          "kind": "function",
+          "line": 158,
+          "doc": "",
+          "args": [
+            "A",
+            "B"
+          ],
+          "methods": []
+        },
+        {
+          "name": "to3D",
+          "kind": "function",
+          "line": 187,
+          "doc": "",
+          "args": [
+            "u",
+            "v",
+            "depth"
+          ],
+          "methods": []
+        },
+        {
+          "name": "to3D",
+          "kind": "function",
+          "line": 378,
+          "doc": "",
+          "args": [
+            "u",
+            "v",
+            "depth"
+          ],
+          "methods": []
+        }
+      ]
+    }
+  },
+  "src/projection-engine.js": {
+    "mtime": 1794480216.3629649,
+    "size": 14047,
+    "hash": "7740894413fc296ed3bc8eaf229e107bac3c9e0c178ae449fb218e33b985aedd",
+    "analysis": {
+      "file_path": "src/projection-engine.js",
+      "language": "javascript",
+      "summary": "",
+      "exports": [
+        "ProjectionEngine"
+      ],
+      "calls": [
+        "1D",
+        "generateProjections",
+        "projectOrthographic",
+        "isOCCTReady",
+        "projectWithOCCT",
+        "warn",
+        "Z",
+        "Y",
+        "Vector3",
+        "Number",
+        "toFixed",
+        "X",
+        "camera",
+        "extractCandidateEdges",
+        "updateMatrixWorld",
+        "Raycaster",
+        "map2DFn",
+        "hypot",
+        "distanceTo",
+        "max",
+        "min",
+        "round",
+        "lerpVectors",
+        "rayOriginFn",
+        "intersectObject",
+        "push",
+        "mergeCollinear2DLines",
+        "CadEngine",
+        "createEdges",
+        "toNonIndexed",
+        "mergeVertices",
+        "EdgesGeometry",
+        "floor",
+        "getX",
+        "getY",
+        "getZ",
+        "subVectors",
+        "cross",
+        "length",
+        "normalize",
+        "abs",
+        "dot",
+        "clone",
+        "sub",
+        "some",
+        "Map",
+        "vKey",
+        "values",
+        "cong",
+        "sort"
+      ],
+      "imports": [
+        {
+          "source": "three",
+          "symbols": [
+            "THREE"
+          ],
+          "is_relative": false
+        },
+        {
+          "source": "three/examples/jsm/utils/BufferGeometryUtils.js",
+          "symbols": [
+            "mergeVertices"
+          ],
+          "is_relative": false
+        },
+        {
+          "source": "./occt-kernel.js",
+          "symbols": [
+            "isOCCTReady",
+            "replicad"
+          ],
+          "is_relative": true
+        }
+      ],
+      "symbols": [
+        {
+          "name": "ProjectionEngine",
+          "kind": "class",
+          "line": 13,
+          "doc": "",
+          "args": [],
+          "methods": []
+        },
+        {
+          "name": "vKey",
+          "kind": "function",
+          "line": 213,
+          "doc": "",
+          "args": [
+            "v"
+          ],
+          "methods": []
+        }
+      ]
+    }
+  },
+  "src/projection-screens.js": {
+    "mtime": 1794481674.0043395,
+    "size": 16515,
+    "hash": "22fdeb6011cb84bf747f4da20254fce46ffa74ffa321ab233973982501f171ae",
+    "analysis": {
+      "file_path": "src/projection-screens.js",
+      "language": "javascript",
+      "summary": "",
+      "exports": [
+        "ProjectionScreensOverlay"
+      ],
+      "calls": [
+        "ProjectionScreensOverlay",
+        "Group",
+        "add",
+        "setEnabled",
+        "rebuild",
+        "onUpdate",
+        "toggle",
+        "setOffsetDist",
+        "max",
+        "min",
+        "Number",
+        "update",
+        "remove",
+        "dispose",
+        "isArray",
+        "forEach",
+        "generateProjections",
+        "buildScreenFront",
+        "buildScreenTop",
+        "buildScreenSide",
+        "PlaneGeometry",
+        "MeshBasicMaterial",
+        "Mesh",
+        "push",
+        "Cyan",
+        "BufferGeometry",
+        "setAttribute",
+        "Float32BufferAttribute",
+        "LineBasicMaterial",
+        "LineSegments",
+        "3D",
+        "addProjectionLines",
+        "Vector3",
+        "LineDashedMaterial",
+        "computeLineDistances",
+        "Emerald",
+        "Top",
+        "Right",
+        "map3DFn",
+        "distanceTo",
+        "toFixed",
+        "addVectors",
+        "multiplyScalar",
+        "subVectors",
+        "normalize",
+        "createTextSprite",
+        "createElement",
+        "getContext",
+        "beginPath",
+        "roundRect"
+      ],
+      "imports": [
+        {
+          "source": "three",
+          "symbols": [
+            "THREE"
+          ],
+          "is_relative": false
+        }
+      ],
+      "symbols": [
+        {
+          "name": "ProjectionScreensOverlay",
+          "kind": "class",
+          "line": 11,
+          "doc": "",
+          "args": [],
+          "methods": []
+        }
+      ]
+    }
+  },
+  "src/storage.js": {
+    "mtime": 1794540843.5781484,
+    "size": 2978,
+    "hash": "fda1c65ec841848611486a76b63be8d4d87904e8d2b591fb47753a417e2f7dd1",
+    "analysis": {
+      "file_path": "src/storage.js",
+      "language": "javascript",
+      "summary": "",
+      "exports": [
+        "clearProjectState",
+        "loadProjectState",
+        "saveProjectState"
+      ],
+      "calls": [
+        "trang",
+        "openDB",
+        "Promise",
+        "reject",
+        "Error",
+        "open",
+        "contains",
+        "createObjectStore",
+        "resolve",
+        "saveProjectState",
+        "transaction",
+        "objectStore",
+        "put",
+        "setItem",
+        "stringify",
+        "warn",
+        "loadProjectState",
+        "getItem",
+        "parse",
+        "clearProjectState",
+        "clear",
+        "removeItem"
+      ],
+      "imports": [],
+      "symbols": [
+        {
+          "name": "openDB",
+          "kind": "function",
+          "line": 10,
+          "doc": "",
+          "args": [],
+          "methods": []
+        },
+        {
+          "name": "saveProjectState",
+          "kind": "function",
+          "line": 31,
+          "doc": "",
+          "args": [
+            "key",
+            "data"
+          ],
+          "methods": []
+        },
+        {
+          "name": "loadProjectState",
+          "kind": "function",
+          "line": 53,
+          "doc": "",
+          "args": [
+            "key"
+          ],
+          "methods": []
+        },
+        {
+          "name": "clearProjectState",
+          "kind": "function",
+          "line": 94,
+          "doc": "",
+          "args": [],
+          "methods": []
+        }
+      ]
+    }
+  },
+  "src/style.css": {
+    "mtime": 1795585343.583069,
+    "size": 50920,
+    "hash": "b0858054526799b91caacd2162d6d812cd6689dae10367b8c4dd6cdd0fae3c04",
+    "analysis": {
+      "file_path": "src/style.css",
+      "language": "css",
+      "summary": "",
+      "exports": [],
+      "calls": [],
+      "imports": [],
+      "symbols": []
+    }
+  },
+  ".cursorrules": {
+    "mtime": 1794795312.4353428,
+    "size": 301,
+    "hash": "cf4da2ea09928071c5a1c3f65664baa9a6def308d81ec61610cbd052b4758b5b",
+    "analysis": {
+      "file_path": ".cursorrules",
+      "language": "unknown",
+      "summary": "",
+      "exports": [],
+      "calls": [],
+      "imports": [],
+      "symbols": []
+    }
+  },
+  "AGENTS.md": {
+    "mtime": 1794795312.43761,
+    "size": 594,
+    "hash": "2fadee489665176946edabfd962702ce40df38e14526a9aff7cc76fb9e0b7433",
+    "analysis": {
+      "file_path": "AGENTS.md",
+      "language": "markdown",
+      "summary": "",
+      "exports": [],
+      "calls": [],
+      "imports": [],
+      "symbols": []
+    }
+  },
+  "CLAUDE.md": {
+    "mtime": 1794795312.4364817,
+    "size": 300,
+    "hash": "72c33cba614bce55dc0b2e5336e7a9d28f8df56d2abd7c229f824abd0f184e1b",
+    "analysis": {
+      "file_path": "CLAUDE.md",
+      "language": "markdown",
+      "summary": "",
+      "exports": [],
+      "calls": [],
+      "imports": [],
+      "symbols": []
+    }
+  },
+  "GEMINI.md": {
+    "mtime": 1794795312.4398766,
+    "size": 594,
+    "hash": "2fadee489665176946edabfd962702ce40df38e14526a9aff7cc76fb9e0b7433",
+    "analysis": {
+      "file_path": "GEMINI.md",
+      "language": "markdown",
+      "summary": "",
+      "exports": [],
+      "calls": [],
+      "imports": [],
+      "symbols": []
+    }
+  },
+  ".github/copilot-instructions.md": {
+    "mtime": 1794795312.4330244,
+    "size": 510,
+    "hash": "77bad9d6a7aa1a7e77a73f3150b26ed2ce39b4d37faf3cfd4fe7c234f70254f7",
+    "analysis": {
+      "file_path": ".github/copilot-instructions.md",
+      "language": "markdown",
+      "summary": "",
+      "exports": [],
+      "calls": [],
+      "imports": [],
+      "symbols": []
+    }
+  },
+  "_git_head": "refs/heads/main:9bd88d61",
+  "api/models.js": {
+    "mtime": 1795585313.0853348,
+    "size": 10746,
+    "hash": "f79e5f50f067c6755fdac8df369ce832e54d82e97209083a34dc260695c53d6b",
+    "analysis": {
+      "file_path": "api/models.js",
+      "language": "javascript",
+      "summary": "",
+      "exports": [
+        "createModelsHandler"
+      ],
+      "calls": [
+        "timingSafeEqualStr",
+        "from",
+        "timingSafeEqual",
+        "sha256Hex",
+        "createHash",
+        "update",
+        "String",
+        "digest",
+        "sanitizeText",
+        "trim",
+        "slice",
+        "readJsonBody",
+        "isBuffer",
+        "byteLength",
+        "Error",
+        "parse",
+        "push",
+        "concat",
+        "toString",
+        "toPublicMeta",
+        "getHeader",
+        "toLowerCase",
+        "isArray",
+        "validateCreatePayload",
+        "Boolean",
+        "test",
+        "isFinite",
+        "Number",
+        "max",
+        "round",
+        "stringify",
+        "createModelsHandler",
+        "handler",
+        "setHeader",
+        "status",
+        "end",
+        "URL",
+        "getEnv",
+        "json",
+        "blobList",
+        "all",
+        "map",
+        "async",
+        "fetchFn",
+        "filter",
+        "sort",
+        "now",
+        "randomUUID",
+        "randomBytes",
+        "blobPut"
+      ],
+      "imports": [
+        {
+          "source": "node:crypto",
+          "symbols": [
+            "crypto"
+          ],
+          "is_relative": false
+        },
+        {
+          "source": "@vercel/blob",
+          "symbols": [
+            "put",
+            "list",
+            "del"
+          ],
+          "is_relative": false
+        }
+      ],
+      "symbols": [
+        {
+          "name": "timingSafeEqualStr",
+          "kind": "function",
+          "line": 9,
+          "doc": "",
+          "args": [
+            "a",
+            "b"
+          ],
+          "methods": []
+        },
+        {
+          "name": "sha256Hex",
+          "kind": "function",
+          "line": 17,
+          "doc": "",
+          "args": [
+            "value"
+          ],
+          "methods": []
+        },
+        {
+          "name": "sanitizeText",
+          "kind": "function",
+          "line": 21,
+          "doc": "",
+          "args": [
+            "value",
+            "maxLen",
+            "fallback"
+          ],
+          "methods": []
+        },
+        {
+          "name": "readJsonBody",
+          "kind": "function",
+          "line": 28,
+          "doc": "",
+          "args": [
+            "req"
+          ],
+          "methods": []
+        },
+        {
+          "name": "toPublicMeta",
+          "kind": "function",
+          "line": 58,
+          "doc": "",
+          "args": [
+            "meta"
+          ],
+          "methods": []
+        },
+        {
+          "name": "getHeader",
+          "kind": "function",
+          "line": 64,
+          "doc": "",
+          "args": [
+            "req",
+            "name"
+          ],
+          "methods": []
+        },
+        {
+          "name": "validateCreatePayload",
+          "kind": "function",
+          "line": 71,
+          "doc": "",
+          "args": [
+            "body"
+          ],
+          "methods": []
+        },
+        {
+          "name": "createModelsHandler",
+          "kind": "function",
+          "line": 161,
+          "doc": "",
+          "args": [
+            "deps"
+          ],
+          "methods": []
+        },
+        {
+          "name": "handler",
+          "kind": "function",
+          "line": 168,
+          "doc": "",
+          "args": [
+            "req",
+            "res"
+          ],
+          "methods": []
+        }
+      ]
+    }
+  },
+  "src/cloud-library-ui.js": {
+    "mtime": 1795585382.8924713,
+    "size": 11467,
+    "hash": "799890355c986ce800a0d3d7cd5a41087bfac104a781787de6e24cd95fd6dccb",
+    "analysis": {
+      "file_path": "src/cloud-library-ui.js",
+      "language": "javascript",
+      "summary": "",
+      "exports": [
+        "initCloudLibraryUI"
+      ],
+      "calls": [
+        "formatShortDate",
+        "Date",
+        "toLocaleDateString",
+        "createBadge",
+        "createElement",
+        "initCloudLibraryUI",
+        "getElementById",
+        "Boolean",
+        "getStoredAdminPin",
+        "setStatus",
+        "syncAdminUI",
+        "toggle",
+        "renderModels",
+        "trim",
+        "toLowerCase",
+        "filter",
+        "includes",
+        "replaceChildren",
+        "appendChild",
+        "test",
+        "append",
+        "addEventListener",
+        "async",
+        "loadCloudModelData",
+        "applyPayload",
+        "getOwnDeleteToken",
+        "confirm",
+        "deleteCloudModel",
+        "refreshModels",
+        "fetchCloudModels",
+        "openModal",
+        "focus",
+        "getPayload",
+        "saveCloudModel",
+        "handleAdminLogin",
+        "verifyAdminPin",
+        "setStoredAdminPin",
+        "preventDefault"
+      ],
+      "imports": [
+        {
+          "source": "./cloud-library.js",
+          "symbols": [
+            "fetchCloudModels",
+            "loadCloudModelData",
+            "saveCloudModel",
+            "verifyAdminPin",
+            "deleteCloudModel",
+            "getOwnDeleteToken",
+            "getStoredAdminPin",
+            "setStoredAdminPin"
+          ],
+          "is_relative": true
+        }
+      ],
+      "symbols": [
+        {
+          "name": "formatShortDate",
+          "kind": "function",
+          "line": 12,
+          "doc": "",
+          "args": [
+            "ts"
+          ],
+          "methods": []
+        },
+        {
+          "name": "createBadge",
+          "kind": "function",
+          "line": 26,
+          "doc": "",
+          "args": [
+            "text"
+          ],
+          "methods": []
+        },
+        {
+          "name": "initCloudLibraryUI",
+          "kind": "function",
+          "line": 36,
+          "doc": "",
+          "args": [
+            "{ getPayload, applyPayload }"
+          ],
+          "methods": []
+        },
+        {
+          "name": "setStatus",
+          "kind": "function",
+          "line": 59,
+          "doc": "",
+          "args": [
+            "message",
+            "type"
+          ],
+          "methods": []
+        },
+        {
+          "name": "syncAdminUI",
+          "kind": "function",
+          "line": 71,
+          "doc": "",
+          "args": [],
+          "methods": []
+        },
+        {
+          "name": "renderModels",
+          "kind": "function",
+          "line": 81,
+          "doc": "",
+          "args": [],
+          "methods": []
+        },
+        {
+          "name": "refreshModels",
+          "kind": "function",
+          "line": 210,
+          "doc": "",
+          "args": [],
+          "methods": []
+        },
+        {
+          "name": "openModal",
+          "kind": "function",
+          "line": 227,
+          "doc": "",
+          "args": [],
+          "methods": []
+        },
+        {
+          "name": "handleAdminLogin",
+          "kind": "function",
+          "line": 284,
+          "doc": "",
+          "args": [],
+          "methods": []
+        }
+      ]
+    }
+  },
+  "src/cloud-library.js": {
+    "mtime": 1795585314.883697,
+    "size": 5164,
+    "hash": "6cd323a2512206c2c3d02d3f7110466d9ae6980f144ba0a29f858a3dc8a04b19",
+    "analysis": {
+      "file_path": "src/cloud-library.js",
+      "language": "javascript",
+      "summary": "",
+      "exports": [
+        "getStoredAdminPin",
+        "fetchCloudModels",
+        "setStoredAdminPin",
+        "getOwnDeleteToken",
+        "loadCloudModelData",
+        "saveCloudModel",
+        "verifyAdminPin",
+        "captureViewportThumbnail",
+        "deleteCloudModel"
+      ],
+      "calls": [
+        "readOwnTokensMap",
+        "getItem",
+        "parse",
+        "writeOwnTokensMap",
+        "entries",
+        "slice",
+        "setItem",
+        "stringify",
+        "fromEntries",
+        "getOwnDeleteToken",
+        "getStoredAdminPin",
+        "setStoredAdminPin",
+        "removeItem",
+        "parseApiJson",
+        "includes",
+        "Error",
+        "Vercel",
+        "json",
+        "fetchCloudModels",
+        "fetch",
+        "isArray",
+        "loadCloudModelData",
+        "CAD",
+        "saveCloudModel",
+        "verifyAdminPin",
+        "Blob",
+        "deleteCloudModel",
+        "encodeURIComponent",
+        "captureViewportThumbnail",
+        "render",
+        "createElement",
+        "getContext",
+        "fillRect",
+        "drawImage",
+        "toDataURL",
+        "startsWith"
+      ],
+      "imports": [],
+      "symbols": [
+        {
+          "name": "readOwnTokensMap",
+          "kind": "function",
+          "line": 5,
+          "doc": "",
+          "args": [],
+          "methods": []
+        },
+        {
+          "name": "writeOwnTokensMap",
+          "kind": "function",
+          "line": 15,
+          "doc": "",
+          "args": [
+            "map"
+          ],
+          "methods": []
+        },
+        {
+          "name": "getOwnDeleteToken",
+          "kind": "function",
+          "line": 24,
+          "doc": "",
+          "args": [
+            "id"
+          ],
+          "methods": []
+        },
+        {
+          "name": "getStoredAdminPin",
+          "kind": "function",
+          "line": 30,
+          "doc": "",
+          "args": [],
+          "methods": []
+        },
+        {
+          "name": "setStoredAdminPin",
+          "kind": "function",
+          "line": 38,
+          "doc": "",
+          "args": [
+            "pin"
+          ],
+          "methods": []
+        },
+        {
+          "name": "parseApiJson",
+          "kind": "function",
+          "line": 50,
+          "doc": "",
+          "args": [
+            "res"
+          ],
+          "methods": []
+        },
+        {
+          "name": "fetchCloudModels",
+          "kind": "function",
+          "line": 71,
+          "doc": "",
+          "args": [],
+          "methods": []
+        },
+        {
+          "name": "loadCloudModelData",
+          "kind": "function",
+          "line": 83,
+          "doc": "",
+          "args": [
+            "dataUrl"
+          ],
+          "methods": []
+        },
+        {
+          "name": "saveCloudModel",
+          "kind": "function",
+          "line": 94,
+          "doc": "",
+          "args": [
+            "payload"
+          ],
+          "methods": []
+        },
+        {
+          "name": "verifyAdminPin",
+          "kind": "function",
+          "line": 112,
+          "doc": "",
+          "args": [
+            "pin"
+          ],
+          "methods": []
+        },
+        {
+          "name": "deleteCloudModel",
+          "kind": "function",
+          "line": 127,
+          "doc": "",
+          "args": [
+            "id",
+            "{ adminPin"
+          ],
+          "methods": []
+        },
+        {
+          "name": "captureViewportThumbnail",
+          "kind": "function",
+          "line": 148,
+          "doc": "",
+          "args": [
+            "renderer",
+            "scene",
+            "camera"
+          ],
+          "methods": []
+        }
+      ]
+    }
+  }
+}

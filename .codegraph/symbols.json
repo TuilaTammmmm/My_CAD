@@ -1,0 +1,1813 @@
+{
+  "timingsafeequalstr": [
+    {
+      "name": "timingSafeEqualStr",
+      "kind": "function",
+      "file": "api/models.js",
+      "line": 9,
+      "doc": "",
+      "args": [
+        "a",
+        "b"
+      ],
+      "methods": []
+    }
+  ],
+  "sha256hex": [
+    {
+      "name": "sha256Hex",
+      "kind": "function",
+      "file": "api/models.js",
+      "line": 17,
+      "doc": "",
+      "args": [
+        "value"
+      ],
+      "methods": []
+    }
+  ],
+  "sanitizetext": [
+    {
+      "name": "sanitizeText",
+      "kind": "function",
+      "file": "api/models.js",
+      "line": 21,
+      "doc": "",
+      "args": [
+        "value",
+        "maxLen",
+        "fallback"
+      ],
+      "methods": []
+    }
+  ],
+  "readjsonbody": [
+    {
+      "name": "readJsonBody",
+      "kind": "function",
+      "file": "api/models.js",
+      "line": 28,
+      "doc": "",
+      "args": [
+        "req"
+      ],
+      "methods": []
+    }
+  ],
+  "topublicmeta": [
+    {
+      "name": "toPublicMeta",
+      "kind": "function",
+      "file": "api/models.js",
+      "line": 58,
+      "doc": "",
+      "args": [
+        "meta"
+      ],
+      "methods": []
+    }
+  ],
+  "getheader": [
+    {
+      "name": "getHeader",
+      "kind": "function",
+      "file": "api/models.js",
+      "line": 64,
+      "doc": "",
+      "args": [
+        "req",
+        "name"
+      ],
+      "methods": []
+    }
+  ],
+  "validatecreatepayload": [
+    {
+      "name": "validateCreatePayload",
+      "kind": "function",
+      "file": "api/models.js",
+      "line": 71,
+      "doc": "",
+      "args": [
+        "body"
+      ],
+      "methods": []
+    }
+  ],
+  "createmodelshandler": [
+    {
+      "name": "createModelsHandler",
+      "kind": "function",
+      "file": "api/models.js",
+      "line": 161,
+      "doc": "",
+      "args": [
+        "deps"
+      ],
+      "methods": []
+    }
+  ],
+  "handler": [
+    {
+      "name": "handler",
+      "kind": "function",
+      "file": "api/models.js",
+      "line": 168,
+      "doc": "",
+      "args": [
+        "req",
+        "res"
+      ],
+      "methods": []
+    }
+  ],
+  "cadengine": [
+    {
+      "name": "CadEngine",
+      "kind": "class",
+      "file": "src/cad-engine.js",
+      "line": 7,
+      "doc": "",
+      "args": [],
+      "methods": []
+    }
+  ],
+  "ispointintriangle": [
+    {
+      "name": "isPointInTriangle",
+      "kind": "function",
+      "file": "src/cad-engine.js",
+      "line": 877,
+      "doc": "",
+      "args": [
+        "P",
+        "t"
+      ],
+      "methods": []
+    }
+  ],
+  "ispointinface": [
+    {
+      "name": "isPointInFace",
+      "kind": "function",
+      "file": "src/cad-engine.js",
+      "line": 896,
+      "doc": "",
+      "args": [
+        "P",
+        "N"
+      ],
+      "methods": []
+    }
+  ],
+  "getadjacentfacenormals": [
+    {
+      "name": "getAdjacentFaceNormals",
+      "kind": "function",
+      "file": "src/cad-engine.js",
+      "line": 905,
+      "doc": "",
+      "args": [
+        "A",
+        "B"
+      ],
+      "methods": []
+    }
+  ],
+  "to3d": [
+    {
+      "name": "to3D",
+      "kind": "function",
+      "file": "src/cad-engine.js",
+      "line": 457,
+      "doc": "",
+      "args": [
+        "u",
+        "v",
+        "depth"
+      ],
+      "methods": []
+    },
+    {
+      "name": "to3D",
+      "kind": "function",
+      "file": "src/preview.js",
+      "line": 187,
+      "doc": "",
+      "args": [
+        "u",
+        "v",
+        "depth"
+      ],
+      "methods": []
+    },
+    {
+      "name": "to3D",
+      "kind": "function",
+      "file": "src/preview.js",
+      "line": 378,
+      "doc": "",
+      "args": [
+        "u",
+        "v",
+        "depth"
+      ],
+      "methods": []
+    }
+  ],
+  "to2d": [
+    {
+      "name": "to2D",
+      "kind": "function",
+      "file": "src/cad-engine.js",
+      "line": 772,
+      "doc": "",
+      "args": [
+        "v"
+      ],
+      "methods": []
+    }
+  ],
+  "getnativemethod": [
+    {
+      "name": "getNativeMethod",
+      "kind": "function",
+      "file": "src/cad-script.js",
+      "line": 72,
+      "doc": "",
+      "args": [
+        "obj",
+        "name"
+      ],
+      "methods": []
+    }
+  ],
+  "nativeclone": [
+    {
+      "name": "nativeClone",
+      "kind": "function",
+      "file": "src/cad-script.js",
+      "line": 85,
+      "doc": "",
+      "args": [
+        "shape"
+      ],
+      "methods": []
+    }
+  ],
+  "nativetranslate": [
+    {
+      "name": "nativeTranslate",
+      "kind": "function",
+      "file": "src/cad-script.js",
+      "line": 90,
+      "doc": "",
+      "args": [
+        "shape",
+        "x",
+        "y",
+        "z"
+      ],
+      "methods": []
+    }
+  ],
+  "nativerotate": [
+    {
+      "name": "nativeRotate",
+      "kind": "function",
+      "file": "src/cad-script.js",
+      "line": 96,
+      "doc": "",
+      "args": [
+        "shape",
+        "angle",
+        "position",
+        "direction"
+      ],
+      "methods": []
+    }
+  ],
+  "nativescale": [
+    {
+      "name": "nativeScale",
+      "kind": "function",
+      "file": "src/cad-script.js",
+      "line": 102,
+      "doc": "",
+      "args": [
+        "shape",
+        "factor",
+        "center"
+      ],
+      "methods": []
+    }
+  ],
+  "nativefuse": [
+    {
+      "name": "nativeFuse",
+      "kind": "function",
+      "file": "src/cad-script.js",
+      "line": 108,
+      "doc": "",
+      "args": [
+        "shape",
+        "other"
+      ],
+      "methods": []
+    }
+  ],
+  "nativecut": [
+    {
+      "name": "nativeCut",
+      "kind": "function",
+      "file": "src/cad-script.js",
+      "line": 114,
+      "doc": "",
+      "args": [
+        "shape",
+        "tool"
+      ],
+      "methods": []
+    }
+  ],
+  "nativeintersect": [
+    {
+      "name": "nativeIntersect",
+      "kind": "function",
+      "file": "src/cad-script.js",
+      "line": 120,
+      "doc": "",
+      "args": [
+        "shape",
+        "other"
+      ],
+      "methods": []
+    }
+  ],
+  "nativefillet": [
+    {
+      "name": "nativeFillet",
+      "kind": "function",
+      "file": "src/cad-script.js",
+      "line": 126,
+      "doc": "",
+      "args": [
+        "shape",
+        "radius",
+        "filter"
+      ],
+      "methods": []
+    }
+  ],
+  "nativechamfer": [
+    {
+      "name": "nativeChamfer",
+      "kind": "function",
+      "file": "src/cad-script.js",
+      "line": 132,
+      "doc": "",
+      "args": [
+        "shape",
+        "dist",
+        "filter"
+      ],
+      "methods": []
+    }
+  ],
+  "wrapshape": [
+    {
+      "name": "wrapShape",
+      "kind": "function",
+      "file": "src/cad-script.js",
+      "line": 138,
+      "doc": "",
+      "args": [
+        "shape"
+      ],
+      "methods": []
+    }
+  ],
+  "box": [
+    {
+      "name": "box",
+      "kind": "function",
+      "file": "src/cad-script.js",
+      "line": 152,
+      "doc": "",
+      "args": [
+        "w",
+        "h",
+        "d"
+      ],
+      "methods": []
+    }
+  ],
+  "roundbox": [
+    {
+      "name": "roundBox",
+      "kind": "function",
+      "file": "src/cad-script.js",
+      "line": 156,
+      "doc": "",
+      "args": [
+        "w",
+        "h",
+        "d",
+        "r"
+      ],
+      "methods": []
+    }
+  ],
+  "cylinder": [
+    {
+      "name": "cylinder",
+      "kind": "function",
+      "file": "src/cad-script.js",
+      "line": 163,
+      "doc": "",
+      "args": [
+        "r",
+        "h",
+        "axis"
+      ],
+      "methods": []
+    }
+  ],
+  "tube": [
+    {
+      "name": "tube",
+      "kind": "function",
+      "file": "src/cad-script.js",
+      "line": 176,
+      "doc": "",
+      "args": [
+        "rOuter",
+        "rInner",
+        "h",
+        "axis"
+      ],
+      "methods": []
+    }
+  ],
+  "poly": [
+    {
+      "name": "poly",
+      "kind": "function",
+      "file": "src/cad-script.js",
+      "line": 182,
+      "doc": "",
+      "args": [
+        "points2D",
+        "depth",
+        "axis"
+      ],
+      "methods": []
+    }
+  ],
+  "move": [
+    {
+      "name": "move",
+      "kind": "function",
+      "file": "src/cad-script.js",
+      "line": 203,
+      "doc": "",
+      "args": [
+        "target",
+        "x",
+        "y",
+        "z"
+      ],
+      "methods": []
+    }
+  ],
+  "rotate": [
+    {
+      "name": "rotate",
+      "kind": "function",
+      "file": "src/cad-script.js",
+      "line": 209,
+      "doc": "",
+      "args": [
+        "target",
+        "rxDeg",
+        "ryDeg",
+        "rzDeg"
+      ],
+      "methods": []
+    }
+  ],
+  "scale": [
+    {
+      "name": "scale",
+      "kind": "function",
+      "file": "src/cad-script.js",
+      "line": 218,
+      "doc": "",
+      "args": [
+        "target",
+        "sx"
+      ],
+      "methods": []
+    }
+  ],
+  "union": [
+    {
+      "name": "union",
+      "kind": "function",
+      "file": "src/cad-script.js",
+      "line": 224,
+      "doc": "",
+      "args": [
+        "...items"
+      ],
+      "methods": []
+    }
+  ],
+  "cut": [
+    {
+      "name": "cut",
+      "kind": "function",
+      "file": "src/cad-script.js",
+      "line": 234,
+      "doc": "",
+      "args": [
+        "target",
+        "...cutters"
+      ],
+      "methods": []
+    }
+  ],
+  "intersect": [
+    {
+      "name": "intersect",
+      "kind": "function",
+      "file": "src/cad-script.js",
+      "line": 244,
+      "doc": "",
+      "args": [
+        "target",
+        "...others"
+      ],
+      "methods": []
+    }
+  ],
+  "fillet": [
+    {
+      "name": "fillet",
+      "kind": "function",
+      "file": "src/cad-script.js",
+      "line": 254,
+      "doc": "",
+      "args": [
+        "target",
+        "radius",
+        "filter"
+      ],
+      "methods": []
+    }
+  ],
+  "chamfer": [
+    {
+      "name": "chamfer",
+      "kind": "function",
+      "file": "src/cad-script.js",
+      "line": 260,
+      "doc": "",
+      "args": [
+        "target",
+        "dist",
+        "filter"
+      ],
+      "methods": []
+    }
+  ],
+  "shell": [
+    {
+      "name": "shell",
+      "kind": "function",
+      "file": "src/cad-script.js",
+      "line": 266,
+      "doc": "",
+      "args": [
+        "target",
+        "thickness",
+        "faceFilter"
+      ],
+      "methods": []
+    }
+  ],
+  "executecadscript": [
+    {
+      "name": "executeCadScript",
+      "kind": "function",
+      "file": "src/cad-script.js",
+      "line": 278,
+      "doc": "",
+      "args": [
+        "code",
+        "cadEngine",
+        "dims"
+      ],
+      "methods": []
+    }
+  ],
+  "rotatebrusharoundy": [
+    {
+      "name": "rotateBrushAroundY",
+      "kind": "function",
+      "file": "src/cad-script.js",
+      "line": 354,
+      "doc": "",
+      "args": [
+        "brush",
+        "cadEngine",
+        "deg"
+      ],
+      "methods": []
+    }
+  ],
+  "cad2deditor": [
+    {
+      "name": "CAD2DEditor",
+      "kind": "class",
+      "file": "src/cad2d-editor.js",
+      "line": 13,
+      "doc": "",
+      "args": [],
+      "methods": []
+    }
+  ],
+  "gettouchpoint": [
+    {
+      "name": "getTouchPoint",
+      "kind": "function",
+      "file": "src/cad2d-editor.js",
+      "line": 1029,
+      "doc": "",
+      "args": [
+        "t"
+      ],
+      "methods": []
+    }
+  ],
+  "projectpointonline": [
+    {
+      "name": "projectPointOnLine",
+      "kind": "function",
+      "file": "src/cad2d-editor.js",
+      "line": 2202,
+      "doc": "",
+      "args": [
+        "P",
+        "p1",
+        "p2"
+      ],
+      "methods": []
+    }
+  ],
+  "tocanvasx": [
+    {
+      "name": "toCanvasX",
+      "kind": "function",
+      "file": "src/cad2d-editor.js",
+      "line": 3539,
+      "doc": "",
+      "args": [
+        "u"
+      ],
+      "methods": []
+    }
+  ],
+  "tocanvasy": [
+    {
+      "name": "toCanvasY",
+      "kind": "function",
+      "file": "src/cad2d-editor.js",
+      "line": 3540,
+      "doc": "",
+      "args": [
+        "v"
+      ],
+      "methods": []
+    }
+  ],
+  "formatshortdate": [
+    {
+      "name": "formatShortDate",
+      "kind": "function",
+      "file": "src/cloud-library-ui.js",
+      "line": 12,
+      "doc": "",
+      "args": [
+        "ts"
+      ],
+      "methods": []
+    }
+  ],
+  "createbadge": [
+    {
+      "name": "createBadge",
+      "kind": "function",
+      "file": "src/cloud-library-ui.js",
+      "line": 26,
+      "doc": "",
+      "args": [
+        "text"
+      ],
+      "methods": []
+    }
+  ],
+  "initcloudlibraryui": [
+    {
+      "name": "initCloudLibraryUI",
+      "kind": "function",
+      "file": "src/cloud-library-ui.js",
+      "line": 36,
+      "doc": "",
+      "args": [
+        "{ getPayload, applyPayload }"
+      ],
+      "methods": []
+    }
+  ],
+  "setstatus": [
+    {
+      "name": "setStatus",
+      "kind": "function",
+      "file": "src/cloud-library-ui.js",
+      "line": 59,
+      "doc": "",
+      "args": [
+        "message",
+        "type"
+      ],
+      "methods": []
+    }
+  ],
+  "syncadminui": [
+    {
+      "name": "syncAdminUI",
+      "kind": "function",
+      "file": "src/cloud-library-ui.js",
+      "line": 71,
+      "doc": "",
+      "args": [],
+      "methods": []
+    }
+  ],
+  "rendermodels": [
+    {
+      "name": "renderModels",
+      "kind": "function",
+      "file": "src/cloud-library-ui.js",
+      "line": 81,
+      "doc": "",
+      "args": [],
+      "methods": []
+    }
+  ],
+  "refreshmodels": [
+    {
+      "name": "refreshModels",
+      "kind": "function",
+      "file": "src/cloud-library-ui.js",
+      "line": 210,
+      "doc": "",
+      "args": [],
+      "methods": []
+    }
+  ],
+  "openmodal": [
+    {
+      "name": "openModal",
+      "kind": "function",
+      "file": "src/cloud-library-ui.js",
+      "line": 227,
+      "doc": "",
+      "args": [],
+      "methods": []
+    }
+  ],
+  "handleadminlogin": [
+    {
+      "name": "handleAdminLogin",
+      "kind": "function",
+      "file": "src/cloud-library-ui.js",
+      "line": 284,
+      "doc": "",
+      "args": [],
+      "methods": []
+    }
+  ],
+  "readowntokensmap": [
+    {
+      "name": "readOwnTokensMap",
+      "kind": "function",
+      "file": "src/cloud-library.js",
+      "line": 5,
+      "doc": "",
+      "args": [],
+      "methods": []
+    }
+  ],
+  "writeowntokensmap": [
+    {
+      "name": "writeOwnTokensMap",
+      "kind": "function",
+      "file": "src/cloud-library.js",
+      "line": 15,
+      "doc": "",
+      "args": [
+        "map"
+      ],
+      "methods": []
+    }
+  ],
+  "getowndeletetoken": [
+    {
+      "name": "getOwnDeleteToken",
+      "kind": "function",
+      "file": "src/cloud-library.js",
+      "line": 24,
+      "doc": "",
+      "args": [
+        "id"
+      ],
+      "methods": []
+    }
+  ],
+  "getstoredadminpin": [
+    {
+      "name": "getStoredAdminPin",
+      "kind": "function",
+      "file": "src/cloud-library.js",
+      "line": 30,
+      "doc": "",
+      "args": [],
+      "methods": []
+    }
+  ],
+  "setstoredadminpin": [
+    {
+      "name": "setStoredAdminPin",
+      "kind": "function",
+      "file": "src/cloud-library.js",
+      "line": 38,
+      "doc": "",
+      "args": [
+        "pin"
+      ],
+      "methods": []
+    }
+  ],
+  "parseapijson": [
+    {
+      "name": "parseApiJson",
+      "kind": "function",
+      "file": "src/cloud-library.js",
+      "line": 50,
+      "doc": "",
+      "args": [
+        "res"
+      ],
+      "methods": []
+    }
+  ],
+  "fetchcloudmodels": [
+    {
+      "name": "fetchCloudModels",
+      "kind": "function",
+      "file": "src/cloud-library.js",
+      "line": 71,
+      "doc": "",
+      "args": [],
+      "methods": []
+    }
+  ],
+  "loadcloudmodeldata": [
+    {
+      "name": "loadCloudModelData",
+      "kind": "function",
+      "file": "src/cloud-library.js",
+      "line": 83,
+      "doc": "",
+      "args": [
+        "dataUrl"
+      ],
+      "methods": []
+    }
+  ],
+  "savecloudmodel": [
+    {
+      "name": "saveCloudModel",
+      "kind": "function",
+      "file": "src/cloud-library.js",
+      "line": 94,
+      "doc": "",
+      "args": [
+        "payload"
+      ],
+      "methods": []
+    }
+  ],
+  "verifyadminpin": [
+    {
+      "name": "verifyAdminPin",
+      "kind": "function",
+      "file": "src/cloud-library.js",
+      "line": 112,
+      "doc": "",
+      "args": [
+        "pin"
+      ],
+      "methods": []
+    }
+  ],
+  "deletecloudmodel": [
+    {
+      "name": "deleteCloudModel",
+      "kind": "function",
+      "file": "src/cloud-library.js",
+      "line": 127,
+      "doc": "",
+      "args": [
+        "id",
+        "{ adminPin"
+      ],
+      "methods": []
+    }
+  ],
+  "captureviewportthumbnail": [
+    {
+      "name": "captureViewportThumbnail",
+      "kind": "function",
+      "file": "src/cloud-library.js",
+      "line": 148,
+      "doc": "",
+      "args": [
+        "renderer",
+        "scene",
+        "camera"
+      ],
+      "methods": []
+    }
+  ],
+  "dimensionoverlay": [
+    {
+      "name": "DimensionOverlay",
+      "kind": "class",
+      "file": "src/dimension-overlay.js",
+      "line": 12,
+      "doc": "",
+      "args": [],
+      "methods": []
+    }
+  ],
+  "dxfexporter": [
+    {
+      "name": "DXFExporter",
+      "kind": "class",
+      "file": "src/dxf-exporter.js",
+      "line": 6,
+      "doc": "",
+      "args": [],
+      "methods": []
+    }
+  ],
+  "addline": [
+    {
+      "name": "addLine",
+      "kind": "function",
+      "file": "src/dxf-exporter.js",
+      "line": 56,
+      "doc": "",
+      "args": [
+        "layer",
+        "x1",
+        "y1",
+        "x2",
+        "y2"
+      ],
+      "methods": []
+    }
+  ],
+  "addcircle": [
+    {
+      "name": "addCircle",
+      "kind": "function",
+      "file": "src/dxf-exporter.js",
+      "line": 65,
+      "doc": "",
+      "args": [
+        "layer",
+        "cx",
+        "cy",
+        "r"
+      ],
+      "methods": []
+    }
+  ],
+  "addarc": [
+    {
+      "name": "addArc",
+      "kind": "function",
+      "file": "src/dxf-exporter.js",
+      "line": 74,
+      "doc": "",
+      "args": [
+        "layer",
+        "cx",
+        "cy",
+        "r",
+        "startAngleDeg",
+        "endAngleDeg"
+      ],
+      "methods": []
+    }
+  ],
+  "addtext": [
+    {
+      "name": "addText",
+      "kind": "function",
+      "file": "src/dxf-exporter.js",
+      "line": 85,
+      "doc": "",
+      "args": [
+        "layer",
+        "text",
+        "x",
+        "y",
+        "height"
+      ],
+      "methods": []
+    }
+  ],
+  "exporttoobj": [
+    {
+      "name": "exportToOBJ",
+      "kind": "function",
+      "file": "src/exporter.js",
+      "line": 2,
+      "doc": "",
+      "args": [
+        "mesh",
+        "filename"
+      ],
+      "methods": []
+    }
+  ],
+  "gridoverlay": [
+    {
+      "name": "GridOverlay",
+      "kind": "class",
+      "file": "src/grid-overlay.js",
+      "line": 13,
+      "doc": "",
+      "args": [],
+      "methods": []
+    }
+  ],
+  "clearhistory": [
+    {
+      "name": "clearHistory",
+      "kind": "function",
+      "file": "src/main.js",
+      "line": 99,
+      "doc": "",
+      "args": [],
+      "methods": []
+    }
+  ],
+  "disposeedges": [
+    {
+      "name": "disposeEdges",
+      "kind": "function",
+      "file": "src/main.js",
+      "line": 110,
+      "doc": "",
+      "args": [
+        "edges"
+      ],
+      "methods": []
+    }
+  ],
+  "savehistory": [
+    {
+      "name": "saveHistory",
+      "kind": "function",
+      "file": "src/main.js",
+      "line": 122,
+      "doc": "",
+      "args": [
+        "brush"
+      ],
+      "methods": []
+    }
+  ],
+  "updatehistorybuttons": [
+    {
+      "name": "updateHistoryButtons",
+      "kind": "function",
+      "file": "src/main.js",
+      "line": 139,
+      "doc": "",
+      "args": [],
+      "methods": []
+    }
+  ],
+  "triggerautosave3d": [
+    {
+      "name": "triggerAutoSave3D",
+      "kind": "function",
+      "file": "src/main.js",
+      "line": 147,
+      "doc": "",
+      "args": [],
+      "methods": []
+    }
+  ],
+  "syncboundswithmodel": [
+    {
+      "name": "syncBoundsWithModel",
+      "kind": "function",
+      "file": "src/main.js",
+      "line": 179,
+      "doc": "",
+      "args": [
+        "brush"
+      ],
+      "methods": []
+    }
+  ],
+  "setmodel": [
+    {
+      "name": "setModel",
+      "kind": "function",
+      "file": "src/main.js",
+      "line": 214,
+      "doc": "",
+      "args": [
+        "brush",
+        "recordHistory"
+      ],
+      "methods": []
+    }
+  ],
+  "resetbaseblock": [
+    {
+      "name": "resetBaseBlock",
+      "kind": "function",
+      "file": "src/main.js",
+      "line": 261,
+      "doc": "",
+      "args": [],
+      "methods": []
+    }
+  ],
+  "applyloaded3dstate": [
+    {
+      "name": "applyLoaded3DState",
+      "kind": "function",
+      "file": "src/main.js",
+      "line": 279,
+      "doc": "",
+      "args": [
+        "saved3D"
+      ],
+      "methods": []
+    }
+  ],
+  "initappstorage": [
+    {
+      "name": "initAppStorage",
+      "kind": "function",
+      "file": "src/main.js",
+      "line": 317,
+      "doc": "",
+      "args": [],
+      "methods": []
+    }
+  ],
+  "updatecamerafrustumforview": [
+    {
+      "name": "updateCameraFrustumForView",
+      "kind": "function",
+      "file": "src/main.js",
+      "line": 343,
+      "doc": "",
+      "args": [
+        "viewKey"
+      ],
+      "methods": []
+    }
+  ],
+  "updatecamerafrustum": [
+    {
+      "name": "updateCameraFrustum",
+      "kind": "function",
+      "file": "src/main.js",
+      "line": 367,
+      "doc": "",
+      "args": [],
+      "methods": []
+    }
+  ],
+  "centercamera": [
+    {
+      "name": "centerCamera",
+      "kind": "function",
+      "file": "src/main.js",
+      "line": 371,
+      "doc": "",
+      "args": [],
+      "methods": []
+    }
+  ],
+  "setcameraisometric": [
+    {
+      "name": "setCameraIsometric",
+      "kind": "function",
+      "file": "src/main.js",
+      "line": 376,
+      "doc": "",
+      "args": [],
+      "methods": []
+    }
+  ],
+  "setactiveviewbutton": [
+    {
+      "name": "setActiveViewButton",
+      "kind": "function",
+      "file": "src/main.js",
+      "line": 389,
+      "doc": "",
+      "args": [
+        "id"
+      ],
+      "methods": []
+    }
+  ],
+  "syncsnapstepui": [
+    {
+      "name": "syncSnapStepUI",
+      "kind": "function",
+      "file": "src/main.js",
+      "line": 438,
+      "doc": "",
+      "args": [
+        "step"
+      ],
+      "methods": []
+    }
+  ],
+  "togglesnapstepui": [
+    {
+      "name": "toggleSnapStepUI",
+      "kind": "function",
+      "file": "src/main.js",
+      "line": 445,
+      "doc": "",
+      "args": [],
+      "methods": []
+    }
+  ],
+  "syncgridsquaresui": [
+    {
+      "name": "syncGridSquaresUI",
+      "kind": "function",
+      "file": "src/main.js",
+      "line": 450,
+      "doc": "",
+      "args": [
+        "visible"
+      ],
+      "methods": []
+    }
+  ],
+  "togglegridsquaresui": [
+    {
+      "name": "toggleGridSquaresUI",
+      "kind": "function",
+      "file": "src/main.js",
+      "line": 460,
+      "doc": "",
+      "args": [],
+      "methods": []
+    }
+  ],
+  "syncdimui": [
+    {
+      "name": "syncDimUI",
+      "kind": "function",
+      "file": "src/main.js",
+      "line": 465,
+      "doc": "",
+      "args": [
+        "enabled"
+      ],
+      "methods": []
+    }
+  ],
+  "toggledimui": [
+    {
+      "name": "toggleDimUI",
+      "kind": "function",
+      "file": "src/main.js",
+      "line": 477,
+      "doc": "",
+      "args": [],
+      "methods": []
+    }
+  ],
+  "syncscreensui": [
+    {
+      "name": "syncScreensUI",
+      "kind": "function",
+      "file": "src/main.js",
+      "line": 482,
+      "doc": "",
+      "args": [
+        "enabled"
+      ],
+      "methods": []
+    }
+  ],
+  "togglescreensui": [
+    {
+      "name": "toggleScreensUI",
+      "kind": "function",
+      "file": "src/main.js",
+      "line": 492,
+      "doc": "",
+      "args": [],
+      "methods": []
+    }
+  ],
+  "syncmodeui": [
+    {
+      "name": "syncModeUI",
+      "kind": "function",
+      "file": "src/main.js",
+      "line": 510,
+      "doc": "",
+      "args": [
+        "mode"
+      ],
+      "methods": []
+    }
+  ],
+  "performundo": [
+    {
+      "name": "performUndo",
+      "kind": "function",
+      "file": "src/main.js",
+      "line": 558,
+      "doc": "",
+      "args": [],
+      "methods": []
+    }
+  ],
+  "performredo": [
+    {
+      "name": "performRedo",
+      "kind": "function",
+      "file": "src/main.js",
+      "line": 572,
+      "doc": "",
+      "args": [],
+      "methods": []
+    }
+  ],
+  "applyhorizontalview": [
+    {
+      "name": "applyHorizontalView",
+      "kind": "function",
+      "file": "src/main.js",
+      "line": 708,
+      "doc": "",
+      "args": [
+        "stepNext"
+      ],
+      "methods": []
+    }
+  ],
+  "switchto2d": [
+    {
+      "name": "switchTo2D",
+      "kind": "function",
+      "file": "src/main.js",
+      "line": 828,
+      "doc": "",
+      "args": [],
+      "methods": []
+    }
+  ],
+  "switchto3d": [
+    {
+      "name": "switchTo3D",
+      "kind": "function",
+      "file": "src/main.js",
+      "line": 878,
+      "doc": "",
+      "args": [],
+      "methods": []
+    }
+  ],
+  "toggleappmode": [
+    {
+      "name": "toggleAppMode",
+      "kind": "function",
+      "file": "src/main.js",
+      "line": 916,
+      "doc": "",
+      "args": [],
+      "methods": []
+    }
+  ],
+  "setsidebarcompact": [
+    {
+      "name": "setSidebarCompact",
+      "kind": "function",
+      "file": "src/main.js",
+      "line": 932,
+      "doc": "",
+      "args": [
+        "compact"
+      ],
+      "methods": []
+    }
+  ],
+  "runcadscriptfrommodal": [
+    {
+      "name": "runCadScriptFromModal",
+      "kind": "function",
+      "file": "src/main.js",
+      "line": 1129,
+      "doc": "",
+      "args": [],
+      "methods": []
+    }
+  ],
+  "requestrender": [
+    {
+      "name": "requestRender",
+      "kind": "function",
+      "file": "src/main.js",
+      "line": 1273,
+      "doc": "",
+      "args": [],
+      "methods": []
+    }
+  ],
+  "animate": [
+    {
+      "name": "animate",
+      "kind": "function",
+      "file": "src/main.js",
+      "line": 1283,
+      "doc": "",
+      "args": [],
+      "methods": []
+    }
+  ],
+  "handleradiusinput": [
+    {
+      "name": "handleRadiusInput",
+      "kind": "function",
+      "file": "src/main.js",
+      "line": 1017,
+      "doc": "",
+      "args": [
+        "e"
+      ],
+      "methods": []
+    }
+  ],
+  "inspectiontool": [
+    {
+      "name": "InspectionTool",
+      "kind": "class",
+      "file": "src/measure-tool.js",
+      "line": 13,
+      "doc": "",
+      "args": [],
+      "methods": []
+    }
+  ],
+  "vkey": [
+    {
+      "name": "vKey",
+      "kind": "function",
+      "file": "src/measure-tool.js",
+      "line": 461,
+      "doc": "",
+      "args": [
+        "x",
+        "y",
+        "z"
+      ],
+      "methods": []
+    },
+    {
+      "name": "vKey",
+      "kind": "function",
+      "file": "src/projection-engine.js",
+      "line": 213,
+      "doc": "",
+      "args": [
+        "v"
+      ],
+      "methods": []
+    }
+  ],
+  "fmt": [
+    {
+      "name": "fmt",
+      "kind": "function",
+      "file": "src/measure-tool.js",
+      "line": 896,
+      "doc": "",
+      "args": [
+        "n"
+      ],
+      "methods": []
+    },
+    {
+      "name": "fmt",
+      "kind": "function",
+      "file": "src/measure-tool.js",
+      "line": 1209,
+      "doc": "",
+      "args": [
+        "n"
+      ],
+      "methods": []
+    },
+    {
+      "name": "fmt",
+      "kind": "function",
+      "file": "src/measure-tool.js",
+      "line": 1474,
+      "doc": "",
+      "args": [
+        "n"
+      ],
+      "methods": []
+    },
+    {
+      "name": "fmt",
+      "kind": "function",
+      "file": "src/picker.js",
+      "line": 820,
+      "doc": "",
+      "args": [
+        "n"
+      ],
+      "methods": []
+    }
+  ],
+  "initocct": [
+    {
+      "name": "initOCCT",
+      "kind": "function",
+      "file": "src/occt-kernel.js",
+      "line": 23,
+      "doc": "",
+      "args": [],
+      "methods": []
+    }
+  ],
+  "isocctready": [
+    {
+      "name": "isOCCTReady",
+      "kind": "function",
+      "file": "src/occt-kernel.js",
+      "line": 45,
+      "doc": "",
+      "args": [],
+      "methods": []
+    }
+  ],
+  "getoccterror": [
+    {
+      "name": "getOCCTError",
+      "kind": "function",
+      "file": "src/occt-kernel.js",
+      "line": 49,
+      "doc": "",
+      "args": [],
+      "methods": []
+    }
+  ],
+  "getoc": [
+    {
+      "name": "getOC",
+      "kind": "function",
+      "file": "src/occt-kernel.js",
+      "line": 53,
+      "doc": "",
+      "args": [],
+      "methods": []
+    }
+  ],
+  "replicadtobrush": [
+    {
+      "name": "replicadToBrush",
+      "kind": "function",
+      "file": "src/occt-kernel.js",
+      "line": 63,
+      "doc": "",
+      "args": [
+        "shape3d",
+        "material",
+        "options"
+      ],
+      "methods": []
+    }
+  ],
+  "interactivepicker": [
+    {
+      "name": "InteractivePicker",
+      "kind": "class",
+      "file": "src/picker.js",
+      "line": 3,
+      "doc": "",
+      "args": [],
+      "methods": []
+    }
+  ],
+  "addsharpvert": [
+    {
+      "name": "addSharpVert",
+      "kind": "function",
+      "file": "src/picker.js",
+      "line": 181,
+      "doc": "",
+      "args": [
+        "v",
+        "n1",
+        "n2"
+      ],
+      "methods": []
+    }
+  ],
+  "ekey": [
+    {
+      "name": "eKey",
+      "kind": "function",
+      "file": "src/picker.js",
+      "line": 221,
+      "doc": "",
+      "args": [
+        "v"
+      ],
+      "methods": []
+    }
+  ],
+  "updatemousefromevent": [
+    {
+      "name": "updateMouseFromEvent",
+      "kind": "function",
+      "file": "src/picker.js",
+      "line": 467,
+      "doc": "",
+      "args": [
+        "e"
+      ],
+      "methods": []
+    }
+  ],
+  "snapval": [
+    {
+      "name": "snapVal",
+      "kind": "function",
+      "file": "src/picker.js",
+      "line": 694,
+      "doc": "",
+      "args": [
+        "v"
+      ],
+      "methods": []
+    },
+    {
+      "name": "snapVal",
+      "kind": "function",
+      "file": "src/picker.js",
+      "line": 736,
+      "doc": "",
+      "args": [
+        "v"
+      ],
+      "methods": []
+    }
+  ],
+  "cutterpreview": [
+    {
+      "name": "CutterPreview",
+      "kind": "class",
+      "file": "src/preview.js",
+      "line": 5,
+      "doc": "",
+      "args": [],
+      "methods": []
+    }
+  ],
+  "testfn": [
+    {
+      "name": "testFn",
+      "kind": "function",
+      "file": "src/preview.js",
+      "line": 157,
+      "doc": "",
+      "args": [
+        "pt"
+      ],
+      "methods": []
+    }
+  ],
+  "intersectfn": [
+    {
+      "name": "intersectFn",
+      "kind": "function",
+      "file": "src/preview.js",
+      "line": 158,
+      "doc": "",
+      "args": [
+        "A",
+        "B"
+      ],
+      "methods": []
+    }
+  ],
+  "projectionengine": [
+    {
+      "name": "ProjectionEngine",
+      "kind": "class",
+      "file": "src/projection-engine.js",
+      "line": 13,
+      "doc": "",
+      "args": [],
+      "methods": []
+    }
+  ],
+  "projectionscreensoverlay": [
+    {
+      "name": "ProjectionScreensOverlay",
+      "kind": "class",
+      "file": "src/projection-screens.js",
+      "line": 11,
+      "doc": "",
+      "args": [],
+      "methods": []
+    }
+  ],
+  "opendb": [
+    {
+      "name": "openDB",
+      "kind": "function",
+      "file": "src/storage.js",
+      "line": 10,
+      "doc": "",
+      "args": [],
+      "methods": []
+    }
+  ],
+  "saveprojectstate": [
+    {
+      "name": "saveProjectState",
+      "kind": "function",
+      "file": "src/storage.js",
+      "line": 31,
+      "doc": "",
+      "args": [
+        "key",
+        "data"
+      ],
+      "methods": []
+    }
+  ],
+  "loadprojectstate": [
+    {
+      "name": "loadProjectState",
+      "kind": "function",
+      "file": "src/storage.js",
+      "line": 53,
+      "doc": "",
+      "args": [
+        "key"
+      ],
+      "methods": []
+    }
+  ],
+  "clearprojectstate": [
+    {
+      "name": "clearProjectState",
+      "kind": "function",
+      "file": "src/storage.js",
+      "line": 94,
+      "doc": "",
+      "args": [],
+      "methods": []
+    }
+  ]
+}

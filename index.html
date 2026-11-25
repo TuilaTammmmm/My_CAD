@@ -186,6 +186,13 @@
             <span class="accordion-chevron">▾</span>
           </button>
           <div class="accordion-body">
+            <button class="tool-btn" id="btn-open-cloud-lib" title="Lưu mô hình lên Thư viện chung hoặc mở mẫu người khác đã tạo">
+              <span class="tool-icon">
+                <svg viewBox="0 0 24 24"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
+              </span>
+              <span class="tool-text">Thư Viện Chung</span>
+            </button>
+
             <button class="tool-btn" id="btn-open-script" title="Viết hoặc dán code CAD Script để tự động dựng khối 3D">
               <span class="tool-icon">
                 <svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
@@ -425,6 +432,12 @@
                 <span>Xuất DXF</span>
               </button>
             </div>
+            <button class="tool-btn" id="btn-open-cloud-lib-2d" style="margin-top: 6px;" title="Lưu hoặc mở bản vẽ từ Thư viện chung">
+              <span class="tool-icon">
+                <svg viewBox="0 0 24 24"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
+              </span>
+              <span class="tool-text">Thư Viện Chung</span>
+            </button>
           </div>
         </div>
 
@@ -515,6 +528,50 @@
       <div class="script-footer">
         <span class="script-hint">Hỗ trợ cả Tiếng Việt (hop, tru, khoet...) và Tiếng Anh (box, cylinder, cut...) · Ctrl+Enter để chạy</span>
         <button class="btn-primary-reset" id="btn-run-script" style="width:auto; padding:8px 16px;">▶ Chạy Code → Tạo 3D</button>
+      </div>
+    </div>
+
+    <!-- MODAL THƯ VIỆN CAD DÙNG CHUNG (CLOUD LIBRARY) -->
+    <div id="cloud-lib-modal" class="cloud-lib-modal" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="cloud-lib-title">
+      <div class="popover-header">
+        <span id="cloud-lib-title">☁️ Thư Viện CAD Dùng Chung</span>
+        <button id="btn-close-cloud-lib" class="close-x" aria-label="Đóng Thư viện CAD dùng chung">✖️</button>
+      </div>
+
+      <!-- KHU VỰC LƯU BÀI HIỆN TẠI LÊN THƯ VIỆN -->
+      <div class="cloud-save-box">
+        <div class="cloud-save-inputs">
+          <input type="text" id="cloud-save-name" maxlength="80" placeholder="Tên mẫu CAD (VD: Gối đỡ trục Ø30)..." aria-label="Tên mẫu CAD">
+          <input type="text" id="cloud-save-author" maxlength="40" placeholder="Tên bạn (tùy chọn)..." aria-label="Tên người tạo">
+          <button type="button" id="btn-cloud-save" class="btn-cloud-primary">💾 Lưu lên Thư viện</button>
+        </div>
+        <div class="cloud-save-options">
+          <label class="cloud-chk"><input type="checkbox" id="cloud-chk-3d" checked> <span>Kèm khối 3D</span></label>
+          <label class="cloud-chk"><input type="checkbox" id="cloud-chk-2d" checked> <span>Kèm bản vẽ 2D</span></label>
+          <label class="cloud-chk"><input type="checkbox" id="cloud-chk-script" checked> <span>Kèm CAD Script</span></label>
+        </div>
+      </div>
+
+      <!-- THANH TÌM KIẾM & QUẢN TRỊ ADMIN -->
+      <div class="cloud-toolbar">
+        <input type="search" id="cloud-search-input" placeholder="🔍 Tìm mẫu theo tên hoặc tác giả..." aria-label="Tìm mẫu CAD">
+        <button type="button" id="btn-cloud-refresh" class="btn-cloud-secondary" title="Tải lại danh sách từ server">🔄 Tải lại</button>
+        <button type="button" id="btn-cloud-admin-toggle" class="btn-cloud-secondary" title="Đăng nhập mã PIN Admin để xóa các bài sai hoặc spam">🔑 Admin</button>
+      </div>
+
+      <!-- THANH NHẬP MÃ PIN ADMIN -->
+      <div id="cloud-admin-bar" class="cloud-admin-bar" style="display: none;">
+        <span class="cloud-admin-label">Quản trị viên (Xóa bài sai):</span>
+        <input type="password" id="cloud-admin-pin-input" placeholder="Nhập ADMIN_PIN..." aria-label="Mã PIN Admin">
+        <button type="button" id="btn-cloud-admin-login" class="btn-cloud-primary">Xác nhận</button>
+        <button type="button" id="btn-cloud-admin-logout" class="btn-cloud-danger" style="display: none;">Thoát Admin</button>
+      </div>
+
+      <div id="cloud-lib-status" class="cloud-lib-status" style="display: none;"></div>
+
+      <!-- DANH SÁCH MẪU CAD ĐÃ LƯU -->
+      <div id="cloud-models-grid" class="cloud-models-grid">
+        <div class="cloud-empty-state">Đang tải danh sách mẫu từ thư viện...</div>
       </div>
     </div>
 

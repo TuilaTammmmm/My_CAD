@@ -9,6 +9,7 @@ import {
   getStoredAdminPin,
   setStoredAdminPin
 } from './cloud-library.js';
+import { createSvgElement } from './ui-icons.js';
 
 function formatShortDate(ts) {
   if (!ts) return '';
@@ -72,11 +73,14 @@ export function initCloudLibraryUI({ getPayload, applyPayload }) {
   function syncAdminUI() {
     if (btnAdminToggle) {
       btnAdminToggle.classList.toggle('active', isAdminActive);
-      btnAdminToggle.textContent = isAdminActive ? '🔓 Admin: BẬT' : '🔑 Admin';
+      btnAdminToggle.replaceChildren(
+        createSvgElement(isAdminActive ? 'unlock' : 'lock', 14),
+        document.createTextNode(isAdminActive ? ' Admin: BẬT' : ' Admin')
+      );
     }
-    if (btnAdminLogin) btnAdminLogin.style.display = isAdminActive ? 'none' : 'inline-block';
+    if (btnAdminLogin) btnAdminLogin.style.display = isAdminActive ? 'none' : 'inline-flex';
     if (adminPinInput) adminPinInput.style.display = isAdminActive ? 'none' : 'inline-block';
-    if (btnAdminLogout) btnAdminLogout.style.display = isAdminActive ? 'inline-block' : 'none';
+    if (btnAdminLogout) btnAdminLogout.style.display = isAdminActive ? 'inline-flex' : 'none';
   }
 
   function renderModels() {
@@ -134,7 +138,8 @@ export function initCloudLibraryUI({ getPayload, applyPayload }) {
       const meta = document.createElement('div');
       meta.className = 'cloud-card-meta';
       const authorEl = document.createElement('span');
-      authorEl.textContent = `👤 ${model.author || 'Ẩn danh'}`;
+      authorEl.className = 'cloud-card-author';
+      authorEl.append(createSvgElement('user', 12), document.createTextNode(model.author || 'Ẩn danh'));
       const dateEl = document.createElement('span');
       dateEl.textContent = formatShortDate(model.createdAt);
       meta.append(authorEl, dateEl);
@@ -173,6 +178,8 @@ export function initCloudLibraryUI({ getPayload, applyPayload }) {
           const data = await loadCloudModelData(model.dataUrl);
           await applyPayload(data, model);
           modal.style.display = 'none';
+          const backdrop = document.getElementById('modal-backdrop');
+          if (backdrop) backdrop.style.display = 'none';
         } catch (err) {
           setStatus(err.message || 'Không thể mở mẫu CAD này.', 'error');
         } finally {
@@ -187,7 +194,11 @@ export function initCloudLibraryUI({ getPayload, applyPayload }) {
         btnDel.type = 'button';
         btnDel.className = 'btn-cloud-danger';
         btnDel.title = isAdminActive ? 'Xóa bằng quyền Admin' : 'Tự xóa bài của bản thân';
-        btnDel.textContent = isAdminActive ? '🗑️' : '🗑️ Xóa';
+        btnDel.setAttribute('aria-label', isAdminActive ? 'Xóa mẫu bằng quyền Admin' : 'Xóa mẫu của bạn');
+        btnDel.append(createSvgElement('trash', 13));
+        if (!isAdminActive) {
+          btnDel.append(document.createTextNode(' Xóa'));
+        }
         btnDel.addEventListener('click', async () => {
           const confirmMsg = `Xóa mẫu "${model.name}" khỏi thư viện chung?`;
           if (!window.confirm(confirmMsg)) return;
@@ -244,6 +255,8 @@ export function initCloudLibraryUI({ getPayload, applyPayload }) {
 
   function openModal() {
     modal.style.display = 'flex';
+    const backdrop = document.getElementById('modal-backdrop');
+    if (backdrop) backdrop.style.display = 'block';
     syncAdminUI();
     refreshModels();
   }
@@ -252,6 +265,8 @@ export function initCloudLibraryUI({ getPayload, applyPayload }) {
   document.getElementById('btn-open-cloud-lib-2d')?.addEventListener('click', openModal);
   document.getElementById('btn-close-cloud-lib')?.addEventListener('click', () => {
     modal.style.display = 'none';
+    const backdrop = document.getElementById('modal-backdrop');
+    if (backdrop) backdrop.style.display = 'none';
   });
 
   btnRefresh?.addEventListener('click', refreshModels);
@@ -267,7 +282,7 @@ export function initCloudLibraryUI({ getPayload, applyPayload }) {
 
     btnSave.disabled = true;
     const prevText = btnSave.textContent;
-    btnSave.textContent = '⏳ Đang lưu...';
+    btnSave.textContent = 'Đang lưu...';
     setStatus('Đang đóng gói và tải bài CAD lên thư viện...', 'info');
 
     try {
@@ -313,7 +328,7 @@ export function initCloudLibraryUI({ getPayload, applyPayload }) {
       if (adminPinInput) adminPinInput.value = '';
       syncAdminUI();
       renderModels();
-      setStatus('Đã bật chế độ Admin. Bạn có thể bấm 🗑️ để xóa các bài không hợp lệ.', 'success');
+      setStatus('Đã bật chế độ Admin. Bạn có thể xóa các bài không hợp lệ.', 'success');
     } catch (err) {
       setStatus(err.message || 'Xác thực Admin thất bại.', 'error');
     } finally {

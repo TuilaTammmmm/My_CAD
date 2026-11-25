@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { svgIcon } from './ui-icons.js';
 
 export class InteractivePicker {
   constructor(scene, camera, renderer, controls, cadEngine, preview, callbacks) {
@@ -1622,17 +1623,17 @@ export class InteractivePicker {
     this._lastRenderedMode = this.mode;
 
     const toolMeta = {
-      poly: { icon: '⬡', title: 'ĐA GIÁC' },
-      slant: { icon: '📐', title: 'VÁT CHÉO' },
-      box: { icon: '📦', title: 'HỘP KHỐI' },
-      vgroove: { icon: '✂️', title: 'RÃNH CHỮ V' },
-      corner: { icon: '🔻', title: 'VÁT GÓC' },
-      hole: { icon: '⭕', title: 'LỖ TRÒN / TRỤ' },
-      fillet3d: { icon: '🔘', title: 'BO TRÒN' }
+      poly: { icon: 'poly', title: 'Đa giác' },
+      slant: { icon: 'slant', title: 'Vát chéo' },
+      box: { icon: 'box', title: 'Hộp khối' },
+      vgroove: { icon: 'vgroove', title: 'Rãnh chữ V' },
+      corner: { icon: 'corner', title: 'Vát góc' },
+      hole: { icon: 'hole', title: 'Lỗ tròn / Trụ' },
+      fillet3d: { icon: 'fillet', title: 'Bo tròn' }
     };
 
-    const currentMeta = toolMeta[this.mode] || { icon: '✂️', title: 'CÔNG CỤ CẮT GỌT' };
-    if (this.tsrIcon) this.tsrIcon.textContent = currentMeta.icon;
+    const currentMeta = toolMeta[this.mode] || { icon: 'cut', title: 'Công cụ cắt gọt' };
+    if (this.tsrIcon) this.tsrIcon.innerHTML = svgIcon(currentMeta.icon, 16);
     if (this.tsrTitle) this.tsrTitle.textContent = currentMeta.title;
 
     let html = '';
@@ -1641,11 +1642,13 @@ export class InteractivePicker {
     if (this.mode !== 'fillet3d') {
       html += `
         <div class="tsr-mode-switch">
-          <button class="tsr-mode-btn ${this.opMode === 'cut' ? 'active-cut' : ''}" id="tsr-btn-mode-cut">
-            ✂️ Cắt Gọt
+          <button type="button" class="tsr-mode-btn ${this.opMode === 'cut' ? 'active-cut' : ''}" id="tsr-btn-mode-cut">
+            ${svgIcon('cut', 14)}
+            <span>Cắt gọt</span>
           </button>
-          <button class="tsr-mode-btn ${this.opMode === 'add' ? 'active-add' : ''}" id="tsr-btn-mode-add">
-            ➕ Vẽ Thêm
+          <button type="button" class="tsr-mode-btn ${this.opMode === 'add' ? 'active-add' : ''}" id="tsr-btn-mode-add">
+            ${svgIcon('plus', 14)}
+            <span>Vẽ thêm</span>
           </button>
         </div>
       `;
@@ -1656,8 +1659,8 @@ export class InteractivePicker {
       html += `
         <div class="tsr-section">
           <div class="tsr-section-title">
-            <span>📍 TỌA ĐỘ ĐIỂM (${this.selectedPoints.length})</span>
-            <span style="font-size:0.68rem; opacity:0.8;">Gõ để sửa</span>
+            <span class="tsr-section-title-left">${svgIcon('points', 14)}<span>Tọa độ điểm (${this.selectedPoints.length})</span></span>
+            <span class="tsr-section-meta">Gõ để sửa</span>
           </div>
       `;
 
@@ -1667,20 +1670,20 @@ export class InteractivePicker {
           <div class="tsr-point-row">
             <div class="tsr-point-header">
               <span>Điểm ${idx + 1}</span>
-              <button class="tsr-btn-del-pt" data-pt-idx="${idx}" style="background:none; border:none; color:#f87171; cursor:pointer; font-size:11px;" title="Xóa điểm này">🗑️ Xóa</button>
+              <button type="button" class="tsr-btn-del-pt" data-pt-idx="${idx}" title="Xóa điểm này" aria-label="Xóa điểm ${idx + 1}">${svgIcon('trash', 13)}<span>Xóa</span></button>
             </div>
             <div class="tsr-coord-inputs">
               <div class="tsr-input-group">
                 <label>X</label>
-                <input type="number" step="${stepVal}" class="tsr-coord-input" data-pt-idx="${idx}" data-axis="x" value="${pt.x}">
+                <input type="number" step="${stepVal}" class="tsr-coord-input" data-pt-idx="${idx}" data-axis="x" value="${pt.x}" aria-label="Tọa độ X điểm ${idx + 1}">
               </div>
               <div class="tsr-input-group">
                 <label>Y</label>
-                <input type="number" step="${stepVal}" class="tsr-coord-input" data-pt-idx="${idx}" data-axis="y" value="${pt.y}">
+                <input type="number" step="${stepVal}" class="tsr-coord-input" data-pt-idx="${idx}" data-axis="y" value="${pt.y}" aria-label="Tọa độ Y điểm ${idx + 1}">
               </div>
               <div class="tsr-input-group">
                 <label>Z</label>
-                <input type="number" step="${stepVal}" class="tsr-coord-input" data-pt-idx="${idx}" data-axis="z" value="${pt.z}">
+                <input type="number" step="${stepVal}" class="tsr-coord-input" data-pt-idx="${idx}" data-axis="z" value="${pt.z}" aria-label="Tọa độ Z điểm ${idx + 1}">
               </div>
             </div>
           </div>
@@ -1698,19 +1701,19 @@ export class InteractivePicker {
         html += `
           <div class="tsr-section">
             <div class="tsr-section-title">
-              <span>📏 ĐỘ SÂU ${this.opMode === 'add' ? 'ĐẮP KHỐI' : 'CẮT'}</span>
-              <span style="font-size:0.7rem; color:#cbd5e1;">${this.isFullDepth ? 'Xuyên suốt' : this.customDepth + ' ô'}</span>
+              <span class="tsr-section-title-left">${svgIcon('ruler', 14)}<span>Độ sâu ${this.opMode === 'add' ? 'đắp khối' : 'cắt'}</span></span>
+              <span class="tsr-section-meta">${this.isFullDepth ? 'Xuyên suốt' : this.customDepth + ' ô'}</span>
             </div>
             <div class="tsr-depth-control">
               <div class="tsr-depth-row">
-                <input type="number" id="tsr-input-depth" min="0.1" step="${stepVal}" value="${this.customDepth}" placeholder="Nhập độ sâu...">
-                <button class="tsr-btn-secondary ${this.isFullDepth ? 'active' : ''}" id="tsr-btn-full-depth">
-                  ${this.isFullDepth ? '✓ Xuyên suốt' : 'Xuyên suốt'}
+                <input type="number" id="tsr-input-depth" min="0.1" step="${stepVal}" value="${this.customDepth}" placeholder="Nhập độ sâu" aria-label="Độ sâu">
+                <button type="button" class="tsr-btn-secondary ${this.isFullDepth ? 'active' : ''}" id="tsr-btn-full-depth">
+                  ${this.isFullDepth ? svgIcon('check', 13) : ''}<span>Xuyên suốt</span>
                 </button>
               </div>
               <div class="tsr-btn-row">
-                <button class="tsr-btn-secondary" id="tsr-btn-depth-minus">➖ Giảm 1 ô</button>
-                <button class="tsr-btn-secondary" id="tsr-btn-depth-plus">➕ Tăng 1 ô</button>
+                <button type="button" class="tsr-btn-secondary" id="tsr-btn-depth-minus">${svgIcon('minus', 13)}<span>Giảm 1 ô</span></button>
+                <button type="button" class="tsr-btn-secondary" id="tsr-btn-depth-plus">${svgIcon('plus', 13)}<span>Tăng 1 ô</span></button>
               </div>
             </div>
           </div>
@@ -1723,10 +1726,10 @@ export class InteractivePicker {
       html += `
         <div class="tsr-section">
           <div class="tsr-section-title">
-            <span>🔄 HƯỚNG MẶT PHẲNG CẮT</span>
+            <span class="tsr-section-title-left">${svgIcon('rotate', 14)}<span>Hướng mặt phẳng cắt</span></span>
           </div>
-          <button class="tsr-btn-secondary" id="tsr-btn-toggle-dir" style="width:100%;">
-            🔄 Đổi Phía Vát / Cắt (${this.slantCutAbove ? 'Phía TRÊN / PHẢI' : 'Phía DƯỚI / TRÁI'})
+          <button type="button" class="tsr-btn-secondary tsr-btn-full" id="tsr-btn-toggle-dir">
+            ${svgIcon('rotate', 13)}<span>Đổi phía (${this.slantCutAbove ? 'Trên / Phải' : 'Dưới / Trái'})</span>
           </button>
         </div>
       `;
@@ -1737,10 +1740,10 @@ export class InteractivePicker {
       html += `
         <div class="tsr-section">
           <div class="tsr-section-title">
-            <span>🔻 ĐỈNH NHỌN RÃNH V</span>
+            <span class="tsr-section-title-left">${svgIcon('vgroove', 14)}<span>Đỉnh nhọn rãnh V</span></span>
           </div>
-          <button class="tsr-btn-secondary" id="tsr-btn-cycle-apex" style="width:100%;">
-            🔄 Đổi Đỉnh Rãnh V (${apexIdxText})
+          <button type="button" class="tsr-btn-secondary tsr-btn-full" id="tsr-btn-cycle-apex">
+            ${svgIcon('rotate', 13)}<span>Đổi đỉnh (${apexIdxText})</span>
           </button>
         </div>
       `;
@@ -1750,18 +1753,18 @@ export class InteractivePicker {
       html += `
         <div class="tsr-section">
           <div class="tsr-section-title">
-            <span>⭕ THÔNG SỐ ${this.opMode === 'add' ? 'TRỤ LỒI' : 'LỖ KHOAN'}</span>
+            <span class="tsr-section-title-left">${svgIcon('hole', 14)}<span>Thông số ${this.opMode === 'add' ? 'trụ lồi' : 'lỗ khoan'}</span></span>
           </div>
-          <div style="display:flex; flex-direction:column; gap:6px;">
+          <div class="tsr-field-stack">
             <div class="tsr-depth-row">
-              <span style="font-size:0.75rem; color:#94a3b8; width:70px;">Đường kính:</span>
+              <label class="tsr-field-label" for="tsr-hole-dia">Đường kính</label>
               <input type="number" id="tsr-hole-dia" min="0.2" step="0.5" value="${this.holeRadius * 2}">
             </div>
             <div class="tsr-depth-row">
-              <span style="font-size:0.75rem; color:#94a3b8; width:70px;">Độ sâu/Cao:</span>
+              <label class="tsr-field-label" for="tsr-hole-depth">Độ sâu / Cao</label>
               <input type="number" id="tsr-hole-depth" min="0.5" step="0.5" value="${this.holeDepth}">
-              <button class="tsr-btn-secondary ${this.holeThrough ? 'active' : ''}" id="tsr-hole-through">
-                ${this.holeThrough ? '✓ Xuyên' : 'Xuyên'}
+              <button type="button" class="tsr-btn-secondary ${this.holeThrough ? 'active' : ''}" id="tsr-hole-through">
+                ${this.holeThrough ? svgIcon('check', 13) : ''}<span>Xuyên</span>
               </button>
             </div>
           </div>
@@ -1773,12 +1776,12 @@ export class InteractivePicker {
       html += `
         <div class="tsr-section">
           <div class="tsr-section-title">
-            <span>🔘 BÁN KÍNH BO (R)</span>
+            <span class="tsr-section-title-left">${svgIcon('fillet', 14)}<span>Bán kính bo (R)</span></span>
           </div>
           <div class="tsr-depth-row">
-            <input type="number" id="tsr-fillet-r" min="0.1" step="0.5" value="${this.filletRadius}">
-            <button class="tsr-btn-secondary" id="tsr-fillet-minus">➖ 0.5</button>
-            <button class="tsr-btn-secondary" id="tsr-fillet-plus">➕ 0.5</button>
+            <input type="number" id="tsr-fillet-r" min="0.1" step="0.5" value="${this.filletRadius}" aria-label="Bán kính bo R">
+            <button type="button" class="tsr-btn-secondary" id="tsr-fillet-minus">${svgIcon('minus', 13)}<span>0.5</span></button>
+            <button type="button" class="tsr-btn-secondary" id="tsr-fillet-plus">${svgIcon('plus', 13)}<span>0.5</span></button>
           </div>
         </div>
       `;
@@ -1796,38 +1799,39 @@ export class InteractivePicker {
     );
 
     const execClass = (this.opMode === 'add') ? 'add-action' : 'cut-action';
-    const execLabel = (this.opMode === 'add') ? '➕ VẼ THÊM (Enter)' : '✂️ CẮT GỌT (Enter)';
+    const execIcon = (this.opMode === 'add') ? svgIcon('plus', 15) : svgIcon('cut', 15);
+    const execLabel = (this.opMode === 'add') ? 'Vẽ thêm (Enter)' : 'Cắt gọt (Enter)';
 
     html += `
-      <div style="display:flex; flex-direction:column; gap:8px; margin-top:4px;">
-        <button class="tsr-btn-primary ${execClass}" id="tsr-btn-execute" ${canExecute ? '' : 'disabled style="opacity:0.5; cursor:not-allowed;"'}>
-          ${execLabel}
+      <div class="tsr-action-stack">
+        <button type="button" class="tsr-btn-primary ${execClass}" id="tsr-btn-execute" ${canExecute ? '' : 'disabled'}>
+          ${execIcon}<span>${execLabel}</span>
         </button>
         <div class="tsr-btn-row">
-          <button class="tsr-btn-secondary" id="tsr-btn-del-last" ${this.selectedPoints.length > 0 ? '' : 'disabled style="opacity:0.5;"'}>
-            ↩️ Xóa Điểm
+          <button type="button" class="tsr-btn-secondary" id="tsr-btn-del-last" ${this.selectedPoints.length > 0 ? '' : 'disabled'}>
+            ${svgIcon('undo', 13)}<span>Xóa điểm</span>
           </button>
-          <button class="tsr-btn-secondary" id="tsr-btn-cancel" style="color:#f87171;">
-            ✖️ Hủy Bỏ
+          <button type="button" class="tsr-btn-secondary tsr-btn-cancel" id="tsr-btn-cancel">
+            ${svgIcon('close', 13)}<span>Hủy bỏ</span>
           </button>
         </div>
       </div>
     `;
 
     // 6. Bước bắt dính & Lưới nhanh
-    let stepBadge = '🎯 1 Ô';
-    if (Math.abs(this.snapStep - 0.5) < 0.01) stepBadge = '✂️ 1/2 Ô';
-    else if (Math.abs(this.snapStep - 0.25) < 0.01) stepBadge = '✂️ 1/4 Ô';
-    else if (Math.abs(this.snapStep - 0.125) < 0.01) stepBadge = '✂️ 1/8 Ô';
+    let stepBadge = '1 ô';
+    if (Math.abs(this.snapStep - 0.5) < 0.01) stepBadge = '1/2 ô';
+    else if (Math.abs(this.snapStep - 0.25) < 0.01) stepBadge = '1/4 ô';
+    else if (Math.abs(this.snapStep - 0.125) < 0.01) stepBadge = '1/8 ô';
 
     html += `
-      <div class="tsr-section" style="margin-top:auto;">
+      <div class="tsr-section tsr-section-bottom">
         <div class="tsr-section-title">
-          <span>⚙️ BẮT DÍNH & LƯỚI</span>
+          <span class="tsr-section-title-left">${svgIcon('sliders', 14)}<span>Bắt dính &amp; Lưới</span></span>
         </div>
         <div class="tsr-btn-row">
-          <button class="tsr-btn-secondary" id="tsr-toggle-step" title="Đổi bước lưới (Phím tắt: S)">${stepBadge}</button>
-          <button class="tsr-btn-secondary ${this.preferOuterGrid ? 'active' : ''}" id="tsr-toggle-outer-grid" title="Bắt dính hộp bao ngoài để cắt/vẽ mặt cong dễ hơn">🧲 Lưới Ngoài</button>
+          <button type="button" class="tsr-btn-secondary" id="tsr-toggle-step" title="Đổi bước lưới (Phím S)">${svgIcon('snap', 13)}<span>${stepBadge}</span></button>
+          <button type="button" class="tsr-btn-secondary ${this.preferOuterGrid ? 'active' : ''}" id="tsr-toggle-outer-grid" title="Bắt dính hộp bao ngoài để thao tác mặt cong">${svgIcon('magnet', 13)}<span>Lưới ngoài</span></button>
         </div>
       </div>
     `;

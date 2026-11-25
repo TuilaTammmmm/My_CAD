@@ -26,7 +26,7 @@ injectSpeedInsights();
 // --- INITIALIZE THREE.JS ---
 const container = document.getElementById('viewport-container');
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0b0f19);
+scene.background = new THREE.Color(0x0f0f0f);
 
 let W = 6, H = 4, D = 4;
 
@@ -451,7 +451,7 @@ function syncGridSquaresUI(visible) {
   const btn = document.getElementById('btn-toggle-grid-squares');
   const lbl = document.getElementById('lbl-grid-squares');
   if (btn) btn.classList.toggle('active', visible);
-  if (lbl) lbl.textContent = visible ? 'Ô Vuông: BẬT' : 'Ô Vuông: TẮT';
+  if (lbl) lbl.textContent = visible ? 'Ô vuông: BẬT' : 'Ô vuông: TẮT';
   if (inspectionTool && inspectionTool.syncGridSquaresUI) {
     inspectionTool.syncGridSquaresUI(visible);
   }
@@ -466,7 +466,7 @@ function syncDimUI(enabled) {
   const btn = document.getElementById('btn-toggle-dim');
   const lbl = document.getElementById('lbl-toggle-dim');
   if (btn) btn.classList.toggle('active', enabled);
-  if (lbl) lbl.textContent = enabled ? 'Số Đo: BẬT' : 'Số Đo: TẮT';
+  if (lbl) lbl.textContent = enabled ? 'Số đo: BẬT' : 'Số đo: TẮT';
   const viewDimBadge = document.getElementById('view-dim-badge');
   if (viewDimBadge) viewDimBadge.style.display = (enabled && appMode === '3d') ? 'flex' : 'none';
   if (inspectionTool && inspectionTool.syncDimUI) {
@@ -483,7 +483,7 @@ function syncScreensUI(enabled) {
   const btn = document.getElementById('inspect-toggle-screens');
   const lbl = document.getElementById('lbl-inspect-screens');
   if (btn) btn.classList.toggle('active', enabled);
-  if (lbl) lbl.textContent = enabled ? 'Màn Chiếu: BẬT' : 'Màn Chiếu: TẮT';
+  if (lbl) lbl.textContent = enabled ? 'Màn chiếu: BẬT' : 'Màn chiếu: TẮT';
   if (inspectionTool && inspectionTool.syncScreensUI) {
     inspectionTool.syncScreensUI(enabled);
   }
@@ -716,7 +716,7 @@ function applyHorizontalView(stepNext = false) {
     if (textSpan) {
       textSpan.textContent = view.name;
     } else {
-      btn.innerHTML = `🔄 ${view.name}`;
+      btn.textContent = view.name;
     }
     btn.title = `Góc chiếu ngang 90° - Đang ở [${view.name}]. Click để xoay 90° tiếp`;
   }
@@ -834,6 +834,8 @@ function switchTo2D() {
   saveProjectState('app_mode', '2d');
   document.getElementById('switch-to-3d')?.classList.remove('active');
   document.getElementById('switch-to-2d')?.classList.add('active');
+  document.getElementById('switch-to-3d')?.setAttribute('aria-selected', 'false');
+  document.getElementById('switch-to-2d')?.setAttribute('aria-selected', 'true');
   const appModeTitle = document.getElementById('app-mode-title');
   const appModeSub = document.getElementById('app-mode-sub');
   if (appModeTitle) appModeTitle.textContent = '2D CAD';
@@ -888,6 +890,8 @@ function switchTo3D() {
   saveProjectState('app_mode', '3d');
   document.getElementById('switch-to-2d')?.classList.remove('active');
   document.getElementById('switch-to-3d')?.classList.add('active');
+  document.getElementById('switch-to-2d')?.setAttribute('aria-selected', 'false');
+  document.getElementById('switch-to-3d')?.setAttribute('aria-selected', 'true');
   const appModeTitle = document.getElementById('app-mode-title');
   const appModeSub = document.getElementById('app-mode-sub');
   if (appModeTitle) appModeTitle.textContent = 'My CAD';
@@ -975,14 +979,20 @@ document.querySelectorAll('.accordion-toggle').forEach(btn => {
     if (isSidebarCompact) {
       setSidebarCompact(false);
       containerGroup?.querySelectorAll('.sidebar-accordion').forEach(el => {
-        el.classList.toggle('open', el === acc);
+        const isTarget = (el === acc);
+        el.classList.toggle('open', isTarget);
+        el.querySelector('.accordion-toggle')?.setAttribute('aria-expanded', String(isTarget));
       });
     } else {
       const willOpen = !acc.classList.contains('open');
       containerGroup?.querySelectorAll('.sidebar-accordion').forEach(el => {
         el.classList.remove('open');
+        el.querySelector('.accordion-toggle')?.setAttribute('aria-expanded', 'false');
       });
-      if (willOpen) acc.classList.add('open');
+      if (willOpen) {
+        acc.classList.add('open');
+        btn.setAttribute('aria-expanded', 'true');
+      }
     }
   });
 });
@@ -1085,10 +1095,42 @@ screenDistSlider?.addEventListener('input', (e) => {
 });
 
 // --- CODE -> 3D (CAD SCRIPT) ---
+const modalBackdrop = document.getElementById('modal-backdrop');
 const scriptModal = document.getElementById('script-modal');
 const scriptInput = document.getElementById('cad-script-input');
 const scriptPreset = document.getElementById('script-preset-select');
 const scriptError = document.getElementById('cad-script-error');
+
+function syncModalBackdrop() {
+  if (!modalBackdrop) return;
+  const cloudModal = document.getElementById('cloud-lib-modal');
+  const scriptOpen = scriptModal && scriptModal.style.display !== 'none';
+  const cloudOpen = cloudModal && cloudModal.style.display !== 'none';
+  modalBackdrop.style.display = (scriptOpen || cloudOpen) ? 'block' : 'none';
+}
+
+function closeAllModals() {
+  const cloudModal = document.getElementById('cloud-lib-modal');
+  if (scriptModal) scriptModal.style.display = 'none';
+  if (cloudModal) cloudModal.style.display = 'none';
+  if (dimPopover) dimPopover.style.display = 'none';
+  syncModalBackdrop();
+}
+
+modalBackdrop?.addEventListener('click', closeAllModals);
+
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    const cloudModal = document.getElementById('cloud-lib-modal');
+    const anyModalOpen =
+      (scriptModal && scriptModal.style.display !== 'none') ||
+      (cloudModal && cloudModal.style.display !== 'none') ||
+      (dimPopover && dimPopover.style.display !== 'none');
+    if (anyModalOpen) {
+      closeAllModals();
+    }
+  }
+});
 
 if (scriptInput && !scriptInput.value.trim()) {
   scriptInput.value = CAD_SCRIPT_PRESETS.new_box_cut;
@@ -1097,11 +1139,13 @@ if (scriptInput && !scriptInput.value.trim()) {
 document.getElementById('btn-open-script')?.addEventListener('click', () => {
   if (scriptModal) {
     scriptModal.style.display = scriptModal.style.display === 'none' ? 'flex' : 'none';
+    syncModalBackdrop();
   }
 });
 
 document.getElementById('btn-close-script')?.addEventListener('click', () => {
   if (scriptModal) scriptModal.style.display = 'none';
+  syncModalBackdrop();
 });
 
 scriptPreset?.addEventListener('change', (e) => {
@@ -1133,7 +1177,7 @@ async function runCadScriptFromModal() {
   const prevLabel = runBtn ? runBtn.textContent : '';
   if (runBtn) {
     runBtn.disabled = true;
-    runBtn.textContent = '⏳ Đang dựng B-Rep...';
+    runBtn.textContent = 'Đang dựng B-Rep...';
   }
   try {
     const rotSel = document.getElementById('script-front-rot');
@@ -1154,6 +1198,7 @@ async function runCadScriptFromModal() {
     dimOverlay.updateBounds(W, H, D, picker.snapStep);
     centerCamera();
     if (scriptModal) scriptModal.style.display = 'none';
+    syncModalBackdrop();
   } catch (err) {
     if (scriptError) {
       scriptError.textContent = `Lỗi Script: ${err.message || err}`;
@@ -1162,7 +1207,7 @@ async function runCadScriptFromModal() {
   } finally {
     if (runBtn) {
       runBtn.disabled = false;
-      runBtn.textContent = prevLabel || '▶ Chạy Code → Tạo 3D';
+      runBtn.textContent = prevLabel || 'Chạy Script → 3D';
     }
   }
 }

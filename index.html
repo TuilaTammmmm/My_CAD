@@ -1,9 +1,15 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="vi" data-type="software" data-radius="sharp" data-motion>
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>My CAD</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0f0f0f">
+  <meta name="description" content="My CAD — Trình dựng khối 3D B-Rep trực quan và bản vẽ kỹ thuật 2D trên trình duyệt.">
+  <title>My CAD — B-Rep Studio</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230f0f0f'/%3E%3Cpath d='M16 4L26 9.8v12.4L16 28 6 22.2V9.8L16 4z' fill='none' stroke='%23dafa9c' stroke-width='2' stroke-linejoin='round'/%3E%3Cpath d='M16 28V15.5m10-5.7L16 15.5M6 9.8l10 5.7' fill='none' stroke='%23dafa9c' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./src/style.css">
 </head>
 <body>
@@ -11,16 +17,16 @@
   <!-- KHÔNG GIAN LÀM VIỆC CHÍNH -->
   <div id="viewport-container">
 
-    <!-- THANH CÔNG CỤ DỌC DÙNG CHUNG DUY NHẤT (UNIFIED CAD SIDEBAR) -->
-    <aside class="cad-sidebar" id="cad-sidebar">
-      
-      <!-- HEADER SIDEBAR: LOGO THƯƠNG HIỆU + NÚT THU GỌN -->
+    <!-- THANH CÔNG CỤ DỌC DÙNG CHUNG (UNIFIED CAD SIDEBAR) -->
+    <aside class="cad-sidebar" id="cad-sidebar" aria-label="Thanh công cụ CAD">
+
+      <!-- HEADER SIDEBAR -->
       <div class="sidebar-top-row">
         <div class="sidebar-brand" id="sidebar-brand-header">
-          <div class="brand-logo-glow">
+          <div class="brand-mark" aria-hidden="true">
             <svg class="brand-svg" viewBox="0 0 32 32" fill="none">
-              <path d="M16 2L28 8.5V23.5L16 30L4 23.5V8.5L16 2Z" stroke="#38bdf8" stroke-width="2.2" stroke-linejoin="round"/>
-              <path d="M16 30V15.5M28 8.5L16 15.5M4 8.5L16 15.5" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/>
+              <path d="M16 3L27 9.2v13.6L16 29 5 22.8V9.2L16 3z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+              <path d="M16 29V15.8m11-6.6L16 15.8M5 9.2l11 6.6" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/>
             </svg>
           </div>
           <div class="brand-info">
@@ -30,190 +36,196 @@
             <span id="autosave-status" style="display:none;"></span>
           </div>
         </div>
-        <button class="sidebar-compact-btn" id="btn-toggle-sidebar-compact" title="Thu gọn / Mở rộng thanh công cụ (Tab Icon)" aria-label="Thu gọn hoặc mở rộng thanh công cụ">
-          <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+        <button class="sidebar-compact-btn" id="btn-toggle-sidebar-compact" type="button" title="Thu gọn / Mở rộng thanh công cụ" aria-label="Thu gọn hoặc mở rộng thanh công cụ">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
         </button>
       </div>
 
-      <!-- THANH CHUYỂN CHẾ ĐỘ 3D / 2D TRỰC TIẾP -->
-      <div class="mode-switcher-bar">
-        <button class="switcher-btn active" id="switch-to-3d" title="Chế độ 3D Block CAD">
-          <span class="sw-icon">🧊</span>
+      <!-- CHUYỂN CHẾ ĐỘ 3D / 2D -->
+      <div class="mode-switcher-bar" role="tablist" aria-label="Chế độ làm việc">
+        <button class="switcher-btn active" id="switch-to-3d" type="button" role="tab" aria-selected="true" title="Chế độ 3D Block CAD">
+          <span class="sw-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/><path d="M12 21v-9m8-4.5L12 12M4 7.5L12 12"/></svg>
+          </span>
           <span class="sw-text">3D Block</span>
         </button>
-        <button class="switcher-btn" id="switch-to-2d" title="Chế độ 2D CAD">
-          <span class="sw-icon">📐</span>
+        <button class="switcher-btn" id="switch-to-2d" type="button" role="tab" aria-selected="false" title="Chế độ 2D CAD">
+          <span class="sw-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M3 20h18M5 20V5l14 15"/><path d="M9 20v-6h6"/></svg>
+          </span>
           <span class="sw-text">2D CAD</span>
         </button>
       </div>
 
       <!-- ============================================== -->
-      <!-- BỘ CÔNG CỤ 3D (HIỂN THỊ KHI Ở CHẾ ĐỘ 3D BLOCK)  -->
+      <!-- BỘ CÔNG CỤ 3D                                  -->
       <!-- ============================================== -->
       <div id="sidebar-3d-tools">
-        
-        <!-- NHÓM 1: CÔNG CỤ CẮT GỌT 3D -->
+
         <div class="sidebar-section">
-          <div class="section-label">CHẾ ĐỘ CẮT GỌT</div>
+          <div class="section-label">Chế độ cắt gọt</div>
           <div class="tool-list">
-            <button class="tool-btn mode-btn active" data-mode="view" title="Chế độ quan sát: Xoay tự do không vướng điểm">
-              <span class="tool-icon">
-                <svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            <button class="tool-btn mode-btn active" type="button" data-mode="view" title="Chỉ xem: xoay tự do và đo đạc 3D">
+              <span class="tool-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
               </span>
-              <span class="tool-text">Chỉ Xem</span>
+              <span class="tool-text">Chỉ xem</span>
             </button>
 
-            <button class="tool-btn mode-btn" data-mode="slant" title="Vát nghiêng: Chọn 2 điểm cắt xiên, hoặc 3 điểm cắt mặt phẳng 3D / rãnh tam giác">
-              <span class="tool-icon">
-                <svg viewBox="0 0 24 24"><polygon points="3 3 21 3 3 21"/><line x1="3" y1="21" x2="21" y2="3" stroke-dasharray="2 2"/></svg>
+            <button class="tool-btn mode-btn" type="button" data-mode="slant" title="Vát nghiêng: chọn 2 hoặc 3 điểm cắt xiên mặt phẳng">
+              <span class="tool-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><polygon points="4 4 20 4 4 20"/><line x1="4" y1="20" x2="20" y2="4" stroke-dasharray="2.5 2.5"/></svg>
               </span>
-              <span class="tool-text">Vát Chéo</span>
+              <span class="tool-text">Vát chéo</span>
             </button>
 
-            <button class="tool-btn mode-btn" data-mode="poly" title="Cắt đa giác / khối tự do: Click chọn N điểm tự kết nối kín để khoét vùng trong đó">
-              <span class="tool-icon">
-                <svg viewBox="0 0 24 24"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5"/></svg>
+            <button class="tool-btn mode-btn" type="button" data-mode="poly" title="Cắt đa giác tự do: chọn từ 3 điểm khép kín">
+              <span class="tool-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><polygon points="12 2 21 7.5 21 16.5 12 22 3 16.5 3 7.5"/></svg>
               </span>
-              <span class="tool-text">Đa Giác</span>
+              <span class="tool-text">Đa giác</span>
             </button>
 
-            <button class="tool-btn mode-btn" data-mode="corner" title="Vát góc tam giác 3D: Click chọn 3 điểm xuất phát từ đỉnh góc">
-              <span class="tool-icon">
-                <svg viewBox="0 0 24 24"><path d="M4 20h16M20 20V4M4 20L20 4"/></svg>
+            <button class="tool-btn mode-btn" type="button" data-mode="corner" title="Vát góc tam giác 3D: chọn 3 điểm quanh đỉnh góc">
+              <span class="tool-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M4 20h16V4"/><path d="M4 20L20 4"/></svg>
               </span>
-              <span class="tool-text">Vát Góc</span>
+              <span class="tool-text">Vát góc</span>
             </button>
 
-            <button class="tool-btn mode-btn" data-mode="box" title="Khoét rãnh hộp chữ nhật: Click 2 góc đối diện">
-              <span class="tool-icon">
-                <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><rect x="8" y="8" width="8" height="8" stroke-dasharray="2 2"/></svg>
+            <button class="tool-btn mode-btn" type="button" data-mode="box" title="Khoét rãnh hộp chữ nhật: chọn 2 góc đối diện">
+              <span class="tool-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="1.5"/><rect x="8" y="8" width="8" height="8" stroke-dasharray="2 2"/></svg>
               </span>
               <span class="tool-text">Hộp</span>
             </button>
 
-            <button class="tool-btn mode-btn" data-mode="vgroove" title="Rãnh chữ V: Click Đỉnh và 2 chân rãnh đáy">
-              <span class="tool-icon">
-                <svg viewBox="0 0 24 24"><path d="M3 4h6l3 12 3-12h6"/></svg>
+            <button class="tool-btn mode-btn" type="button" data-mode="vgroove" title="Rãnh chữ V: chọn đỉnh và 2 chân rãnh">
+              <span class="tool-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M3 6h5l4 11 4-11h5"/></svg>
               </span>
               <span class="tool-text">Rãnh V</span>
             </button>
 
-            <button class="tool-btn mode-btn" data-mode="hole" title="Khoan lỗ tròn: Click chọn tâm trên mặt khối để cắt lỗ trụ Ø/R">
-              <span class="tool-icon">
-                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2" stroke-dasharray="2 2"/></svg>
+            <button class="tool-btn mode-btn" type="button" data-mode="hole" title="Khoan lỗ tròn hoặc đắp trụ trên bề mặt">
+              <span class="tool-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="2.2" stroke-dasharray="2 2"/></svg>
               </span>
-              <span class="tool-text">Lỗ Tròn</span>
+              <span class="tool-text">Lỗ tròn</span>
             </button>
 
-            <button class="tool-btn mode-btn" data-mode="fillet3d" title="Bo tròn cạnh 3D: Click vào cạnh sắc để bo cung tròn bán kính R">
-              <span class="tool-icon">
-                <svg viewBox="0 0 24 24"><path d="M4 20V10a6 6 0 0 1 6-6h10"/></svg>
+            <button class="tool-btn mode-btn" type="button" data-mode="fillet3d" title="Bo tròn cạnh 3D với bán kính R">
+              <span class="tool-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M4 20V11a7 7 0 0 1 7-7h9"/></svg>
               </span>
-              <span class="tool-text">Bo Tròn</span>
+              <span class="tool-text">Bo tròn</span>
             </button>
           </div>
         </div>
 
-        <!-- NHÓM 2: UNDO / REDO NHANH KHI CHỈNH SỬA -->
         <div class="sidebar-grid-2 quick-history-row">
-          <button class="tool-btn-compact" id="btn-undo" disabled title="Hoàn tác (Ctrl+Z)" aria-label="Hoàn tác (Ctrl+Z)">
-            <svg viewBox="0 0 24 24"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
+          <button class="tool-btn-compact" id="btn-undo" type="button" disabled title="Hoàn tác (Ctrl+Z)" aria-label="Hoàn tác">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
             <span>Undo</span>
           </button>
-          <button class="tool-btn-compact" id="btn-redo" disabled title="Làm lại (Ctrl+Y)" aria-label="Làm lại (Ctrl+Y)">
-            <svg viewBox="0 0 24 24"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"/></svg>
+          <button class="tool-btn-compact" id="btn-redo" type="button" disabled title="Làm lại (Ctrl+Y)" aria-label="Làm lại">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"/></svg>
             <span>Redo</span>
           </button>
         </div>
 
-        <!-- TAB ĐÓNG MỞ: GÓC CHIẾU & BƯỚC LƯỚI (VIEW) -->
-        <div class="sidebar-accordion" id="acc-3d-view">
-          <button class="accordion-toggle" type="button" title="Mở / Đóng tab Góc Chiếu & Bước Lưới (View)" aria-expanded="true" aria-controls="acc-3d-view">
-            <span class="tool-icon">
-              <svg viewBox="0 0 24 24"><path d="M12 2l9 5v10l-9 5-9-5V7l9-5z"/><line x1="12" y1="22" x2="12" y2="12"/><line x1="21" y1="7" x2="12" y2="12"/><line x1="3" y1="7" x2="12" y2="12"/></svg>
+        <!-- TAB ĐÓNG MỞ: GÓC CHIẾU & BƯỚC LƯỚI -->
+        <div class="sidebar-accordion open" id="acc-3d-view">
+          <button class="accordion-toggle" type="button" title="Mở / Đóng Góc chiếu và Bước lưới" aria-expanded="true" aria-controls="acc-3d-view-body">
+            <span class="tool-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="20" y1="7.5" x2="12" y2="12"/><line x1="4" y1="7.5" x2="12" y2="12"/></svg>
             </span>
-            <span class="accordion-label">View & Bước Lưới</span>
-            <span class="accordion-chevron">▾</span>
+            <span class="accordion-label">Góc chiếu &amp; Lưới</span>
+            <span class="accordion-chevron" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+            </span>
           </button>
-          <div class="accordion-body">
+          <div class="accordion-body" id="acc-3d-view-body">
             <div class="tool-list">
-              <button class="tool-btn topbar-btn active" id="view-iso" title="Phối cảnh trục đo 3D">
-                <span class="tool-icon">
-                  <svg viewBox="0 0 24 24"><path d="M12 2l9 5v10l-9 5-9-5V7l9-5z"/><line x1="12" y1="22" x2="12" y2="12"/><line x1="21" y1="7" x2="12" y2="12"/><line x1="3" y1="7" x2="12" y2="12"/></svg>
+              <button class="tool-btn topbar-btn active" id="view-iso" type="button" title="Phối cảnh trục đo 3D">
+                <span class="tool-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="20" y1="7.5" x2="12" y2="12"/><line x1="4" y1="7.5" x2="12" y2="12"/></svg>
                 </span>
-                <span class="tool-text">Trục Đo (3D)</span>
+                <span class="tool-text">Trục đo (3D)</span>
               </button>
 
-              <button class="tool-btn topbar-btn" id="view-horizontal" title="Chiếu ngang 90°: Nhấn để xoay góc nhìn 90° (Đứng -> Cạnh phải -> Sau -> Cạnh trái)">
-                <span class="tool-icon">
-                  <svg viewBox="0 0 24 24"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.19"/></svg>
+              <button class="tool-btn topbar-btn" id="view-horizontal" type="button" title="Chiếu ngang 90°: nhấn để xoay góc nhìn 90°">
+                <span class="tool-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 3v5h-5"/></svg>
                 </span>
-                <span class="tool-text">Chiếu Ngang (90°)</span>
+                <span class="tool-text">Chiếu ngang (90°)</span>
               </button>
 
-              <button class="tool-btn topbar-btn" id="view-top" title="Hình chiếu bằng (Nhìn từ trên xuống)">
-                <span class="tool-icon">
-                  <svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><circle cx="12" cy="12" r="2"/></svg>
+              <button class="tool-btn topbar-btn" id="view-top" type="button" title="Hình chiếu bằng nhìn từ trên xuống">
+                <span class="tool-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="1.5"/><circle cx="12" cy="12" r="2"/></svg>
                 </span>
-                <span class="tool-text">Chiếu Bằng (Top)</span>
+                <span class="tool-text">Chiếu bằng (Top)</span>
               </button>
 
-              <button class="tool-btn topbar-btn" id="btn-rotate-model-90" title="Xoay khối 3D +90° quanh trục Y để đổi hướng mặt Front">
-                <span class="tool-icon">
+              <button class="tool-btn topbar-btn" id="btn-rotate-model-90" type="button" title="Xoay khối 3D +90° quanh trục Y để đổi hướng mặt Front">
+                <span class="tool-icon" aria-hidden="true">
                   <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><polyline points="3 3 3 8 8 8"/></svg>
                 </span>
-                <span class="tool-text">Xoay Khối +90° (Front)</span>
+                <span class="tool-text">Xoay khối +90°</span>
               </button>
             </div>
 
-            <div class="section-label" style="margin-top: 8px;">BƯỚC BẮT DÍNH (PHÍM S)</div>
+            <div class="section-label section-label-sub">Bước bắt dính (Phím S)</div>
             <div class="subdiv-btn-group" id="snap-subdiv-group">
-              <button class="subdiv-btn active" data-step="1" title="Bước 1 ô (Nguyên ô) - Phím S">1</button>
-              <button class="subdiv-btn" data-step="0.5" title="Bước 1/2 ô (Cắt giữa ô 0.5) - Phím S">1/2</button>
-              <button class="subdiv-btn" data-step="0.25" title="Bước 1/4 ô (Chia tư 0.25) - Phím S">1/4</button>
-              <button class="subdiv-btn" data-step="0.125" title="Bước 1/8 ô (Chia tám 0.125) - Phím S">1/8</button>
+              <button class="subdiv-btn active" type="button" data-step="1" title="Bước 1 ô - Phím S">1</button>
+              <button class="subdiv-btn" type="button" data-step="0.5" title="Bước 1/2 ô - Phím S">1/2</button>
+              <button class="subdiv-btn" type="button" data-step="0.25" title="Bước 1/4 ô - Phím S">1/4</button>
+              <button class="subdiv-btn" type="button" data-step="0.125" title="Bước 1/8 ô - Phím S">1/8</button>
             </div>
           </div>
         </div>
 
         <!-- TAB ĐÓNG MỞ: KHỐI PHÔI & NHẬP / XUẤT 3D -->
         <div class="sidebar-accordion" id="acc-3d-file">
-          <button class="accordion-toggle" type="button" title="Mở / Đóng tab Khối Phôi & Nhập/Xuất OBJ" aria-expanded="true" aria-controls="acc-3d-file">
-            <span class="tool-icon">
+          <button class="accordion-toggle" type="button" title="Mở / Đóng Khối phôi và Nhập/Xuất" aria-expanded="false" aria-controls="acc-3d-file-body">
+            <span class="tool-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
             </span>
-            <span class="accordion-label">Khối & Nhập / Xuất</span>
-            <span class="accordion-chevron">▾</span>
+            <span class="accordion-label">Khối &amp; Nhập / Xuất</span>
+            <span class="accordion-chevron" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+            </span>
           </button>
-          <div class="accordion-body">
-            <button class="tool-btn" id="btn-open-cloud-lib" title="Lưu mô hình lên Thư viện chung hoặc mở mẫu người khác đã tạo">
-              <span class="tool-icon">
+          <div class="accordion-body" id="acc-3d-file-body">
+            <button class="tool-btn" id="btn-open-cloud-lib" type="button" title="Lưu mô hình lên Thư viện chung hoặc mở mẫu đã lưu">
+              <span class="tool-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
               </span>
-              <span class="tool-text">Thư Viện Chung</span>
+              <span class="tool-text">Thư viện chung</span>
             </button>
 
-            <button class="tool-btn" id="btn-open-script" title="Viết hoặc dán code CAD Script để tự động dựng khối 3D">
-              <span class="tool-icon">
+            <button class="tool-btn" id="btn-open-script" type="button" title="Viết hoặc dán mã CAD Script để dựng khối 3D">
+              <span class="tool-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
               </span>
               <span class="tool-text">Code → 3D (Script)</span>
             </button>
 
-            <button class="tool-btn" id="btn-open-dim" title="Cài đặt kích thước ô lưới khối ban đầu">
-              <span class="tool-icon">
-                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            <button class="tool-btn" id="btn-open-dim" type="button" title="Cài đặt kích thước phôi ban đầu">
+              <span class="tool-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="2"/><circle cx="15" cy="17" r="2"/></svg>
               </span>
-              <span class="tool-text">Kích Thước Khối</span>
+              <span class="tool-text">Kích thước khối</span>
             </button>
 
             <div class="sidebar-grid-2">
-              <button class="tool-btn-compact" id="btn-import-obj" title="Nhập mô hình 3D từ file (.OBJ)">
-                <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              <button class="tool-btn-compact" id="btn-import-obj" type="button" title="Nhập mô hình 3D (.OBJ)">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                 <span>Nhập OBJ</span>
               </button>
-              <button class="tool-btn-compact" id="btn-export-obj" title="Xuất mô hình 3D (.OBJ)">
-                <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              <button class="tool-btn-compact" id="btn-export-obj" type="button" title="Xuất mô hình 3D (.OBJ)">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                 <span>Xuất OBJ</span>
               </button>
             </div>
@@ -224,152 +236,150 @@
       </div>
 
       <!-- ============================================== -->
-      <!-- BỘ CÔNG CỤ 2D CAD (MẶT PHẲNG X-Y CHUYÊN SÂU) -->
+      <!-- BỘ CÔNG CỤ 2D CAD                              -->
       <!-- ============================================== -->
       <div id="sidebar-2d-tools" style="display: none;">
-        
-        <!-- NHÓM 1: 2D DRAWING TOOLS -->
+
         <div class="sidebar-section">
-          <div class="section-label">2D DRAWING TOOLS</div>
+          <div class="section-label">Công cụ vẽ 2D</div>
           <div class="tool-list">
-            <button class="tool-btn cad2d-tool-btn active" data-tool="line-visible" title="Visible Line: Click Point 1 ➔ Point 2">
-              <span class="tool-icon">
-                <svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12" stroke-width="3"/></svg>
+            <button class="tool-btn cad2d-tool-btn active" type="button" data-tool="line-visible" title="Visible Line: Click Điểm 1 → Điểm 2">
+              <span class="tool-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12" stroke-width="2.5"/></svg>
               </span>
               <span class="tool-text">Visible Line</span>
             </button>
 
-            <button class="tool-btn cad2d-tool-btn" data-tool="line-hidden" title="Hidden Line: Click Point 1 ➔ Point 2">
-              <span class="tool-icon">
-                <svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12" stroke-dasharray="4 3" stroke-width="2.5"/></svg>
+            <button class="tool-btn cad2d-tool-btn" type="button" data-tool="line-hidden" title="Hidden Line: Click Điểm 1 → Điểm 2">
+              <span class="tool-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12" stroke-dasharray="4 3" stroke-width="2"/></svg>
               </span>
               <span class="tool-text">Hidden Line</span>
             </button>
 
-            <button class="tool-btn cad2d-tool-btn" data-tool="rect" title="Rectangle: Click Corner 1 ➔ Corner 2">
-              <span class="tool-icon">
-                <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="1" fill="none" stroke-width="2.2"/></svg>
+            <button class="tool-btn cad2d-tool-btn" type="button" data-tool="rect" title="Rectangle: Click Góc 1 → Góc 2">
+              <span class="tool-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="1"/></svg>
               </span>
               <span class="tool-text">Rectangle</span>
             </button>
 
-            <button class="tool-btn cad2d-tool-btn" data-tool="arc" title="3-Point Arc: Click 3 points on arc">
-              <span class="tool-icon">
-                <svg viewBox="0 0 24 24"><path d="M4 17a8 8 0 0 1 16 0" fill="none" stroke-width="2.2"/></svg>
+            <button class="tool-btn cad2d-tool-btn" type="button" data-tool="arc" title="3-Point Arc: Click 3 điểm trên cung">
+              <span class="tool-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M4 17a8 8 0 0 1 16 0"/></svg>
               </span>
               <span class="tool-text">3-Point Arc</span>
             </button>
 
-            <button class="tool-btn cad2d-tool-btn" data-tool="tangent-arc" title="Tangent Arc: Click line/arc endpoint ➔ end point">
-              <span class="tool-icon">
-                <svg viewBox="0 0 24 24"><path d="M4 18h6a8 8 0 0 0 8-8V5" fill="none" stroke-width="2.2"/></svg>
+            <button class="tool-btn cad2d-tool-btn" type="button" data-tool="tangent-arc" title="Tangent Arc: Click đầu mút → điểm kết thúc">
+              <span class="tool-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M4 18h6a8 8 0 0 0 8-8V5"/></svg>
               </span>
               <span class="tool-text">Tangent Arc</span>
             </button>
 
-            <button class="tool-btn cad2d-tool-btn" data-tool="circle" title="Circle: Click Center ➔ Radius">
-              <span class="tool-icon">
+            <button class="tool-btn cad2d-tool-btn" type="button" data-tool="circle" title="Circle: Click Tâm → Bán kính">
+              <span class="tool-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/></svg>
               </span>
               <span class="tool-text">Circle</span>
             </button>
 
-            <button class="tool-btn cad2d-tool-btn" data-tool="fillet" title="Corner Fillet (Bo Góc 2D): Click Line 1 ➔ Line 2 (uses Radius R)">
-              <span class="tool-icon">
-                <svg viewBox="0 0 24 24"><path d="M4 19V11a7 7 0 0 1 7-7h8" fill="none" stroke-width="2.4"/><path d="M4 4h4M4 4v4" stroke-dasharray="2 2" stroke-width="1.4" opacity="0.6"/></svg>
+            <button class="tool-btn cad2d-tool-btn" type="button" data-tool="fillet" title="Bo góc 2D: Click Cạnh 1 → Cạnh 2 theo bán kính R">
+              <span class="tool-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M4 19V11a7 7 0 0 1 7-7h8"/><path d="M4 4h4M4 4v4" stroke-dasharray="2 2" stroke-width="1.4" opacity="0.6"/></svg>
               </span>
-              <span class="tool-text">Fillet (Bo Góc)</span>
+              <span class="tool-text">Fillet (Bo góc)</span>
             </button>
 
-            <button class="tool-btn cad2d-tool-btn" data-tool="dim" title="Đo Cạnh (Linear Dim): Click cạnh bất kỳ để đo chiều dài">
-              <span class="tool-icon">
+            <button class="tool-btn cad2d-tool-btn" type="button" data-tool="dim" title="Đo cạnh: Click cạnh bất kỳ">
+              <span class="tool-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24"><path d="M2 12h20M6 8l-4 4 4 4M18 8l4 4-4 4"/></svg>
               </span>
-              <span class="tool-text">Đo Cạnh</span>
+              <span class="tool-text">Đo cạnh</span>
             </button>
 
-            <button class="tool-btn cad2d-tool-btn" data-tool="dim-points" title="Đo 2 Điểm (Point-to-Point Dim): Click Điểm 1 ➔ Click Điểm 2 để đo khoảng cách">
-              <span class="tool-icon">
-                <svg viewBox="0 0 24 24"><circle cx="4" cy="12" r="3" fill="#38bdf8"/><circle cx="20" cy="12" r="3" fill="#38bdf8"/><line x1="7" y1="12" x2="17" y2="12" stroke="#38bdf8" stroke-width="2" stroke-dasharray="2 2"/></svg>
+            <button class="tool-btn cad2d-tool-btn" type="button" data-tool="dim-points" title="Đo 2 điểm: Click Điểm 1 → Điểm 2">
+              <span class="tool-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="2.5"/><circle cx="19" cy="12" r="2.5"/><line x1="7.5" y1="12" x2="16.5" y2="12" stroke-dasharray="2 2"/></svg>
               </span>
-              <span class="tool-text">Đo 2 Điểm</span>
+              <span class="tool-text">Đo 2 điểm</span>
             </button>
 
-            <button class="tool-btn cad2d-tool-btn" data-tool="dim-radial" title="Radial Dim (R / Ø): Click an Arc or Circle">
-              <span class="tool-icon">
-                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7" fill="none" stroke-width="2"/><line x1="12" y1="12" x2="17" y2="7" stroke-width="2"/><polyline points="13 7 17 7 17 11" fill="none" stroke-width="2"/></svg>
+            <button class="tool-btn cad2d-tool-btn" type="button" data-tool="dim-radial" title="Radial Dim (R / Ø): Click cung tròn hoặc đường tròn">
+              <span class="tool-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><line x1="12" y1="12" x2="17" y2="7"/><polyline points="13 7 17 7 17 11"/></svg>
               </span>
               <span class="tool-text">Radial Dim (R)</span>
             </button>
 
-            <button class="tool-btn cad2d-tool-btn" data-tool="erase" title="Trim / Erase: Click segment between intersections to trim or erase">
-              <span class="tool-icon">
+            <button class="tool-btn cad2d-tool-btn" type="button" data-tool="erase" title="Trim / Erase: Click đoạn nét để cắt tỉa hoặc xóa">
+              <span class="tool-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
               </span>
               <span class="tool-text">Trim / Erase</span>
             </button>
 
-            <button class="tool-btn cad2d-tool-btn" data-tool="toggle-style" title="Toggle Line Style: Switch Visible (solid) ↔ Hidden (dashed)">
-              <span class="tool-icon">
-                <svg viewBox="0 0 24 24"><line x1="3" y1="8" x2="21" y2="8" stroke-width="2.5"/><line x1="3" y1="16" x2="21" y2="16" stroke-dasharray="3 3" stroke-width="2.2"/></svg>
+            <button class="tool-btn cad2d-tool-btn" type="button" data-tool="toggle-style" title="Đổi nét Thấy (liền) ↔ Khuất (đứt)">
+              <span class="tool-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><line x1="3" y1="8" x2="21" y2="8"/><line x1="3" y1="16" x2="21" y2="16" stroke-dasharray="3 3"/></svg>
               </span>
               <span class="tool-text">Visible / Hidden</span>
             </button>
 
-            <button class="tool-btn cad2d-tool-btn" data-tool="pan" title="Pan / Move: Drag canvas to pan viewport">
-              <span class="tool-icon">
-                <svg viewBox="0 0 24 24"><path d="M12 2v20M2 12h20M7 7l10 10M17 7L7 17"/></svg>
+            <button class="tool-btn cad2d-tool-btn" type="button" data-tool="pan" title="Pan / Move: Kéo canvas để di chuyển">
+              <span class="tool-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M12 2v20M2 12h20M9 5l3-3 3 3M9 19l3 3 3-3M5 9l-3 3 3 3M19 9l3 3-3 3"/></svg>
               </span>
               <span class="tool-text">Pan / Move</span>
             </button>
           </div>
         </div>
 
-        <!-- BÁN KÍNH BO GÓC (R) & UNDO / REDO NHANH KHI VẼ -->
         <div class="fillet-radius-bar" id="fillet-radius-bar" title="Bán kính Bo Góc (Fillet Radius R)">
-          <span class="fillet-label">Fillet R:</span>
+          <label class="fillet-label" for="input-2d-radius">Fillet R</label>
           <input type="number" id="input-2d-radius" class="fillet-input" value="1.0" min="0.1" max="50" step="0.1">
         </div>
 
         <div class="sidebar-grid-2 quick-history-row">
-          <button class="tool-btn-compact" id="btn-2d-undo" disabled title="Undo (Ctrl+Z)">
-            <svg viewBox="0 0 24 24"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
+          <button class="tool-btn-compact" id="btn-2d-undo" type="button" disabled title="Undo (Ctrl+Z)" aria-label="Hoàn tác 2D">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
             <span>Undo</span>
           </button>
-          <button class="tool-btn-compact" id="btn-2d-redo" disabled title="Redo (Ctrl+Y)">
-            <svg viewBox="0 0 24 24"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"/></svg>
+          <button class="tool-btn-compact" id="btn-2d-redo" type="button" disabled title="Redo (Ctrl+Y)" aria-label="Làm lại 2D">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"/></svg>
             <span>Redo</span>
           </button>
         </div>
 
-        <!-- TAB ĐÓNG MỞ: HÌNH CHIẾU 2D (VIEWS) -->
-        <div class="sidebar-accordion" id="acc-2d-views">
-          <button class="accordion-toggle" type="button" title="Open / Close 3D Projection Views" aria-expanded="true" aria-controls="acc-2d-views">
-            <span class="tool-icon">
+        <!-- TAB ĐÓNG MỞ: HÌNH CHIẾU 2D -->
+        <div class="sidebar-accordion open" id="acc-2d-views">
+          <button class="accordion-toggle" type="button" title="Mở / Đóng Hình chiếu 3D" aria-expanded="true" aria-controls="acc-2d-views-body">
+            <span class="tool-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/></svg>
             </span>
-            <span class="accordion-label">View (Projections)</span>
-            <span class="accordion-chevron">▾</span>
+            <span class="accordion-label">Hình chiếu 3D</span>
+            <span class="accordion-chevron" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+            </span>
           </button>
-          <div class="accordion-body">
+          <div class="accordion-body" id="acc-2d-views-body">
             <div class="sidebar-sync-group">
-              <div class="sidebar-grid-2" style="margin-bottom: 6px;">
-                <button class="tool-btn-sync" id="btn-sync-all" data-view="all" title="Display All 3 Views (Front + Top + Right) together in CAD sheet">
-                  <span class="sync-icon">📑</span>
+              <div class="sidebar-grid-2">
+                <button class="tool-btn-sync" id="btn-sync-all" type="button" data-view="all" title="Hiển thị đồng thời 3 hình chiếu (Front + Top + Right)">
+                  <span class="sync-dot sync-dot-all" aria-hidden="true"></span>
                   <span>All (3-View)</span>
                 </button>
-                <button class="tool-btn-sync active" id="btn-sync-front" data-view="front" title="Front View (X-Y plane)">
-                  <span class="sync-icon">🟦</span>
+                <button class="tool-btn-sync active" id="btn-sync-front" type="button" data-view="front" title="Hình chiếu đứng (Front X-Y)">
+                  <span class="sync-dot sync-dot-front" aria-hidden="true"></span>
                   <span>Front</span>
                 </button>
-              </div>
-              <div class="sidebar-grid-2">
-                <button class="tool-btn-sync" id="btn-sync-top" data-view="top" title="Top View (X-Z plane)">
-                  <span class="sync-icon">🟩</span>
+                <button class="tool-btn-sync" id="btn-sync-top" type="button" data-view="top" title="Hình chiếu bằng (Top X-Z)">
+                  <span class="sync-dot sync-dot-top" aria-hidden="true"></span>
                   <span>Top</span>
                 </button>
-                <button class="tool-btn-sync" id="btn-sync-side" data-view="side" title="Right Side View (Z-Y plane)">
-                  <span class="sync-icon">🟨</span>
+                <button class="tool-btn-sync" id="btn-sync-side" type="button" data-view="side" title="Hình chiếu cạnh phải (Right Z-Y)">
+                  <span class="sync-dot sync-dot-side" aria-hidden="true"></span>
                   <span>Right</span>
                 </button>
               </div>
@@ -379,34 +389,36 @@
 
         <!-- TAB ĐÓNG MỞ: KHUNG CAD & BẮT DÍNH -->
         <div class="sidebar-accordion" id="acc-2d-frame">
-          <button class="accordion-toggle" type="button" title="Open / Close Snap & CAD Frame Options" aria-expanded="true" aria-controls="acc-2d-frame">
-            <span class="tool-icon">
-              <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" stroke-dasharray="4 2"/></svg>
+          <button class="accordion-toggle" type="button" title="Mở / Đóng Khung CAD và Bắt dính" aria-expanded="false" aria-controls="acc-2d-frame-body">
+            <span class="tool-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="1.5" stroke-dasharray="4 2"/></svg>
             </span>
-            <span class="accordion-label">Khung CAD & Snap</span>
-            <span class="accordion-chevron">▾</span>
+            <span class="accordion-label">Khung CAD &amp; Snap</span>
+            <span class="accordion-chevron" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+            </span>
           </button>
-          <div class="accordion-body">
+          <div class="accordion-body" id="acc-2d-frame-body">
             <div class="tool-list">
-              <button class="tool-btn" id="btn-2d-toggle-snap" title="Toggle Snap: Grid (0.5) ↔ Freeform (Shortcut: G or hold Alt)">
-                <span class="tool-icon">
-                  <svg viewBox="0 0 24 24"><path d="M4 4h4v4H4zM16 4h4v4h-4zM4 16h4v4H4zM16 16h4v4h-4z"/></svg>
+              <button class="tool-btn" id="btn-2d-toggle-snap" type="button" title="Đổi Snap: Lưới (0.5) ↔ Tự do (Phím G hoặc giữ Alt)">
+                <span class="tool-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><rect x="4" y="4" width="4" height="4"/><rect x="16" y="4" width="4" height="4"/><rect x="4" y="16" width="4" height="4"/><rect x="16" y="16" width="4" height="4"/></svg>
                 </span>
                 <span class="tool-text" id="lbl-snap-mode">Snap: Grid (0.5)</span>
               </button>
 
-              <button class="tool-btn" id="btn-2d-toggle-frame" title="Toggle CAD Frame: Off (Free) ➔ Part Stock Box ➔ A4 Drawing Sheet (ISO)">
-                <span class="tool-icon">
-                  <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" fill="none" stroke-width="2" stroke-dasharray="4 2"/></svg>
+              <button class="tool-btn" id="btn-2d-toggle-frame" type="button" title="Đổi Khung CAD: Tắt → Phôi 3D → Khổ A4 ISO">
+                <span class="tool-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="1.5" stroke-dasharray="4 2"/></svg>
                 </span>
                 <span class="tool-text" id="lbl-frame-mode">Frame: Off (Free)</span>
               </button>
 
-              <button class="tool-btn" id="btn-2d-clear" title="Clear all drawings on plane">
-                <span class="tool-icon">
+              <button class="tool-btn tool-btn-danger" id="btn-2d-clear" type="button" title="Xóa toàn bộ nét trên mặt phẳng 2D">
+                <span class="tool-icon" aria-hidden="true">
                   <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14H7L5 6"/></svg>
                 </span>
-                <span class="tool-text">Clear Plane</span>
+                <span class="tool-text">Xóa mặt phẳng</span>
               </button>
             </div>
           </div>
@@ -414,29 +426,31 @@
 
         <!-- TAB ĐÓNG MỞ: NHẬP / XUẤT BẢN VẼ 2D -->
         <div class="sidebar-accordion" id="acc-2d-export">
-          <button class="accordion-toggle" type="button" title="Open / Close Export PNG / DXF" aria-expanded="true" aria-controls="acc-2d-export">
-            <span class="tool-icon">
+          <button class="accordion-toggle" type="button" title="Mở / Đóng Xuất PNG / DXF" aria-expanded="false" aria-controls="acc-2d-export-body">
+            <span class="tool-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             </span>
             <span class="accordion-label">Xuất PNG / DXF</span>
-            <span class="accordion-chevron">▾</span>
+            <span class="accordion-chevron" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+            </span>
           </button>
-          <div class="accordion-body">
+          <div class="accordion-body" id="acc-2d-export-body">
             <div class="sidebar-grid-2">
-              <button class="tool-btn-compact btn-export-png" id="btn-2d-export-png" title="Export Technical Drawing (.PNG)">
-                <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              <button class="tool-btn-compact btn-export-png" id="btn-2d-export-png" type="button" title="Xuất bản vẽ (.PNG)">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="1.5"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
                 <span>Xuất PNG</span>
               </button>
-              <button class="tool-btn-compact btn-export-dxf" id="btn-2d-export-dxf" title="Export AutoCAD Drawing (.DXF)">
-                <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              <button class="tool-btn-compact btn-export-dxf" id="btn-2d-export-dxf" type="button" title="Xuất file AutoCAD (.DXF)">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                 <span>Xuất DXF</span>
               </button>
             </div>
-            <button class="tool-btn" id="btn-open-cloud-lib-2d" style="margin-top: 6px;" title="Lưu hoặc mở bản vẽ từ Thư viện chung">
-              <span class="tool-icon">
+            <button class="tool-btn" id="btn-open-cloud-lib-2d" type="button" title="Lưu hoặc mở bản vẽ từ Thư viện chung">
+              <span class="tool-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
               </span>
-              <span class="tool-text">Thư Viện Chung</span>
+              <span class="tool-text">Thư viện chung</span>
             </button>
           </div>
         </div>
@@ -445,19 +459,27 @@
 
     </aside>
 
-    <!-- KHÔNG GIAN BẢN VẼ MẶT PHẲNG 2D TRỰC QUAN -->
+    <!-- KHÔNG GIAN BẢN VẼ 2D -->
     <div id="cad2d-viewport" class="cad2d-viewport" style="display: none;">
       <canvas id="cad2d-canvas"></canvas>
       <div class="cad2d-hint">
-        💡 <b>Click 2 điểm</b> trên lưới để vẽ nét | <b>Cuộn chuột</b> để phóng to/thu nhỏ | <b>Kéo chuột phải</b> để di chuyển
+        <strong>Click 2 điểm</strong> trên lưới để vẽ nét · <strong>Cuộn chuột</strong> để zoom · <strong>Kéo chuột phải</strong> để pan
       </div>
     </div>
 
-    <!-- POPOVER CÀI ĐẶT KÍCH THƯỚC KHỐI BAN ĐẦU -->
+    <!-- BACKDROP MODAL -->
+    <div id="modal-backdrop" class="modal-backdrop" style="display: none;" aria-hidden="true"></div>
+
+    <!-- POPOVER KÍCH THƯỚC KHỐI BAN ĐẦU -->
     <div id="dim-popover" class="dim-popover" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="dim-popover-title">
       <div class="popover-header">
-        <span id="dim-popover-title">⚙️ Kích Thước Khối Hộp (Số Ô Lưới)</span>
-        <button id="btn-close-dim" class="close-x" aria-label="Đóng cài đặt kích thước">✖️</button>
+        <span class="popover-title-group">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="2"/><circle cx="15" cy="17" r="2"/></svg>
+          <span id="dim-popover-title">Kích thước phôi hộp (Số ô lưới)</span>
+        </span>
+        <button id="btn-close-dim" class="close-x" type="button" aria-label="Đóng cài đặt kích thước">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
       </div>
       <div class="dim-grid">
         <div class="dim-field">
@@ -473,31 +495,36 @@
           <input type="number" id="dim-d" value="4" min="1" max="300" aria-label="Chiều sâu khối">
         </div>
       </div>
-      <button class="btn-primary-reset" id="btn-reset-block">
-        🔄 TẠO LẠI KHỐI MỚI (RESET)
+      <button class="btn-primary-reset" id="btn-reset-block" type="button">
+        Tạo lại khối mới
       </button>
     </div>
 
     <!-- MODAL CODE -> 3D (CAD SCRIPT) -->
     <div id="script-modal" class="script-modal" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="script-modal-title">
       <div class="popover-header">
-        <span id="script-modal-title">💻 Code → 3D (CAD Script)</span>
-        <button id="btn-close-script" class="close-x" aria-label="Đóng bảng mã lệnh CAD Script">✖️</button>
+        <span class="popover-title-group">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+          <span id="script-modal-title">Code → 3D (CAD Script)</span>
+        </span>
+        <button id="btn-close-script" class="close-x" type="button" aria-label="Đóng bảng mã lệnh CAD Script">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
       </div>
       <div class="script-toolbar">
         <div class="script-toolbar-item">
-          <label for="script-preset-select">Mẫu có sẵn:</label>
+          <label for="script-preset-select">Mẫu có sẵn</label>
           <select id="script-preset-select">
-            <option value="starter_block">Mẫu 1: Phôi hộp bo góc + Lỗ tâm (Dễ nhất)</option>
+            <option value="starter_block">Mẫu 1: Phôi hộp bo góc + Lỗ tâm</option>
             <option value="new_box_cut">Mẫu 2: Phôi hộp (W×H×D) + Cắt rãnh</option>
-            <option value="empty_box">Mẫu 3: Phôi hộp mới tinh (W×H×D)</option>
+            <option value="empty_box">Mẫu 3: Phôi hộp cơ bản (W×H×D)</option>
             <option value="u_shell_pipe">Mẫu 4: Vỏ chữ U + 2 Ống trụ ngang</option>
             <option value="horiz_cyl_mount">Mẫu 5: Gối đỡ trụ ngang Ø50×90</option>
             <option value="mount_with_boss_slot">Mẫu 6: Gối đỡ đế 60×80×30 + Trụ Ø30</option>
           </select>
         </div>
         <div class="script-toolbar-item script-toolbar-item-sm">
-          <label for="script-front-rot">Hướng Front:</label>
+          <label for="script-front-rot">Hướng Front</label>
           <select id="script-front-rot">
             <option value="90" selected>Quay +90° (Front)</option>
             <option value="0">Mặc định (0°)</option>
@@ -507,9 +534,8 @@
         </div>
       </div>
 
-      <!-- THANH CHÈN LỆNH NHANH TIẾNG VIỆT & CHAINING -->
       <div class="script-quick-insert">
-        <span class="quick-insert-label">Chèn mẫu:</span>
+        <span class="quick-insert-label">Chèn nhanh</span>
         <button type="button" class="btn-snippet" data-code="const a = hop(60, 40, 50);">+ Hộp</button>
         <button type="button" class="btn-snippet" data-code="const a = hop_bo(50, 40, 30, 4);">+ Hộp bo góc</button>
         <button type="button" class="btn-snippet" data-code="const b = tru(15, 60, 'y');">+ Trụ tròn</button>
@@ -526,24 +552,28 @@
       <textarea id="cad-script-input" spellcheck="false" placeholder="// Viết code CAD và return khối cuối cùng..." aria-label="Mã lệnh CAD Script"></textarea>
       <div id="cad-script-error" class="script-error" style="display: none;"></div>
       <div class="script-footer">
-        <span class="script-hint">Hỗ trợ cả Tiếng Việt (hop, tru, khoet...) và Tiếng Anh (box, cylinder, cut...) · Ctrl+Enter để chạy</span>
-        <button class="btn-primary-reset" id="btn-run-script" style="width:auto; padding:8px 16px;">▶ Chạy Code → Tạo 3D</button>
+        <span class="script-hint">Hỗ trợ Tiếng Việt (hop, tru, khoet...) &amp; Tiếng Anh (box, cylinder, cut...) · <kbd>Ctrl+Enter</kbd> để chạy</span>
+        <button class="btn-primary-reset btn-run-script" id="btn-run-script" type="button">Chạy Script → 3D</button>
       </div>
     </div>
 
-    <!-- MODAL THƯ VIỆN CAD DÙNG CHUNG (CLOUD LIBRARY) -->
+    <!-- MODAL THƯ VIỆN CAD DÙNG CHUNG -->
     <div id="cloud-lib-modal" class="cloud-lib-modal" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="cloud-lib-title">
       <div class="popover-header">
-        <span id="cloud-lib-title">☁️ Thư Viện CAD Dùng Chung</span>
-        <button id="btn-close-cloud-lib" class="close-x" aria-label="Đóng Thư viện CAD dùng chung">✖️</button>
+        <span class="popover-title-group">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
+          <span id="cloud-lib-title">Thư viện CAD dùng chung</span>
+        </span>
+        <button id="btn-close-cloud-lib" class="close-x" type="button" aria-label="Đóng Thư viện CAD dùng chung">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
       </div>
 
-      <!-- KHU VỰC LƯU BÀI HIỆN TẠI LÊN THƯ VIỆN -->
       <div class="cloud-save-box">
         <div class="cloud-save-inputs">
-          <input type="text" id="cloud-save-name" maxlength="80" placeholder="Tên mẫu CAD (VD: Gối đỡ trục Ø30)..." aria-label="Tên mẫu CAD">
-          <input type="text" id="cloud-save-author" maxlength="40" placeholder="Tên bạn (tùy chọn)..." aria-label="Tên người tạo">
-          <button type="button" id="btn-cloud-save" class="btn-cloud-primary">💾 Lưu lên Thư viện</button>
+          <input type="text" id="cloud-save-name" maxlength="80" placeholder="Tên mẫu CAD (VD: Gối đỡ trục Ø30)" aria-label="Tên mẫu CAD">
+          <input type="text" id="cloud-save-author" maxlength="40" placeholder="Tác giả (tùy chọn)" aria-label="Tên người tạo">
+          <button type="button" id="btn-cloud-save" class="btn-cloud-primary">Lưu lên thư viện</button>
         </div>
         <div class="cloud-save-options">
           <label class="cloud-chk"><input type="checkbox" id="cloud-chk-3d" checked> <span>Kèm khối 3D</span></label>
@@ -552,16 +582,20 @@
         </div>
       </div>
 
-      <!-- THANH TÌM KIẾM & QUẢN TRỊ ADMIN -->
       <div class="cloud-toolbar">
-        <input type="search" id="cloud-search-input" placeholder="🔍 Tìm mẫu theo tên hoặc tác giả..." aria-label="Tìm mẫu CAD">
-        <button type="button" id="btn-cloud-refresh" class="btn-cloud-secondary" title="Tải lại danh sách từ server">🔄 Tải lại</button>
-        <button type="button" id="btn-cloud-admin-toggle" class="btn-cloud-secondary" title="Đăng nhập mã PIN Admin để xóa các bài sai hoặc spam">🔑 Admin</button>
+        <input type="search" id="cloud-search-input" placeholder="Tìm mẫu theo tên hoặc tác giả..." aria-label="Tìm mẫu CAD">
+        <button type="button" id="btn-cloud-refresh" class="btn-cloud-secondary" title="Tải lại danh sách từ máy chủ">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 3v5h-5"/></svg>
+          <span>Tải lại</span>
+        </button>
+        <button type="button" id="btn-cloud-admin-toggle" class="btn-cloud-secondary" title="Đăng nhập mã PIN Admin để quản lý danh sách">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="1.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+          <span>Admin</span>
+        </button>
       </div>
 
-      <!-- THANH NHẬP MÃ PIN ADMIN -->
       <div id="cloud-admin-bar" class="cloud-admin-bar" style="display: none;">
-        <span class="cloud-admin-label">Quản trị viên (Xóa bài sai):</span>
+        <span class="cloud-admin-label">Quản trị viên</span>
         <input type="password" id="cloud-admin-pin-input" placeholder="Nhập ADMIN_PIN..." aria-label="Mã PIN Admin">
         <button type="button" id="btn-cloud-admin-login" class="btn-cloud-primary">Xác nhận</button>
         <button type="button" id="btn-cloud-admin-logout" class="btn-cloud-danger" style="display: none;">Thoát Admin</button>
@@ -569,215 +603,243 @@
 
       <div id="cloud-lib-status" class="cloud-lib-status" style="display: none;"></div>
 
-      <!-- DANH SÁCH MẪU CAD ĐÃ LƯU -->
       <div id="cloud-models-grid" class="cloud-models-grid">
         <div class="cloud-empty-state">Đang tải danh sách mẫu từ thư viện...</div>
       </div>
     </div>
 
-    <!-- BẢNG CÔNG CỤ ĐIỀU KHIỂN CẮT GỌT 3D BÊN PHẢI (KHI Ở CHẾ ĐỘ CẮT) -->
-    <aside id="tool-sidebar-right" class="tool-sidebar-right" style="display: none;">
+    <!-- BẢNG THÔNG SỐ CẮT GỌT 3D BÊN PHẢI -->
+    <aside id="tool-sidebar-right" class="tool-sidebar-right" style="display: none;" aria-label="Thông số cắt gọt 3D">
       <div class="panel-header">
         <div class="panel-title-group">
-          <span class="panel-icon" id="tsr-icon">✂️</span>
-          <span class="panel-title" id="tsr-title">THÔNG SỐ CẮT GỌT</span>
+          <span class="panel-icon" id="tsr-icon" aria-hidden="true"></span>
+          <span class="panel-title" id="tsr-title">Thông số cắt gọt</span>
         </div>
         <div class="panel-header-actions">
-          <button id="btn-toggle-tsr" class="panel-collapse-btn" title="Thu gọn bảng (Esc)" aria-label="Thu gọn bảng thông số cắt gọt">✕</button>
+          <button id="btn-toggle-tsr" class="panel-collapse-btn" type="button" title="Thu gọn bảng (Esc)" aria-label="Thu gọn bảng thông số cắt gọt">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
         </div>
       </div>
       <div class="tsr-instruction" id="tsr-instruction" style="display: none !important;"></div>
       <div id="tsr-body" class="tsr-body"></div>
     </aside>
 
-    <!-- NÚT NỔI MỞ BẢNG THÔNG SỐ CẮT GỌT KHI ĐÃ BỊ THU GỌN -->
-    <button id="btn-floating-open-tsr" class="floating-inspect-btn" style="display: none;" title="Mở bảng thông số" aria-label="Mở lại bảng thông số cắt gọt">
-      <span>⚙️ Thông Số</span>
-      <span>◀</span>
+    <!-- NÚT NỔI MỞ BẢNG THÔNG SỐ CẮT GỌT -->
+    <button id="btn-floating-open-tsr" class="floating-inspect-btn" type="button" style="display: none;" title="Mở bảng thông số" aria-label="Mở lại bảng thông số cắt gọt">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="2"/><circle cx="15" cy="17" r="2"/></svg>
+      <span>Thông số</span>
     </button>
 
-    <!-- BẢNG CÔNG CỤ ĐO ĐẠC & KIỂM TRA BÊN PHẢI (CHỈ XUẤT HIỆN KHI Ở TAB CHỈ XEM) -->
-    <aside id="inspection-panel" class="inspection-panel" style="display: none;">
+    <!-- BẢNG ĐO ĐẠC & KIỂM TRA 3D BÊN PHẢI -->
+    <aside id="inspection-panel" class="inspection-panel" style="display: none;" aria-label="Đo đạc 3D">
       <div class="panel-header">
         <div class="panel-title-group">
-          <span class="panel-icon">🔍</span>
-          <span class="panel-title">ĐO ĐẠC 3D</span>
+          <span class="panel-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+          </span>
+          <span class="panel-title">Đo đạc 3D</span>
         </div>
         <div class="panel-header-actions">
-          <span class="panel-mode-badge">Chỉ Xem</span>
-          <button id="btn-toggle-inspection-panel" class="panel-collapse-btn" title="Thu gọn bảng (Esc)" aria-label="Thu gọn bảng đo đạc">✕</button>
+          <span class="panel-mode-badge">Chỉ xem</span>
+          <button id="btn-toggle-inspection-panel" class="panel-collapse-btn" type="button" title="Thu gọn bảng (Esc)" aria-label="Thu gọn bảng đo đạc">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
         </div>
       </div>
 
-      <!-- HƯỚNG DẪN THAO TÁC THEO CHẾ ĐỘ -->
       <div class="measure-instruction" id="measure-instruction" style="display: none !important;"></div>
 
-      <!-- BẬT TẮT HIỂN THỊ KỸ THUẬT (3D) -->
       <div class="measure-tool-group">
-        <div class="measure-section-label">HIỂN THỊ KỸ THUẬT</div>
+        <div class="measure-section-label">Hiển thị kỹ thuật</div>
         <div class="measure-toggles-grid">
-          <button id="inspect-toggle-grid" class="inspect-toggle-btn active" title="Bật/Tắt hiển thị lưới ô vuông trên bề mặt khối (Phím G)">
-            <span class="m-icon">🔲</span>
-            <span class="m-text" id="lbl-inspect-grid">Ô Vuông: BẬT</span>
+          <button id="inspect-toggle-grid" class="inspect-toggle-btn active" type="button" title="Bật/Tắt lưới ô vuông trên bề mặt khối (Phím G)">
+            <span class="m-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="1"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/></svg>
+            </span>
+            <span class="m-text" id="lbl-inspect-grid">Ô vuông: BẬT</span>
           </button>
-          <button id="inspect-toggle-dim" class="inspect-toggle-btn" title="Bật/Tắt khung số đo kích thước kỹ thuật khi đổi góc nhìn (Phím D)">
-            <span class="m-icon">📏</span>
-            <span class="m-text" id="lbl-inspect-dim">Số Đo: TẮT</span>
+          <button id="inspect-toggle-dim" class="inspect-toggle-btn" type="button" title="Bật/Tắt khung số đo kích thước khi đổi góc nhìn (Phím D)">
+            <span class="m-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M3 12h18M6 8l-3 4 3 4M18 8l3 4-3 4"/></svg>
+            </span>
+            <span class="m-text" id="lbl-inspect-dim">Số đo: TẮT</span>
           </button>
-          <button id="inspect-toggle-screens" class="inspect-toggle-btn" title="Bật/Tắt 3 Màn Chiếu Kỹ Thuật 2D (Front, Top, Side) cách các mặt vài ô (Phím P)">
-            <span class="m-icon">📺</span>
-            <span class="m-text" id="lbl-inspect-screens">Màn Chiếu: TẮT</span>
+          <button id="inspect-toggle-screens" class="inspect-toggle-btn" type="button" title="Bật/Tắt 3 Màn chiếu kỹ thuật 2D (Phím P)">
+            <span class="m-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 20h8M12 16v4"/></svg>
+            </span>
+            <span class="m-text" id="lbl-inspect-screens">Màn chiếu: TẮT</span>
           </button>
         </div>
-        <div class="screen-dist-control" id="screen-dist-control" title="Điều chỉnh khoảng cách từ khối đến các màn chiếu (2 đến 100 ô)">
+        <div class="screen-dist-control" id="screen-dist-control" title="Khoảng cách từ khối đến các màn chiếu (2 đến 100 ô)">
           <div class="screen-dist-header">
-            <span>Khoảng cách màn chiếu:</span>
+            <label for="screen-dist-slider">Khoảng cách màn chiếu</label>
             <span id="lbl-screen-dist" class="screen-dist-val">2.0</span>
           </div>
           <input type="range" id="screen-dist-slider" min="2" max="100" step="1" value="2">
         </div>
       </div>
 
-      <!-- CÁC CHẾ ĐỘ ĐO ĐẠC -->
       <div class="measure-tool-group">
-        <div class="measure-section-label">CHẾ ĐỘ ĐO (Phím M)</div>
+        <div class="measure-section-label">Chế độ đo (Phím M)</div>
         <div class="measure-modes-grid">
-          <button class="measure-mode-btn active" data-measure-mode="edge" title="Đo chiều dài cạnh">
-            <span class="m-icon">📏</span>
-            <span class="m-text">Đo Cạnh</span>
+          <button class="measure-mode-btn active" type="button" data-measure-mode="edge" title="Đo chiều dài cạnh">
+            <span class="m-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M3 12h18M6 8l-3 4 3 4M18 8l3 4-3 4"/></svg>
+            </span>
+            <span class="m-text">Đo cạnh</span>
           </button>
-          <button class="measure-mode-btn" data-measure-mode="angle-edges" title="Đo góc giữa 2 cạnh (Click Cạnh 1 ➔ Click Cạnh 2)">
-            <span class="m-icon">📐</span>
-            <span class="m-text">Góc 2 Cạnh</span>
+          <button class="measure-mode-btn" type="button" data-measure-mode="angle-edges" title="Đo góc giữa 2 cạnh">
+            <span class="m-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M4 19h16M4 19L17 6"/><path d="M11 19a7 7 0 0 0-2.1-5"/></svg>
+            </span>
+            <span class="m-text">Góc 2 cạnh</span>
           </button>
-          <button class="measure-mode-btn" data-measure-mode="angle-faces" title="Đo góc giữa 2 mặt (Click Mặt 1 ➔ Click Mặt 2)">
-            <span class="m-icon">🧱</span>
-            <span class="m-text">Góc 2 Mặt</span>
+          <button class="measure-mode-btn" type="button" data-measure-mode="angle-faces" title="Đo góc giữa 2 mặt phẳng">
+            <span class="m-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M12 3l8 4.5-8 4.5-8-4.5L12 3z"/><path d="M4 12l8 4.5 8-4.5"/><path d="M4 16.5L12 21l8-4.5"/></svg>
+            </span>
+            <span class="m-text">Góc 2 mặt</span>
           </button>
-          <button class="measure-mode-btn" data-measure-mode="distance" title="Đo khoảng cách giữa 2 điểm">
-            <span class="m-icon">🎯</span>
-            <span class="m-text">2 Điểm</span>
+          <button class="measure-mode-btn" type="button" data-measure-mode="distance" title="Đo khoảng cách giữa 2 điểm">
+            <span class="m-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="2.5"/><circle cx="19" cy="12" r="2.5"/><line x1="7.5" y1="12" x2="16.5" y2="12" stroke-dasharray="2.5 2.5"/></svg>
+            </span>
+            <span class="m-text">2 điểm</span>
           </button>
-          <button class="measure-mode-btn" data-measure-mode="circle" title="Đo bán kính (R) và đường kính (Ø) đường tròn / góc bo">
-            <span class="m-icon">⭕</span>
+          <button class="measure-mode-btn" type="button" data-measure-mode="circle" title="Đo bán kính (R) và đường kính (Ø)">
+            <span class="m-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><path d="M12 12l5-5m-3.5 0H17v3.5"/></svg>
+            </span>
             <span class="m-text">Tròn (R/Ø)</span>
           </button>
         </div>
       </div>
 
-      <!-- CÁC NÚT THAO TÁC XÓA & COPY -->
       <div class="measure-actions-bar">
-        <button id="btn-clear-all-measures" class="btn-measure-danger" title="Xóa toàn bộ các số đo đang lưu trên hình (Delete)">
-          🗑️ Xóa Hết Số Đo
+        <button id="btn-clear-all-measures" class="btn-measure-danger" type="button" title="Xóa toàn bộ số đo (Delete)">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
+          <span>Xóa hết số đo</span>
         </button>
-        <button id="btn-copy-measures" class="btn-measure-secondary" title="Sao chép danh sách số đo vào Clipboard">
-          📋 Copy
+        <button id="btn-copy-measures" class="btn-measure-secondary" type="button" title="Sao chép danh sách số đo">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="1.5"/><path d="M5 15H4a1.5 1.5 0 0 1-1.5-1.5V4A1.5 1.5 0 0 1 4 2.5h9.5A1.5 1.5 0 0 1 15 4v1"/></svg>
+          <span>Copy</span>
         </button>
       </div>
 
-      <!-- DANH SÁCH CÁC SỐ ĐO ĐÃ LƯU TRÊN HÌNH -->
       <div class="measure-history-section">
         <div class="measure-history-header">
-          <span>DANH SÁCH SỐ ĐO</span>
+          <span>Danh sách số đo</span>
           <span class="badge-count" id="measure-count">0</span>
         </div>
         <div class="measure-list" id="measure-list">
-          <div class="empty-measure-hint">Chưa có số đo nào.<br>Click vào cạnh hoặc góc trên khối để bắt đầu đo!</div>
+          <div class="empty-measure-hint">Chưa có số đo nào. Click vào cạnh hoặc góc trên khối để bắt đầu đo.</div>
         </div>
       </div>
     </aside>
 
-    <!-- NÚT NỔI MỞ BẢNG ĐO ĐẠC KHI ĐÃ BỊ THU GỌN -->
-    <button id="btn-floating-open-inspect" class="floating-inspect-btn" style="display: none;" title="Mở lại bảng kiểm tra & đo đạc" aria-label="Mở lại bảng kiểm tra và đo đạc">
-      <span>🔍 Đo Đạc</span>
-      <span>◀</span>
+    <!-- NÚT NỔI MỞ BẢNG ĐO ĐẠC 3D -->
+    <button id="btn-floating-open-inspect" class="floating-inspect-btn" type="button" style="display: none;" title="Mở lại bảng đo đạc" aria-label="Mở lại bảng kiểm tra và đo đạc">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+      <span>Đo đạc</span>
     </button>
 
-    <!-- BẢNG CÔNG CỤ SỐ ĐO 2D BÊN PHẢI (CHỈ XUẤT HIỆN KHI Ở CHẾ ĐỘ 2D CAD) -->
-    <aside id="cad2d-inspect-panel" class="inspection-panel" style="display: none;">
+    <!-- BẢNG SỐ ĐO 2D BÊN PHẢI -->
+    <aside id="cad2d-inspect-panel" class="inspection-panel" style="display: none;" aria-label="Số đo 2D">
       <div class="panel-header">
         <div class="panel-title-group">
-          <span class="panel-icon">📐</span>
-          <span class="panel-title">SỐ ĐO 2D</span>
+          <span class="panel-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18M5 20V5l14 15"/><path d="M9 20v-6h6"/></svg>
+          </span>
+          <span class="panel-title">Số đo 2D</span>
         </div>
         <div class="panel-header-actions">
           <span class="panel-mode-badge">2D CAD</span>
-          <button id="btn-toggle-2d-inspect" class="panel-collapse-btn" title="Thu gọn bảng (Esc)" aria-label="Thu gọn bảng số đo 2D">✕</button>
+          <button id="btn-toggle-2d-inspect" class="panel-collapse-btn" type="button" title="Thu gọn bảng (Esc)" aria-label="Thu gọn bảng số đo 2D">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
         </div>
       </div>
 
-      <!-- CÁC CHẾ ĐỘ ĐO 2D -->
       <div class="measure-tool-group">
-        <div class="measure-section-label">CHẾ ĐỘ ĐO 2D</div>
+        <div class="measure-section-label">Chế độ đo 2D</div>
         <div class="measure-modes-grid">
-          <button class="measure-mode-btn active" id="btn-2d-dim-edge" data-tool="dim" title="Đo chiều dài cạnh">
-            <span class="m-icon">📏</span>
-            <span class="m-text">Đo Cạnh</span>
+          <button class="measure-mode-btn active" id="btn-2d-dim-edge" type="button" data-tool="dim" title="Đo chiều dài cạnh">
+            <span class="m-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M3 12h18M6 8l-3 4 3 4M18 8l3 4-3 4"/></svg>
+            </span>
+            <span class="m-text">Đo cạnh</span>
           </button>
-          <button class="measure-mode-btn" id="btn-2d-dim-points" data-tool="dim-points" title="Đo khoảng cách giữa 2 điểm">
-            <span class="m-icon">🎯</span>
-            <span class="m-text">2 Điểm</span>
+          <button class="measure-mode-btn" id="btn-2d-dim-points" type="button" data-tool="dim-points" title="Đo khoảng cách giữa 2 điểm">
+            <span class="m-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="2.5"/><circle cx="19" cy="12" r="2.5"/><line x1="7.5" y1="12" x2="16.5" y2="12" stroke-dasharray="2.5 2.5"/></svg>
+            </span>
+            <span class="m-text">2 điểm</span>
           </button>
-          <button class="measure-mode-btn" id="btn-2d-dim-radial" data-tool="dim-radial" title="Đo bán kính (R) hoặc đường kính (Ø) tròn">
-            <span class="m-icon">⭕</span>
+          <button class="measure-mode-btn" id="btn-2d-dim-radial" type="button" data-tool="dim-radial" title="Đo bán kính (R) hoặc đường kính (Ø)">
+            <span class="m-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><path d="M12 12l5-5m-3.5 0H17v3.5"/></svg>
+            </span>
             <span class="m-text">Tròn (R/Ø)</span>
           </button>
         </div>
       </div>
 
-      <!-- CÁC NÚT THAO TÁC XÓA & COPY SỐ ĐO 2D -->
       <div class="measure-actions-bar">
-        <button id="btn-clear-all-2d-dims" class="btn-measure-danger" title="Xóa toàn bộ các số đo 2D trên bản vẽ (Delete)">
-          🗑️ Xóa Hết Số Đo
+        <button id="btn-clear-all-2d-dims" class="btn-measure-danger" type="button" title="Xóa toàn bộ số đo 2D (Delete)">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
+          <span>Xóa hết số đo</span>
         </button>
-        <button id="btn-copy-2d-dims" class="btn-measure-secondary" title="Sao chép danh sách số đo 2D vào Clipboard">
-          📋 Copy
+        <button id="btn-copy-2d-dims" class="btn-measure-secondary" type="button" title="Sao chép danh sách số đo 2D">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="1.5"/><path d="M5 15H4a1.5 1.5 0 0 1-1.5-1.5V4A1.5 1.5 0 0 1 4 2.5h9.5A1.5 1.5 0 0 1 15 4v1"/></svg>
+          <span>Copy</span>
         </button>
       </div>
 
-      <!-- DANH SÁCH CÁC SỐ ĐO 2D ĐÃ TẠO -->
       <div class="measure-history-section">
         <div class="measure-history-header">
-          <span>DANH SÁCH SỐ ĐO 2D</span>
+          <span>Danh sách số đo 2D</span>
           <span class="badge-count" id="cad2d-measure-count">0</span>
         </div>
         <div class="measure-list" id="cad2d-measure-list">
-          <div class="empty-measure-hint">Chưa có số đo nào.<br>Click vào cạnh hoặc 2 điểm trên bản vẽ 2D để đo!</div>
+          <div class="empty-measure-hint">Chưa có số đo nào. Click vào cạnh hoặc 2 điểm trên bản vẽ 2D để đo.</div>
         </div>
       </div>
     </aside>
 
-    <!-- NÚT NỔI MỞ BẢNG SỐ ĐO 2D KHI ĐÃ BỊ THU GỌN -->
-    <button id="btn-floating-open-2d-inspect" class="floating-inspect-btn" style="display: none;" title="Mở lại bảng số đo 2D" aria-label="Mở lại bảng số đo 2D">
-      <span>📐 Số Đo 2D</span>
-      <span>◀</span>
+    <!-- NÚT NỔI MỞ BẢNG SỐ ĐO 2D -->
+    <button id="btn-floating-open-2d-inspect" class="floating-inspect-btn" type="button" style="display: none;" title="Mở lại bảng số đo 2D" aria-label="Mở lại bảng số đo 2D">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M3 20h18M5 20V5l14 15"/></svg>
+      <span>Số đo 2D</span>
     </button>
 
-    <!-- BANNER SỐ ĐO KỸ THUẬT NỔI PHÍA TRÊN KHI ĐỔI GÓC NHÌN -->
+    <!-- BANNER SỐ ĐO KỸ THUẬT NỔI PHÍA TRÊN -->
     <div id="view-dim-badge" class="view-dim-badge" style="display: none;">
-      <div class="badge-icon">📐</div>
+      <div class="badge-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18M6 8l-3 4 3 4M18 8l3 4-3 4"/></svg>
+      </div>
       <div class="badge-info">
         <span class="badge-title" id="view-badge-title">PHỐI CẢNH TRỤC ĐO (ISO 3D)</span>
-        <span class="badge-dims" id="view-badge-dims">↔ Rộng: 6  |  ↕ Cao: 4  |  ↗ Sâu: 4</span>
+        <span class="badge-dims" id="view-badge-dims">Rộng: 6 · Cao: 4 · Sâu: 4</span>
       </div>
     </div>
 
-    <!-- THANH HƯỚNG DẪN & NÚT BẤM NỔI DƯỚI ĐÁY MÀN HÌNH (INTERACTIVE HUD 3D - Ẩn vì đã có tab bên trái & phải) -->
-    <div id="interactive-hud" class="interactive-hud" style="display: none !important;">
-      <!-- Nội dung được cập nhật động từ picker.js -->
-    </div>
+    <!-- INTERACTIVE HUD LEGACY CONTAINER -->
+    <div id="interactive-hud" class="interactive-hud" style="display: none !important;"></div>
 
     <!-- TOOLTIP TỌA ĐỘ BAY THEO CHUỘT -->
     <div id="picker-tooltip" class="picker-tooltip" style="display: none;"></div>
 
-    <!-- HƯỚNG DẪN THAO TÁC GÓC DƯỚI PHẢI (3D) -->
-    <div class="hud-helper">
-      👁️ <b>Chỉ xem:</b> Kéo chuột xoay tự do không vướng điểm<br>
-      📐 <b>Cắt gọt:</b> Chọn nút công cụ ở menu bên trái để hiện điểm bắt dính<br>
-      📏 <b>Số đo:</b> Tự động hiện số đo khi đổi góc chiếu (Phím D) | 📺 <b>Màn chiếu 2D:</b> Phím P<br>
-      🔲 <b>Ô vuông:</b> Bật/tắt lưới ô vuông (Phím G) | ✂️ <b>Bước lưới (1, 1/2, 1/4, 1/8):</b> Phím S<br>
-      🔍 <b>Phóng to / Thu nhỏ:</b> Cuộn bánh xe chuột | ✋ <b>Pan:</b> Shift + Chuột phải<br>
-      ⌨️ <b>Phím tắt:</b> Enter (Cắt), Esc (Hủy), Backspace (Xóa điểm), Ctrl+Z (Undo)
+    <!-- THANH PHÍM TẮT GỌN GÀNG Ở ĐÁY MÀN HÌNH 3D -->
+    <div class="hud-helper" aria-label="Phím tắt nhanh">
+      <span class="hud-kbd-item"><kbd>G</kbd> Lưới</span>
+      <span class="hud-kbd-item"><kbd>S</kbd> Bước lưới</span>
+      <span class="hud-kbd-item"><kbd>D</kbd> Số đo</span>
+      <span class="hud-kbd-item"><kbd>P</kbd> Màn chiếu</span>
+      <span class="hud-kbd-item"><kbd>Enter</kbd> Cắt</span>
+      <span class="hud-kbd-item"><kbd>Esc</kbd> Hủy</span>
+      <span class="hud-kbd-item"><kbd>Ctrl+Z</kbd> Undo</span>
     </div>
 
   </div>

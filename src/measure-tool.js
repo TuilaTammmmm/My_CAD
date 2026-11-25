@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { svgIcon } from './ui-icons.js';
 
 /**
  * InspectionTool (Công cụ kiểm tra & đo đạc CAD 3D)
@@ -139,21 +140,21 @@ export class InspectionTool {
     const btn = document.getElementById('inspect-toggle-grid');
     const lbl = document.getElementById('lbl-inspect-grid');
     if (btn) btn.classList.toggle('active', visible);
-    if (lbl) lbl.textContent = visible ? 'Ô Vuông: BẬT' : 'Ô Vuông: TẮT';
+    if (lbl) lbl.textContent = visible ? 'Ô vuông: BẬT' : 'Ô vuông: TẮT';
   }
 
   syncDimUI(enabled) {
     const btn = document.getElementById('inspect-toggle-dim');
     const lbl = document.getElementById('lbl-inspect-dim');
     if (btn) btn.classList.toggle('active', enabled);
-    if (lbl) lbl.textContent = enabled ? 'Số Đo: BẬT' : 'Số Đo: TẮT';
+    if (lbl) lbl.textContent = enabled ? 'Số đo: BẬT' : 'Số đo: TẮT';
   }
 
   syncScreensUI(enabled) {
     const btn = document.getElementById('inspect-toggle-screens');
     const lbl = document.getElementById('lbl-inspect-screens');
     if (btn) btn.classList.toggle('active', enabled);
-    if (lbl) lbl.textContent = enabled ? 'Màn Chiếu: BẬT' : 'Màn Chiếu: TẮT';
+    if (lbl) lbl.textContent = enabled ? 'Màn chiếu: BẬT' : 'Màn chiếu: TẮT';
   }
 
   // Thu gọn bảng đo đạc
@@ -301,28 +302,28 @@ export class InspectionTool {
     if (!this.instructionElement) return;
 
     if (this.subMode === 'edge') {
-      this.instructionElement.innerHTML = `👉 <b>Rê chuột vào cạnh</b> để bắt dính, <b>Click</b> để hiển thị chiều dài CAD.`;
+      this.instructionElement.innerHTML = `<strong>Rê chuột vào cạnh</strong> để bắt dính, <strong>Click</strong> để hiển thị chiều dài CAD.`;
     } else if (this.subMode === 'angle-edges') {
       if (!this.selectedEdge1) {
-        this.instructionElement.innerHTML = `👉 <b>Click CẠNH THỨ NHẤT</b> trên khối để bắt đầu đo góc.`;
+        this.instructionElement.innerHTML = `<strong>Click cạnh thứ nhất</strong> trên khối để bắt đầu đo góc.`;
       } else {
-        this.instructionElement.innerHTML = `🟢 <b>Đã chọn Cạnh 1</b>. Hãy <b>Click CẠNH THỨ HAI</b> để tính góc giữa 2 cạnh.`;
+        this.instructionElement.innerHTML = `<strong>Đã chọn cạnh 1.</strong> Hãy <strong>Click cạnh thứ hai</strong> để tính góc giữa 2 cạnh.`;
       }
     } else if (this.subMode === 'angle-faces') {
       if (!this.selectedFace1) {
-        this.instructionElement.innerHTML = `👉 <b>Click MẶT PHẲNG THỨ NHẤT</b> trên khối.`;
+        this.instructionElement.innerHTML = `<strong>Click mặt phẳng thứ nhất</strong> trên khối.`;
       } else {
-        this.instructionElement.innerHTML = `🟢 <b>Đã chọn Mặt 1</b>. Hãy <b>Click MẶT THỨ HAI</b> để đo góc giữa 2 mặt.`;
+        this.instructionElement.innerHTML = `<strong>Đã chọn mặt 1.</strong> Hãy <strong>Click mặt thứ hai</strong> để đo góc giữa 2 mặt.`;
       }
     } else if (this.subMode === 'distance') {
       if (!this.selectedPoint1) {
-        this.instructionElement.innerHTML = `👉 <b>Click ĐIỂM THỨ NHẤT</b> (Đỉnh hoặc nút lưới) trên khối.`;
+        this.instructionElement.innerHTML = `<strong>Click điểm thứ nhất</strong> (đỉnh hoặc nút lưới) trên khối.`;
       } else {
         const p = this.selectedPoint1;
-        this.instructionElement.innerHTML = `🟢 <b>Điểm 1 (${p.x.toFixed(1)}, ${p.y.toFixed(1)}, ${p.z.toFixed(1)})</b>. Hãy <b>Click ĐIỂM THỨ HAI</b> để đo khoảng cách.`;
+        this.instructionElement.innerHTML = `<strong>Điểm 1 (${p.x.toFixed(1)}, ${p.y.toFixed(1)}, ${p.z.toFixed(1)}).</strong> Hãy <strong>Click điểm thứ hai</strong> để đo khoảng cách.`;
       }
     } else if (this.subMode === 'circle') {
-      this.instructionElement.innerHTML = `👉 <b>Rê chuột vào đường tròn hoặc cung bo</b> rồi <b>Click</b> để đo Bán kính (R) & Đường kính (Ø).`;
+      this.instructionElement.innerHTML = `<strong>Rê chuột vào đường tròn hoặc cung bo</strong> rồi <strong>Click</strong> để đo Bán kính (R) &amp; Đường kính (Ø).`;
     }
   }
 
@@ -1569,7 +1570,7 @@ export class InspectionTool {
     if (this.measurements.length === 0) {
       this.measureListElement.innerHTML = `
         <div class="empty-measure-hint">
-          Chưa có số đo nào.<br>Hãy click vào cạnh hoặc góc trên khối để bắt đầu đo!
+          Chưa có số đo nào. Click vào cạnh hoặc góc trên khối để bắt đầu đo.
         </div>
       `;
       return;
@@ -1577,18 +1578,20 @@ export class InspectionTool {
 
     let html = '';
     for (const item of this.measurements) {
-      let icon = '📏';
-      if (item.type === 'angle-edges' || item.type === 'angle-faces') icon = '📐';
-      else if (item.type === 'distance') icon = '🎯';
+      let iconName = 'ruler';
+      if (item.type === 'angle-edges') iconName = 'angle';
+      else if (item.type === 'angle-faces') iconName = 'faces';
+      else if (item.type === 'distance') iconName = 'points';
+      else if (item.type === 'circle') iconName = 'radial';
 
       html += `
         <div class="measure-item" data-id="${item.id}">
-          <div class="measure-item-icon">${icon}</div>
+          <div class="measure-item-icon">${svgIcon(iconName, 15)}</div>
           <div class="measure-item-info">
             <div class="measure-item-title">${item.title}</div>
             <div class="measure-item-sub">${item.sub}</div>
           </div>
-          <button class="measure-item-del" data-del-id="${item.id}" title="Xóa số đo này">✖</button>
+          <button type="button" class="measure-item-del" data-del-id="${item.id}" title="Xóa số đo này" aria-label="Xóa số đo">${svgIcon('close', 13)}</button>
         </div>
       `;
     }

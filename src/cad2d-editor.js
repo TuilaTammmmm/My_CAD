@@ -1,5 +1,6 @@
 import { DXFExporter } from './dxf-exporter.js';
 import { saveProjectState } from './storage.js';
+import { svgIcon } from './ui-icons.js';
 
 /**
  * CAD2DEditor
@@ -354,7 +355,7 @@ export class CAD2DEditor {
     if (dims.length === 0) {
       this.measureListElement.innerHTML = `
         <div class="empty-measure-hint">
-          Chưa có số đo nào.<br>Chọn "Đo Cạnh" hoặc "2 Điểm" để tạo số đo trên bản vẽ!
+          Chưa có số đo nào. Chọn "Đo cạnh" hoặc "2 điểm" để tạo số đo trên bản vẽ.
         </div>
       `;
       return;
@@ -362,43 +363,43 @@ export class CAD2DEditor {
 
     let html = '';
     dims.forEach((elem, idx) => {
-      let icon = '📏';
+      let iconName = 'ruler';
       let title = '';
       let sub = '';
 
       if (elem.type === 'dim-radial') {
-        icon = '⭕';
+        iconName = 'radial';
         if (elem.isDiameter) {
-          title = `Đường Kính: Ø ${elem.dist}`;
+          title = `Đường kính: Ø ${elem.dist}`;
           sub = `Tâm (${elem.cx.toFixed(1)}, ${elem.cy.toFixed(1)}) · R=${elem.r.toFixed(1)}`;
         } else {
-          title = `Bán Kính: R ${elem.dist}`;
+          title = `Bán kính: R ${elem.dist}`;
           sub = `Tâm (${elem.cx.toFixed(1)}, ${elem.cy.toFixed(1)})`;
         }
       } else if (elem.type === 'dim-angle') {
-        icon = '📐';
+        iconName = 'angle';
         title = `Góc: ${elem.angle}°`;
         sub = `Góc giữa 2 đoạn nét`;
       } else {
-        icon = '📏';
+        iconName = 'ruler';
         const dx = Math.abs(elem.p2.u - elem.p1.u);
         const dy = Math.abs(elem.p2.v - elem.p1.v);
         let orientation = 'Xiên';
-        if (dy < 0.05) orientation = 'Ngang (↔)';
-        else if (dx < 0.05) orientation = 'Đứng (↕)';
+        if (dy < 0.05) orientation = 'Ngang';
+        else if (dx < 0.05) orientation = 'Đứng';
 
-        title = `Kích Thước: ${elem.dist} (${orientation})`;
+        title = `Kích thước: ${elem.dist} (${orientation})`;
         sub = `Từ (${elem.p1.u.toFixed(1)}, ${elem.p1.v.toFixed(1)}) đến (${elem.p2.u.toFixed(1)}, ${elem.p2.v.toFixed(1)})`;
       }
 
       html += `
         <div class="measure-item" data-dim-index="${idx}">
-          <div class="measure-item-icon">${icon}</div>
+          <div class="measure-item-icon">${svgIcon(iconName, 15)}</div>
           <div class="measure-item-info">
             <div class="measure-item-title">${title}</div>
             <div class="measure-item-sub">${sub}</div>
           </div>
-          <button class="measure-item-del" data-dim-del="${idx}" title="Xóa số đo này (Delete)" aria-label="Xóa số đo">🗑️</button>
+          <button type="button" class="measure-item-del" data-dim-del="${idx}" title="Xóa số đo này (Delete)" aria-label="Xóa số đo">${svgIcon('trash', 13)}</button>
         </div>
       `;
     });
@@ -1354,12 +1355,12 @@ export class CAD2DEditor {
         this.saveHistory();
         const hintEl = document.querySelector('.cad2d-hint');
         if (hintEl) {
-          hintEl.innerHTML = `✅ <b>Bo Cung (Fillet):</b> Đã bo tròn góc thành công với bán kính R = ${R}!`;
+          hintEl.innerHTML = `<strong>Bo cung (Fillet):</strong> Đã bo tròn góc thành công với bán kính R = ${R}.`;
         }
       } else {
         const hintEl = document.querySelector('.cad2d-hint');
         if (hintEl) {
-          hintEl.innerHTML = `⚠️ <b>Bo Cung (Fillet):</b> Không thể bo góc với R = ${R}. Hãy thử giảm bán kính R (ô nhập Bán kính R) hoặc chọn 2 nét cắt nhau!`;
+          hintEl.innerHTML = `<strong>Bo cung (Fillet):</strong> Không thể bo góc với R = ${R}. Hãy giảm bán kính R hoặc chọn 2 nét cắt nhau.`;
         }
       }
       this.render();
@@ -2470,48 +2471,48 @@ export class CAD2DEditor {
     const hintEl = document.querySelector('.cad2d-hint');
     if (!hintEl) return;
 
-    const snapModeText = (this.snapMode === 'free') 
-      ? '<span style="color:#fbbf24; font-weight:bold;">Tự Do (Free)</span>' 
-      : '<span style="color:#38bdf8; font-weight:bold;">Lưới (0.5)</span>';
+    const snapModeText = (this.snapMode === 'free')
+      ? '<span class="cad2d-snap-free">Tự do (Free)</span>'
+      : '<span class="cad2d-snap-grid">Lưới (0.5)</span>';
     let toolHint = '';
 
     if (this.tool === 'line-visible') {
-      toolHint = `✏️ <b>Vẽ Nét Thấy:</b> Click Điểm 1 ➔ Click Điểm 2 để nối nét liền đậm`;
+      toolHint = `<strong>Visible Line:</strong> Click Điểm 1 → Điểm 2 để nối nét liền`;
     } else if (this.tool === 'line-hidden') {
-      toolHint = `✏️ <b>Vẽ Nét Khuất:</b> Click 2 điểm để vẽ nét đứt vàng`;
+      toolHint = `<strong>Hidden Line:</strong> Click 2 điểm để vẽ nét đứt`;
     } else if (this.tool === 'rect') {
-      toolHint = `🔲 <b>Hình Chữ Nhật:</b> Click Góc 1 ➔ Click Góc đối diện để tạo khung nhanh`;
+      toolHint = `<strong>Rectangle:</strong> Click Góc 1 → Góc đối diện`;
     } else if (this.tool === 'arc') {
       const step = this.pendingPoints.length + 1;
-      toolHint = `⌒ <b>Vẽ Cung Cong (3 Điểm):</b> Đang chờ Click <b>Điểm ${step}/3</b>`;
+      toolHint = `<strong>3-Point Arc:</strong> Đang chờ Click <strong>Điểm ${step}/3</strong>`;
     } else if (this.tool === 'tangent-arc') {
       toolHint = (this.pendingPoints.length === 0)
-        ? `⌒ <b>Cung Tiếp Tuyến:</b> Click chọn đầu mút nét để bắt đầu tiếp xúc mượt mà`
-        : `⌒ <b>Cung Tiếp Tuyến:</b> Kéo chuột và click điểm kết thúc cung`;
+        ? `<strong>Tangent Arc:</strong> Click chọn đầu mút nét để bắt đầu`
+        : `<strong>Tangent Arc:</strong> Kéo chuột và click điểm kết thúc cung`;
     } else if (this.tool === 'circle') {
       const step = this.pendingPoints.length + 1;
-      toolHint = `⭕ <b>Đường Tròn:</b> ${step === 1 ? 'Click chọn TÂM' : 'Click chọn BÁN KÍNH'}`;
+      toolHint = `<strong>Circle:</strong> ${step === 1 ? 'Click chọn Tâm' : 'Click chọn Bán kính'}`;
     } else if (this.tool === 'fillet') {
       toolHint = !this.filletFirst
-        ? `🔄 <b>Bo Cung (Fillet R = ${this.filletRadius}):</b> Click chọn Nét thứ 1`
-        : `🔄 <b>Bo Cung (Fillet R = ${this.filletRadius}):</b> Click chọn Nét thứ 2 để bo tròn tiếp xúc góc`;
+        ? `<strong>Fillet (R = ${this.filletRadius}):</strong> Click chọn Nét thứ 1`
+        : `<strong>Fillet (R = ${this.filletRadius}):</strong> Click chọn Nét thứ 2 để bo góc`;
     } else if (this.tool === 'dim') {
-      toolHint = `📐 <b>Đo Cạnh:</b> Click thẳng vào cạnh để đo ngay chiều dài cạnh`;
+      toolHint = `<strong>Đo cạnh:</strong> Click thẳng vào cạnh để đo chiều dài`;
     } else if (this.tool === 'dim-points') {
       toolHint = (this.pendingPoints.length === 0)
-        ? `🎯 <b>Đo 2 Điểm:</b> Click chọn <b>ĐIỂM THỨ 1</b>`
-        : `🎯 <b>Đo 2 Điểm:</b> Click chọn <b>ĐIỂM THỨ 2</b> để đo khoảng cách giữa 2 điểm`;
+        ? `<strong>Đo 2 điểm:</strong> Click chọn <strong>Điểm thứ 1</strong>`
+        : `<strong>Đo 2 điểm:</strong> Click chọn <strong>Điểm thứ 2</strong>`;
     } else if (this.tool === 'dim-radial') {
-      toolHint = `⭕ <b>Đo Bán Kính (R) / Đường Kính (Ø):</b> Click vào Cung Tròn hoặc Đường Tròn bất kỳ`;
+      toolHint = `<strong>Radial Dim:</strong> Click vào Cung tròn hoặc Đường tròn`;
     } else if (this.tool === 'erase') {
-      toolHint = `✂️ <b>Tỉa Nét Cắt (AutoCAD TRIM):</b> Click vào đoạn nét (trong hoặc ngoài các giao điểm) để cắt tỉa`;
+      toolHint = `<strong>Trim / Erase:</strong> Click đoạn nét cần cắt tỉa hoặc xóa`;
     } else if (this.tool === 'toggle-style') {
-      toolHint = `🔄 <b>Đổi Nét (Thấy ⇄ Khuất):</b> Click vào nét bất kỳ để chuyển đổi giữa nét liền trắng (thấy) và nét đứt vàng (khuất)`;
+      toolHint = `<strong>Đổi nét:</strong> Click vào nét để chuyển giữa nét liền và nét đứt`;
     } else if (this.tool === 'pan') {
-      toolHint = `✋ <b>Di Chuyển / Pan:</b> Kéo chuột trái để di chuyển mặt phẳng vẽ | Cuộn chuột để Phóng to/Thu nhỏ`;
+      toolHint = `<strong>Pan / Move:</strong> Kéo chuột để di chuyển · Cuộn để zoom`;
     }
 
-    hintEl.innerHTML = `${toolHint} &nbsp;|&nbsp; Bắt dính: ${snapModeText} (Phím <b>G</b>/giữ <b>Alt</b>)`;
+    hintEl.innerHTML = `${toolHint} · Bắt dính: ${snapModeText} (<strong>G</strong> / giữ <strong>Alt</strong>)`;
   }
 
   // --- RENDER BẢN VẼ 2D MẶT PHẲNG X-Y RỘNG VÔ CỰC ---
@@ -2526,7 +2527,7 @@ export class CAD2DEditor {
     const s = this.scale;
 
     // 1. Nền không gian vẽ CAD đậm chất kỹ thuật
-    ctx.fillStyle = '#080c15';
+    ctx.fillStyle = '#0f0f0f';
     ctx.fillRect(0, 0, rect.width, rect.height);
 
     // 2. TÍNH TOÁN BƯỚC HIỂN THỊ THÍCH ỨNG (ADAPTIVE LOD & ZOOM OUT BỚT SỐ)

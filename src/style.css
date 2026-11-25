@@ -2515,6 +2515,12 @@ body {
   border: 1px solid rgba(56, 189, 248, 0.25);
 }
 
+.cloud-badge-own {
+  background: rgba(16, 185, 129, 0.16);
+  color: #6ee7b7;
+  border-color: rgba(52, 211, 153, 0.35);
+}
+
 .cloud-card-actions {
   display: flex;
   gap: 6px;

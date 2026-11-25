@@ -2451,68 +2451,12 @@
     }
   },
   "src/style.css": {
-    "mtime": 1795585343.583069,
-    "size": 50920,
-    "hash": "b0858054526799b91caacd2162d6d812cd6689dae10367b8c4dd6cdd0fae3c04",
+    "mtime": 1795587422.4487414,
+    "size": 51042,
+    "hash": "3326a9189b1e24c6697ba3cfad8b0f40752e546b5dcbc0273f9a57136c442668",
     "analysis": {
       "file_path": "src/style.css",
       "language": "css",
-      "summary": "",
-      "exports": [],
-      "calls": [],
-      "imports": [],
-      "symbols": []
-    }
-  },
-  ".cursorrules": {
-    "mtime": 1794795312.4353428,
-    "size": 301,
-    "hash": "cf4da2ea09928071c5a1c3f65664baa9a6def308d81ec61610cbd052b4758b5b",
-    "analysis": {
-      "file_path": ".cursorrules",
-      "language": "unknown",
-      "summary": "",
-      "exports": [],
-      "calls": [],
-      "imports": [],
-      "symbols": []
-    }
-  },
-  "AGENTS.md": {
-    "mtime": 1794795312.43761,
-    "size": 594,
-    "hash": "2fadee489665176946edabfd962702ce40df38e14526a9aff7cc76fb9e0b7433",
-    "analysis": {
-      "file_path": "AGENTS.md",
-      "language": "markdown",
-      "summary": "",
-      "exports": [],
-      "calls": [],
-      "imports": [],
-      "symbols": []
-    }
-  },
-  "CLAUDE.md": {
-    "mtime": 1794795312.4364817,
-    "size": 300,
-    "hash": "72c33cba614bce55dc0b2e5336e7a9d28f8df56d2abd7c229f824abd0f184e1b",
-    "analysis": {
-      "file_path": "CLAUDE.md",
-      "language": "markdown",
-      "summary": "",
-      "exports": [],
-      "calls": [],
-      "imports": [],
-      "symbols": []
-    }
-  },
-  "GEMINI.md": {
-    "mtime": 1794795312.4398766,
-    "size": 594,
-    "hash": "2fadee489665176946edabfd962702ce40df38e14526a9aff7cc76fb9e0b7433",
-    "analysis": {
-      "file_path": "GEMINI.md",
-      "language": "markdown",
       "summary": "",
       "exports": [],
       "calls": [],
@@ -2534,11 +2478,11 @@
       "symbols": []
     }
   },
-  "_git_head": "refs/heads/main:9bd88d61",
+  "_git_head": "refs/heads/main:f394cbc8",
   "api/models.js": {
-    "mtime": 1795585313.0853348,
-    "size": 10746,
-    "hash": "f79e5f50f067c6755fdac8df369ce832e54d82e97209083a34dc260695c53d6b",
+    "mtime": 1795587413.2702749,
+    "size": 10766,
+    "hash": "33d684a2546069384cd9998d3bef3ec0babcdfaf07fd89b9fd5f7a5193a1b998",
     "analysis": {
       "file_path": "api/models.js",
       "language": "javascript",
@@ -2716,9 +2660,9 @@
     }
   },
   "src/cloud-library-ui.js": {
-    "mtime": 1795585382.8924713,
-    "size": 11467,
-    "hash": "799890355c986ce800a0d3d7cd5a41087bfac104a781787de6e24cd95fd6dccb",
+    "mtime": 1795587420.7910283,
+    "size": 12037,
+    "hash": "51423a5df25277f88c2228a490d964ab12b1ea1583249067d046053a53b9604f",
     "analysis": {
       "file_path": "src/cloud-library-ui.js",
       "language": "javascript",
@@ -2748,13 +2692,16 @@
         "appendChild",
         "test",
         "append",
+        "getOwnDeleteToken",
+        "add",
         "addEventListener",
         "async",
         "loadCloudModelData",
         "applyPayload",
-        "getOwnDeleteToken",
         "confirm",
         "deleteCloudModel",
+        "setStoredAdminPin",
+        "removeOwnDeleteToken",
         "refreshModels",
         "fetchCloudModels",
         "openModal",
@@ -2763,7 +2710,6 @@
         "saveCloudModel",
         "handleAdminLogin",
         "verifyAdminPin",
-        "setStoredAdminPin",
         "preventDefault"
       ],
       "imports": [
@@ -2776,6 +2722,7 @@
             "verifyAdminPin",
             "deleteCloudModel",
             "getOwnDeleteToken",
+            "removeOwnDeleteToken",
             "getStoredAdminPin",
             "setStoredAdminPin"
           ],
@@ -2786,7 +2733,7 @@
         {
           "name": "formatShortDate",
           "kind": "function",
-          "line": 12,
+          "line": 13,
           "doc": "",
           "args": [
             "ts"
@@ -2796,7 +2743,7 @@
         {
           "name": "createBadge",
           "kind": "function",
-          "line": 26,
+          "line": 27,
           "doc": "",
           "args": [
             "text"
@@ -2806,7 +2753,7 @@
         {
           "name": "initCloudLibraryUI",
           "kind": "function",
-          "line": 36,
+          "line": 37,
           "doc": "",
           "args": [
             "{ getPayload, applyPayload }"
@@ -2816,7 +2763,7 @@
         {
           "name": "setStatus",
           "kind": "function",
-          "line": 59,
+          "line": 60,
           "doc": "",
           "args": [
             "message",
@@ -2827,7 +2774,7 @@
         {
           "name": "syncAdminUI",
           "kind": "function",
-          "line": 71,
+          "line": 72,
           "doc": "",
           "args": [],
           "methods": []
@@ -2835,7 +2782,7 @@
         {
           "name": "renderModels",
           "kind": "function",
-          "line": 81,
+          "line": 82,
           "doc": "",
           "args": [],
           "methods": []
@@ -2843,7 +2790,7 @@
         {
           "name": "refreshModels",
           "kind": "function",
-          "line": 210,
+          "line": 228,
           "doc": "",
           "args": [],
           "methods": []
@@ -2851,7 +2798,7 @@
         {
           "name": "openModal",
           "kind": "function",
-          "line": 227,
+          "line": 245,
           "doc": "",
           "args": [],
           "methods": []
@@ -2859,7 +2806,7 @@
         {
           "name": "handleAdminLogin",
           "kind": "function",
-          "line": 284,
+          "line": 302,
           "doc": "",
           "args": [],
           "methods": []
@@ -2868,23 +2815,24 @@
     }
   },
   "src/cloud-library.js": {
-    "mtime": 1795585314.883697,
-    "size": 5164,
-    "hash": "6cd323a2512206c2c3d02d3f7110466d9ae6980f144ba0a29f858a3dc8a04b19",
+    "mtime": 1795587416.3969028,
+    "size": 5254,
+    "hash": "ce33105a811f5d8c937b59c2d5aca0071586e9a863c8fdf7837cf332c06379ed",
     "analysis": {
       "file_path": "src/cloud-library.js",
       "language": "javascript",
       "summary": "",
       "exports": [
-        "getStoredAdminPin",
-        "fetchCloudModels",
+        "captureViewportThumbnail",
         "setStoredAdminPin",
-        "getOwnDeleteToken",
         "loadCloudModelData",
+        "fetchCloudModels",
+        "deleteCloudModel",
+        "removeOwnDeleteToken",
+        "getStoredAdminPin",
         "saveCloudModel",
         "verifyAdminPin",
-        "captureViewportThumbnail",
-        "deleteCloudModel"
+        "getOwnDeleteToken"
       ],
       "calls": [
         "readOwnTokensMap",
@@ -2897,6 +2845,7 @@
         "stringify",
         "fromEntries",
         "getOwnDeleteToken",
+        "removeOwnDeleteToken",
         "getStoredAdminPin",
         "setStoredAdminPin",
         "removeItem",
@@ -2955,9 +2904,19 @@
           "methods": []
         },
         {
-          "name": "getStoredAdminPin",
+          "name": "removeOwnDeleteToken",
           "kind": "function",
           "line": 30,
+          "doc": "",
+          "args": [
+            "id"
+          ],
+          "methods": []
+        },
+        {
+          "name": "getStoredAdminPin",
+          "kind": "function",
+          "line": 39,
           "doc": "",
           "args": [],
           "methods": []
@@ -2965,7 +2924,7 @@
         {
           "name": "setStoredAdminPin",
           "kind": "function",
-          "line": 38,
+          "line": 47,
           "doc": "",
           "args": [
             "pin"
@@ -2975,7 +2934,7 @@
         {
           "name": "parseApiJson",
           "kind": "function",
-          "line": 50,
+          "line": 59,
           "doc": "",
           "args": [
             "res"
@@ -2985,7 +2944,7 @@
         {
           "name": "fetchCloudModels",
           "kind": "function",
-          "line": 71,
+          "line": 80,
           "doc": "",
           "args": [],
           "methods": []
@@ -2993,7 +2952,7 @@
         {
           "name": "loadCloudModelData",
           "kind": "function",
-          "line": 83,
+          "line": 92,
           "doc": "",
           "args": [
             "dataUrl"
@@ -3003,7 +2962,7 @@
         {
           "name": "saveCloudModel",
           "kind": "function",
-          "line": 94,
+          "line": 103,
           "doc": "",
           "args": [
             "payload"
@@ -3013,7 +2972,7 @@
         {
           "name": "verifyAdminPin",
           "kind": "function",
-          "line": 112,
+          "line": 121,
           "doc": "",
           "args": [
             "pin"
@@ -3023,7 +2982,7 @@
         {
           "name": "deleteCloudModel",
           "kind": "function",
-          "line": 127,
+          "line": 136,
           "doc": "",
           "args": [
             "id",
@@ -3034,7 +2993,7 @@
         {
           "name": "captureViewportThumbnail",
           "kind": "function",
-          "line": 148,
+          "line": 153,
           "doc": "",
           "args": [
             "renderer",

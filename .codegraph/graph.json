@@ -1,14 +1,6 @@
 {
   "nodes": [
     {
-      "id": ".cursorrules",
-      "type": "file",
-      "language": "unknown",
-      "summary": "",
-      "symbols_count": 0,
-      "exports": []
-    },
-    {
       "id": ".github/copilot-instructions.md",
       "type": "file",
       "language": "markdown",
@@ -20,30 +12,6 @@
       "id": ".gitignore",
       "type": "file",
       "language": "unknown",
-      "summary": "",
-      "symbols_count": 0,
-      "exports": []
-    },
-    {
-      "id": "AGENTS.md",
-      "type": "file",
-      "language": "markdown",
-      "summary": "",
-      "symbols_count": 0,
-      "exports": []
-    },
-    {
-      "id": "CLAUDE.md",
-      "type": "file",
-      "language": "markdown",
-      "summary": "",
-      "symbols_count": 0,
-      "exports": []
-    },
-    {
-      "id": "GEMINI.md",
-      "type": "file",
-      "language": "markdown",
       "summary": "",
       "symbols_count": 0,
       "exports": []
@@ -128,17 +96,18 @@
       "type": "file",
       "language": "javascript",
       "summary": "",
-      "symbols_count": 12,
+      "symbols_count": 13,
       "exports": [
-        "getStoredAdminPin",
-        "fetchCloudModels",
+        "captureViewportThumbnail",
         "setStoredAdminPin",
-        "getOwnDeleteToken",
         "loadCloudModelData",
+        "fetchCloudModels",
+        "deleteCloudModel",
+        "removeOwnDeleteToken",
+        "getStoredAdminPin",
         "saveCloudModel",
         "verifyAdminPin",
-        "captureViewportThumbnail",
-        "deleteCloudModel"
+        "getOwnDeleteToken"
       ]
     },
     {
@@ -321,52 +290,7 @@
     },
     {
       "source": "src/main.js",
-      "target": "src/storage.js",
-      "relation": "imports"
-    },
-    {
-      "source": "src/main.js",
       "target": "src/cloud-library.js",
-      "relation": "imports"
-    },
-    {
-      "source": "src/main.js",
-      "target": "src/occt-kernel.js",
-      "relation": "imports"
-    },
-    {
-      "source": "src/main.js",
-      "target": "src/cad2d-editor.js",
-      "relation": "imports"
-    },
-    {
-      "source": "src/main.js",
-      "target": "src/dimension-overlay.js",
-      "relation": "imports"
-    },
-    {
-      "source": "src/main.js",
-      "target": "src/cloud-library-ui.js",
-      "relation": "imports"
-    },
-    {
-      "source": "src/main.js",
-      "target": "src/measure-tool.js",
-      "relation": "imports"
-    },
-    {
-      "source": "src/main.js",
-      "target": "src/preview.js",
-      "relation": "imports"
-    },
-    {
-      "source": "src/main.js",
-      "target": "src/grid-overlay.js",
-      "relation": "imports"
-    },
-    {
-      "source": "src/main.js",
-      "target": "src/picker.js",
       "relation": "imports"
     },
     {
@@ -386,6 +310,36 @@
     },
     {
       "source": "src/main.js",
+      "target": "src/storage.js",
+      "relation": "imports"
+    },
+    {
+      "source": "src/main.js",
+      "target": "src/cloud-library-ui.js",
+      "relation": "imports"
+    },
+    {
+      "source": "src/main.js",
+      "target": "src/dimension-overlay.js",
+      "relation": "imports"
+    },
+    {
+      "source": "src/main.js",
+      "target": "src/measure-tool.js",
+      "relation": "imports"
+    },
+    {
+      "source": "src/main.js",
+      "target": "src/picker.js",
+      "relation": "imports"
+    },
+    {
+      "source": "src/main.js",
+      "target": "src/occt-kernel.js",
+      "relation": "imports"
+    },
+    {
+      "source": "src/main.js",
       "target": "src/projection-engine.js",
       "relation": "imports"
     },
@@ -395,14 +349,29 @@
       "relation": "imports"
     },
     {
+      "source": "src/main.js",
+      "target": "src/preview.js",
+      "relation": "imports"
+    },
+    {
+      "source": "src/main.js",
+      "target": "src/cad2d-editor.js",
+      "relation": "imports"
+    },
+    {
+      "source": "src/main.js",
+      "target": "src/grid-overlay.js",
+      "relation": "imports"
+    },
+    {
       "source": "src/projection-engine.js",
       "target": "src/occt-kernel.js",
       "relation": "imports"
     }
   ],
   "stats": {
-    "total_files": 30,
-    "total_symbols": 140,
+    "total_files": 26,
+    "total_symbols": 141,
     "entry_points": [
       "index.html",
       "src/main.js"
@@ -464,8 +433,8 @@
         "file": "src/cloud-library.js",
         "in_degree": 2,
         "out_degree": 0,
-        "symbols_count": 12,
-        "score": 7.2,
+        "symbols_count": 13,
+        "score": 7.3,
         "role": "Foundational Core",
         "blast_radius": "2 callers affected if modified"
       },

@@ -5,6 +5,7 @@ import {
   verifyAdminPin,
   deleteCloudModel,
   getOwnDeleteToken,
+  removeOwnDeleteToken,
   getStoredAdminPin,
   setStoredAdminPin
 } from './cloud-library.js';
@@ -139,8 +140,15 @@ export function initCloudLibraryUI({ getPayload, applyPayload }) {
       meta.append(authorEl, dateEl);
       body.appendChild(meta);
 
+      const ownToken = getOwnDeleteToken(model.id);
+
       const badges = document.createElement('div');
       badges.className = 'cloud-card-badges';
+      if (ownToken) {
+        const ownBadge = createBadge('Của bạn');
+        ownBadge.classList.add('cloud-badge-own');
+        badges.appendChild(ownBadge);
+      }
       if (model.has3D && model.dims) {
         badges.appendChild(createBadge(`3D ${model.dims.w}×${model.dims.h}×${model.dims.d}`));
       } else if (model.has3D) {
@@ -174,13 +182,12 @@ export function initCloudLibraryUI({ getPayload, applyPayload }) {
       });
       actions.appendChild(btnOpen);
 
-      const ownToken = getOwnDeleteToken(model.id);
       if (isAdminActive || ownToken) {
         const btnDel = document.createElement('button');
         btnDel.type = 'button';
         btnDel.className = 'btn-cloud-danger';
-        btnDel.title = isAdminActive ? 'Xóa bằng quyền Admin' : 'Xóa bài bạn vừa đăng';
-        btnDel.textContent = '🗑️';
+        btnDel.title = isAdminActive ? 'Xóa bằng quyền Admin' : 'Tự xóa bài của bản thân';
+        btnDel.textContent = isAdminActive ? '🗑️' : '🗑️ Xóa';
         btnDel.addEventListener('click', async () => {
           const confirmMsg = `Xóa mẫu "${model.name}" khỏi thư viện chung?`;
           if (!window.confirm(confirmMsg)) return;
@@ -194,6 +201,17 @@ export function initCloudLibraryUI({ getPayload, applyPayload }) {
             renderModels();
             setStatus(`Đã xóa mẫu "${model.name}".`, 'success');
           } catch (err) {
+            if (err.status === 401) {
+              if (isAdminActive) {
+                setStoredAdminPin('');
+                isAdminActive = false;
+                syncAdminUI();
+              }
+              if (ownToken) {
+                removeOwnDeleteToken(model.id);
+              }
+              renderModels();
+            }
             setStatus(err.message || 'Xóa mẫu thất bại.', 'error');
             btnDel.disabled = false;
           }

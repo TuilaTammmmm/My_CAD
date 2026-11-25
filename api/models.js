@@ -298,7 +298,10 @@ export function createModelsHandler(deps = {}) {
             const metaRes = await fetchFn(metaBlobs[0].url);
             if (metaRes.ok) {
               const metaJson = await metaRes.json();
-              if (metaJson?.deleteTokenHash && timingSafeEqualStr(sha256Hex(providedToken), metaJson.deleteTokenHash)) {
+              if (
+                metaJson?.deleteTokenHash &&
+                timingSafeEqualStr(sha256Hex(providedToken), metaJson.deleteTokenHash)
+              ) {
                 isAuthor = true;
               }
             }
@@ -314,7 +317,7 @@ export function createModelsHandler(deps = {}) {
             });
           }
           return res.status(401).json({
-            error: 'Bạn cần nhập đúng mã PIN Admin (hoặc là người vừa tạo bài này) để xóa.'
+            error: 'Chỉ người tạo bài này hoặc Admin mới có quyền xóa.'
           });
         }
 

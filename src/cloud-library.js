@@ -27,6 +27,15 @@ export function getOwnDeleteToken(id) {
   return typeof map[id] === 'string' ? map[id] : '';
 }
 
+export function removeOwnDeleteToken(id) {
+  if (!id) return;
+  const map = readOwnTokensMap();
+  if (map[id]) {
+    delete map[id];
+    writeOwnTokensMap(map);
+  }
+}
+
 export function getStoredAdminPin() {
   try {
     return sessionStorage.getItem(ADMIN_PIN_SESSION_KEY) || '';
@@ -122,7 +131,7 @@ export async function verifyAdminPin(pin) {
 }
 
 /**
- * Xóa một mẫu CAD khỏi Vercel Blob (bằng ADMIN_PIN hoặc deleteToken của người tạo).
+ * Xóa một mẫu CAD khỏi Vercel Blob (bằng ADMIN_PIN hoặc deleteToken của bản thân).
  */
 export async function deleteCloudModel(id, { adminPin = '', deleteToken = '' } = {}) {
   const headers = { Accept: 'application/json' };
@@ -134,11 +143,7 @@ export async function deleteCloudModel(id, { adminPin = '', deleteToken = '' } =
     headers
   });
   const data = await parseApiJson(res);
-  const map = readOwnTokensMap();
-  if (map[id]) {
-    delete map[id];
-    writeOwnTokensMap(map);
-  }
+  removeOwnDeleteToken(id);
   return data;
 }
 

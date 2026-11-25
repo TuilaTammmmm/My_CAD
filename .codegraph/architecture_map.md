@@ -2,8 +2,8 @@
 > **AI Token-Saving Notice**: This repository is indexed by ReduceToken. Do NOT scan the full folder. Consult this map or run `rt query <symbol>` (or `reducetoken query`) to find exact code paths.
 
 ## 1. Quick Stats
-- **Indexed Files**: 30
-- **Indexed Symbols**: 140
+- **Indexed Files**: 26
+- **Indexed Symbols**: 141
 - **Entry Points**: index.html, src/main.js
 
 ## 2. Critical God Nodes & Architectural Chokepoints
@@ -17,16 +17,12 @@
 - `src/cad2d-editor.js` — **Central Orchestrator** (In: 1 callers, Out: 2 deps)
 
 ## 3. Module Directory Structure
-### `(root)` (10 files)
+### `(root)` (6 files)
 - `index.html`
 - `package.json`
 - `start.bat`
 - `vite.config.js`
-- `.cursorrules`
 - `.gitignore`
-- `AGENTS.md`
-- `CLAUDE.md`
-- `GEMINI.md`
 - `README.md`
 ### `.github` (1 files)
 - `.github/copilot-instructions.md`
@@ -37,7 +33,7 @@
 - `src/cad-script.js` — defines: `rotateBrushAroundY, executeCadScript, getNativeMethod, nativeClone`
 - `src/cad2d-editor.js` — defines: `CAD2DEditor, getTouchPoint, projectPointOnLine, toCanvasX`
 - `src/cloud-library-ui.js` — defines: `initCloudLibraryUI, formatShortDate, createBadge, setStatus`
-- `src/cloud-library.js` — defines: `getStoredAdminPin, fetchCloudModels, setStoredAdminPin, getOwnDeleteToken`
+- `src/cloud-library.js` — defines: `captureViewportThumbnail, setStoredAdminPin, loadCloudModelData, fetchCloudModels`
 - `src/dimension-overlay.js` — defines: `DimensionOverlay`
 - `src/dxf-exporter.js` — defines: `DXFExporter, addLine, addCircle, addArc`
 - `src/exporter.js` — defines: `exportToOBJ`

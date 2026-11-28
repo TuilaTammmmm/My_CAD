@@ -240,99 +240,142 @@
       <!-- ============================================== -->
       <div id="sidebar-2d-tools" style="display: none;">
 
-        <div class="sidebar-section">
-          <div class="section-label">Công cụ vẽ 2D</div>
-          <div class="tool-list">
-            <button class="tool-btn cad2d-tool-btn active" type="button" data-tool="line-visible" title="Visible Line: Click Điểm 1 → Điểm 2">
-              <span class="tool-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12" stroke-width="2.5"/></svg>
-              </span>
-              <span class="tool-text">Visible Line</span>
-            </button>
+        <!-- TAB ĐÓNG MỞ: VẼ 2D -->
+        <div class="sidebar-accordion open" id="acc-2d-draw">
+          <button class="accordion-toggle" type="button" title="Mở / Đóng Công cụ vẽ 2D" aria-expanded="true" aria-controls="acc-2d-draw-body">
+            <span class="tool-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/></svg>
+            </span>
+            <span class="accordion-label">Công cụ vẽ</span>
+            <span class="accordion-chevron" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+            </span>
+          </button>
+          <div class="accordion-body" id="acc-2d-draw-body">
+            <div class="tool-list">
+              <button class="tool-btn cad2d-tool-btn active" type="button" data-tool="line-visible" title="Visible Line: Click Điểm 1 → Điểm 2">
+                <span class="tool-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12" stroke-width="2.5"/></svg>
+                </span>
+                <span class="tool-text">Visible Line</span>
+              </button>
 
-            <button class="tool-btn cad2d-tool-btn" type="button" data-tool="line-hidden" title="Hidden Line: Click Điểm 1 → Điểm 2">
-              <span class="tool-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12" stroke-dasharray="4 3" stroke-width="2"/></svg>
-              </span>
-              <span class="tool-text">Hidden Line</span>
-            </button>
+              <button class="tool-btn cad2d-tool-btn" type="button" data-tool="line-hidden" title="Hidden Line: Click Điểm 1 → Điểm 2">
+                <span class="tool-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12" stroke-dasharray="4 3" stroke-width="2"/></svg>
+                </span>
+                <span class="tool-text">Hidden Line</span>
+              </button>
 
-            <button class="tool-btn cad2d-tool-btn" type="button" data-tool="rect" title="Rectangle: Click Góc 1 → Góc 2">
-              <span class="tool-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="1"/></svg>
-              </span>
-              <span class="tool-text">Rectangle</span>
-            </button>
+              <button class="tool-btn cad2d-tool-btn" type="button" data-tool="rect" title="Rectangle: Click Góc 1 → Góc 2">
+                <span class="tool-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="1"/></svg>
+                </span>
+                <span class="tool-text">Rectangle</span>
+              </button>
 
-            <button class="tool-btn cad2d-tool-btn" type="button" data-tool="arc" title="3-Point Arc: Click 3 điểm trên cung">
-              <span class="tool-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24"><path d="M4 17a8 8 0 0 1 16 0"/></svg>
-              </span>
-              <span class="tool-text">3-Point Arc</span>
-            </button>
+              <button class="tool-btn cad2d-tool-btn" type="button" data-tool="arc" title="3-Point Arc: Click 3 điểm trên cung">
+                <span class="tool-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="M4 17a8 8 0 0 1 16 0"/></svg>
+                </span>
+                <span class="tool-text">3-Point Arc</span>
+              </button>
 
-            <button class="tool-btn cad2d-tool-btn" type="button" data-tool="tangent-arc" title="Tangent Arc: Click đầu mút → điểm kết thúc">
-              <span class="tool-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24"><path d="M4 18h6a8 8 0 0 0 8-8V5"/></svg>
-              </span>
-              <span class="tool-text">Tangent Arc</span>
-            </button>
+              <button class="tool-btn cad2d-tool-btn" type="button" data-tool="tangent-arc" title="Tangent Arc: Click đầu mút → điểm kết thúc">
+                <span class="tool-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="M4 18h6a8 8 0 0 0 8-8V5"/></svg>
+                </span>
+                <span class="tool-text">Tangent Arc</span>
+              </button>
 
-            <button class="tool-btn cad2d-tool-btn" type="button" data-tool="circle" title="Circle: Click Tâm → Bán kính">
-              <span class="tool-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/></svg>
-              </span>
-              <span class="tool-text">Circle</span>
-            </button>
+              <button class="tool-btn cad2d-tool-btn" type="button" data-tool="circle" title="Circle: Click Tâm → Bán kính">
+                <span class="tool-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/></svg>
+                </span>
+                <span class="tool-text">Circle</span>
+              </button>
 
-            <button class="tool-btn cad2d-tool-btn" type="button" data-tool="fillet" title="Bo góc 2D: Click Cạnh 1 → Cạnh 2 theo bán kính R">
-              <span class="tool-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24"><path d="M4 19V11a7 7 0 0 1 7-7h8"/><path d="M4 4h4M4 4v4" stroke-dasharray="2 2" stroke-width="1.4" opacity="0.6"/></svg>
-              </span>
-              <span class="tool-text">Fillet (Bo góc)</span>
-            </button>
+              <button class="tool-btn cad2d-tool-btn" type="button" data-tool="fillet" title="Bo góc 2D: Click Cạnh 1 → Cạnh 2 theo bán kính R">
+                <span class="tool-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="M4 19V11a7 7 0 0 1 7-7h8"/><path d="M4 4h4M4 4v4" stroke-dasharray="2 2" stroke-width="1.4" opacity="0.6"/></svg>
+                </span>
+                <span class="tool-text">Fillet (Bo góc)</span>
+              </button>
+            </div>
+          </div>
+        </div>
 
-            <button class="tool-btn cad2d-tool-btn" type="button" data-tool="dim" title="Đo cạnh: Click cạnh bất kỳ">
-              <span class="tool-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24"><path d="M2 12h20M6 8l-4 4 4 4M18 8l4 4-4 4"/></svg>
-              </span>
-              <span class="tool-text">Đo cạnh</span>
-            </button>
+        <!-- TAB ĐÓNG MỞ: ĐO 2D -->
+        <div class="sidebar-accordion" id="acc-2d-measure">
+          <button class="accordion-toggle" type="button" title="Mở / Đóng Công cụ đo 2D" aria-expanded="false" aria-controls="acc-2d-measure-body">
+            <span class="tool-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M2 12h20M6 8l-4 4 4 4M18 8l4 4-4 4"/></svg>
+            </span>
+            <span class="accordion-label">Đo kích thước</span>
+            <span class="accordion-chevron" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+            </span>
+          </button>
+          <div class="accordion-body" id="acc-2d-measure-body">
+            <div class="tool-list">
+              <button class="tool-btn cad2d-tool-btn" type="button" data-tool="dim" title="Đo cạnh: Click cạnh bất kỳ">
+                <span class="tool-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="M2 12h20M6 8l-4 4 4 4M18 8l4 4-4 4"/></svg>
+                </span>
+                <span class="tool-text">Đo cạnh</span>
+              </button>
 
-            <button class="tool-btn cad2d-tool-btn" type="button" data-tool="dim-points" title="Đo 2 điểm: Click Điểm 1 → Điểm 2">
-              <span class="tool-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="2.5"/><circle cx="19" cy="12" r="2.5"/><line x1="7.5" y1="12" x2="16.5" y2="12" stroke-dasharray="2 2"/></svg>
-              </span>
-              <span class="tool-text">Đo 2 điểm</span>
-            </button>
+              <button class="tool-btn cad2d-tool-btn" type="button" data-tool="dim-points" title="Đo 2 điểm: Click Điểm 1 → Điểm 2">
+                <span class="tool-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="2.5"/><circle cx="19" cy="12" r="2.5"/><line x1="7.5" y1="12" x2="16.5" y2="12" stroke-dasharray="2 2"/></svg>
+                </span>
+                <span class="tool-text">Đo 2 điểm</span>
+              </button>
 
-            <button class="tool-btn cad2d-tool-btn" type="button" data-tool="dim-radial" title="Radial Dim (R / Ø): Click cung tròn hoặc đường tròn">
-              <span class="tool-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><line x1="12" y1="12" x2="17" y2="7"/><polyline points="13 7 17 7 17 11"/></svg>
-              </span>
-              <span class="tool-text">Radial Dim (R)</span>
-            </button>
+              <button class="tool-btn cad2d-tool-btn" type="button" data-tool="dim-radial" title="Radial Dim (R / Ø): Click cung tròn hoặc đường tròn">
+                <span class="tool-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><line x1="12" y1="12" x2="17" y2="7"/><polyline points="13 7 17 7 17 11"/></svg>
+                </span>
+                <span class="tool-text">Radial Dim (R)</span>
+              </button>
+            </div>
+          </div>
+        </div>
 
-            <button class="tool-btn cad2d-tool-btn" type="button" data-tool="erase" title="Trim / Erase: Click đoạn nét để cắt tỉa hoặc xóa">
-              <span class="tool-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
-              </span>
-              <span class="tool-text">Trim / Erase</span>
-            </button>
+        <!-- TAB ĐÓNG MỞ: SỬA & XÓA -->
+        <div class="sidebar-accordion" id="acc-2d-edit">
+          <button class="accordion-toggle" type="button" title="Mở / Đóng Công cụ sửa, xóa & di chuyển" aria-expanded="false" aria-controls="acc-2d-edit-body">
+            <span class="tool-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </span>
+            <span class="accordion-label">Xóa &amp; Chỉnh sửa</span>
+            <span class="accordion-chevron" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+            </span>
+          </button>
+          <div class="accordion-body" id="acc-2d-edit-body">
+            <div class="tool-list">
+              <button class="tool-btn cad2d-tool-btn" type="button" data-tool="erase" title="Trim / Erase: Click đoạn nét để cắt tỉa hoặc xóa">
+                <span class="tool-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                </span>
+                <span class="tool-text">Trim / Erase</span>
+              </button>
 
-            <button class="tool-btn cad2d-tool-btn" type="button" data-tool="toggle-style" title="Đổi nét Thấy (liền) ↔ Khuất (đứt)">
-              <span class="tool-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24"><line x1="3" y1="8" x2="21" y2="8"/><line x1="3" y1="16" x2="21" y2="16" stroke-dasharray="3 3"/></svg>
-              </span>
-              <span class="tool-text">Visible / Hidden</span>
-            </button>
+              <button class="tool-btn cad2d-tool-btn" type="button" data-tool="toggle-style" title="Đổi nét Thấy (liền) ↔ Khuất (đứt)">
+                <span class="tool-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><line x1="3" y1="8" x2="21" y2="8"/><line x1="3" y1="16" x2="21" y2="16" stroke-dasharray="3 3"/></svg>
+                </span>
+                <span class="tool-text">Visible / Hidden</span>
+              </button>
 
-            <button class="tool-btn cad2d-tool-btn" type="button" data-tool="pan" title="Pan / Move: Kéo canvas để di chuyển">
-              <span class="tool-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24"><path d="M12 2v20M2 12h20M9 5l3-3 3 3M9 19l3 3 3-3M5 9l-3 3 3 3M19 9l3 3-3 3"/></svg>
-              </span>
-              <span class="tool-text">Pan / Move</span>
-            </button>
+              <button class="tool-btn cad2d-tool-btn" type="button" data-tool="pan" title="Pan / Move: Kéo canvas để di chuyển">
+                <span class="tool-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="M12 2v20M2 12h20M9 5l3-3 3 3M9 19l3 3 3-3M5 9l-3 3 3 3M19 9l3 3-3 3"/></svg>
+                </span>
+                <span class="tool-text">Pan / Move</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -455,8 +498,8 @@
           </div>
         </div>
 
-        <div class="accordion-group" data-acc="2d-image">
-          <button class="accordion-header" type="button" aria-expanded="true" aria-controls="acc-2d-image-body">
+        <div class="sidebar-accordion" id="acc-2d-image">
+          <button class="accordion-toggle" type="button" title="Mở / Đóng Ảnh mẫu 2D" aria-expanded="false" aria-controls="acc-2d-image-body">
             <span class="tool-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
             </span>

@@ -40,6 +40,59 @@ function rdpSimplify(pts, eps) {
   return [first, last];
 }
 
+function normAngle(a) {
+  let r = a % (Math.PI * 2);
+  if (r < 0) r += Math.PI * 2;
+  return r;
+}
+
+function fitCircle3Pts(pA, pB, pC) {
+  const ax = pA.x, ay = pA.y;
+  const bx = pB.x, by = pB.y;
+  const cx = pC.x, cy = pC.y;
+  const d = 2 * (ax * (by - cy) + bx * (cy - ay) + cx * (ay - by));
+  if (Math.abs(d) < 1e-4) return null;
+  const a2 = ax * ax + ay * ay;
+  const b2 = bx * bx + by * by;
+  const c2 = cx * cx + cy * cy;
+  const ux = (a2 * (by - cy) + b2 * (cy - ay) + c2 * (ay - by)) / d;
+  const uy = (a2 * (cx - bx) + b2 * (ax - cx) + c2 * (bx - ax)) / d;
+  const r = Math.hypot(ax - ux, ay - uy);
+  if (!Number.isFinite(r) || r < 6 || r > 400) return null;
+  return { cx: ux, cy: uy, r };
+}
+
+function fitArcFromPoints(pts) {
+  if (pts.length < 12) return null;
+  const pA = pts[0];
+  const pMid = pts[Math.floor(pts.length / 2)];
+  const pB = pts[pts.length - 1];
+  const chord = Math.hypot(pB.x - pA.x, pB.y - pA.y);
+  if (chord < 8) return null;
+
+  const fit = fitCircle3Pts(pA, pMid, pB);
+  if (!fit) return null;
+
+  // Must curve meaningfully away from the chord
+  let maxErr = 0;
+  for (const p of pts) {
+    const err = Math.abs(Math.hypot(p.x - fit.cx, p.y - fit.cy) - fit.r);
+    if (err > maxErr) maxErr = err;
+  }
+  if (maxErr > Math.max(2.6, fit.r * 0.065)) return null;
+
+  // Check sweep angle >= 30 deg
+  const a1 = Math.atan2(pA.y - fit.cy, pA.x - fit.cx);
+  const aM = Math.atan2(pMid.y - fit.cy, pMid.x - fit.cx);
+  const a2 = Math.atan2(pB.y - fit.cy, pB.x - fit.cx);
+  const ccwSpan = normAngle(a2 - a1);
+  const midInCcw = normAngle(aM - a1) < ccwSpan;
+  const sweep = midInCcw ? ccwSpan : (Math.PI * 2 - ccwSpan);
+  if (sweep < 0.52) return null;
+
+  return { cx: fit.cx, cy: fit.cy, r: fit.r, pA, pMid, pB };
+}
+
 function fitCircleIfClosed(pts) {
   if (pts.length < 16) return null;
   const first = pts[0];
@@ -341,7 +394,7 @@ export function traceImageTo2DElements(img, rect) {
     if (luma < 150 || (sat > 60 && luma < 210)) {
       rawMask[i] = 1;
     }
-    if (luma < 145 && sat < 45) {
+    if (luma < 145 && !(b > r + 35 && b > g + 15)) {
       darkNeutralMask[i] = 1;
     }
   }
@@ -404,6 +457,28 @@ export function traceImageTo2DElements(img, rect) {
   const boldSkel = skeletonize(boldMask, w, h);
   const boldChains = traceSkeletonChains(boldSkel, w, h, 18, 18);
 
+  const emitArcWorld = (arcFit) => {
+    const cW = toWorld(arcFit.cx, arcFit.cy);
+    const pAW = toWorld(arcFit.pA.x, arcFit.pA.y);
+    const pMW = toWorld(arcFit.pMid.x, arcFit.pMid.y);
+    const pBW = toWorld(arcFit.pB.x, arcFit.pB.y);
+    const rW = Number(((arcFit.r / w) * rect.worldWidth).toFixed(2));
+    if (rW <= 0.15) return;
+    const a1 = Math.atan2(pAW.v - cW.v, pAW.u - cW.u);
+    const aM = Math.atan2(pMW.v - cW.v, pMW.u - cW.u);
+    const a2 = Math.atan2(pBW.v - cW.v, pBW.u - cW.u);
+    const ccw = normAngle(aM - a1) < normAngle(a2 - a1);
+    elements.push({
+      type: 'arc',
+      style: 'visible',
+      cx: cW.u,
+      cy: cW.v,
+      r: rW,
+      startAngle: ccw ? a1 : a2,
+      endAngle: ccw ? a2 : a1
+    });
+  };
+
   const elements = [];
   for (const chain of boldChains) {
     const circle = fitCircleIfClosed(chain);
@@ -422,12 +497,40 @@ export function traceImageTo2DElements(img, rect) {
       continue;
     }
 
+    const wholeArc = fitArcFromPoints(chain);
+    if (wholeArc) {
+      emitArcWorld(wholeArc);
+      continue;
+    }
+
     const simplified = rdpSimplify(chain, 2.0);
-    for (let i = 0; i < simplified.length - 1; i++) {
+    // Map simplified vertices back to chain indices to detect curved sub-runs
+    const simpIdx = simplified.map((sp) => chain.indexOf(sp));
+    let i = 0;
+    while (i < simplified.length - 1) {
+      // Try to find a curved run of >= 4 simplified vertices (e.g. semicircle + straight transition)
+      let arcEnd = -1;
+      if (i + 3 < simplified.length) {
+        for (let j = simplified.length - 1; j >= i + 3; j--) {
+          const sub = chain.slice(simpIdx[i], simpIdx[j] + 1);
+          const subArc = fitArcFromPoints(sub);
+          if (subArc) {
+            emitArcWorld(subArc);
+            arcEnd = j;
+            break;
+          }
+        }
+      }
+      if (arcEnd !== -1) {
+        i = arcEnd;
+        continue;
+      }
+
       const [p1, p2] = snapOrtho(toWorld(simplified[i].x, simplified[i].y), toWorld(simplified[i + 1].x, simplified[i + 1].y));
       if (Math.hypot(p2.u - p1.u, p2.v - p1.v) > 0.25) {
         elements.push({ type: 'line', style: 'visible', p1, p2 });
       }
+      i++;
     }
   }
 
@@ -457,10 +560,18 @@ function weldAndSnapLines(elements, tol = 0.28) {
   const lines = elements.filter((e) => e.type === 'line');
   if (lines.length === 0) return;
 
-  // A. Cluster nearby endpoints into exact shared vertices
+  // A. Cluster nearby endpoints (including arc start/end points) into exact shared vertices
   const endpoints = [];
   for (const l of lines) {
     endpoints.push(l.p1, l.p2);
+  }
+  for (const e of elements) {
+    if (e.type === 'arc') {
+      endpoints.push(
+        { u: Number((e.cx + e.r * Math.cos(e.startAngle)).toFixed(2)), v: Number((e.cy + e.r * Math.sin(e.startAngle)).toFixed(2)), _readonly: true },
+        { u: Number((e.cx + e.r * Math.cos(e.endAngle)).toFixed(2)), v: Number((e.cy + e.r * Math.sin(e.endAngle)).toFixed(2)), _readonly: true }
+      );
+    }
   }
   const used = new Uint8Array(endpoints.length);
   for (let i = 0; i < endpoints.length; i++) {
@@ -475,16 +586,25 @@ function weldAndSnapLines(elements, tol = 0.28) {
       }
     }
     if (cluster.length > 1) {
-      let su = 0, sv = 0;
-      for (const p of cluster) {
-        su += p.u;
-        sv += p.v;
+      const anchor = cluster.find((p) => p._readonly);
+      let avgU, avgV;
+      if (anchor) {
+        avgU = anchor.u;
+        avgV = anchor.v;
+      } else {
+        let su = 0, sv = 0;
+        for (const p of cluster) {
+          su += p.u;
+          sv += p.v;
+        }
+        avgU = Number((su / cluster.length).toFixed(2));
+        avgV = Number((sv / cluster.length).toFixed(2));
       }
-      const avgU = Number((su / cluster.length).toFixed(2));
-      const avgV = Number((sv / cluster.length).toFixed(2));
       for (const p of cluster) {
-        p.u = avgU;
-        p.v = avgV;
+        if (!p._readonly) {
+          p.u = avgU;
+          p.v = avgV;
+        }
       }
     }
   }

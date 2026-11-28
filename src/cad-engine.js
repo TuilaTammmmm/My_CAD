@@ -863,9 +863,13 @@ export class CadEngine {
     const pos = nonIndexedGeom.attributes.position;
     const triCount = Math.floor(pos.count / 3);
 
-    // O(T) edge -> adjacent face normals lookup (replaces O(E * T^2) nested triangle scans)
+    // O(T) edge -> adjacent face normals lookup + plane-bucketed T-junction filter
     const vKey = (x, y, z) => `${Math.round(x * 200)}_${Math.round(y * 200)}_${Math.round(z * 200)}`;
+    const getPlaneKey = (n, p) =>
+      `${Math.round(n.x * 20)}_${Math.round(n.y * 20)}_${Math.round(n.z * 20)}_${Math.round(n.dot(p) * 10)}`;
+
     const edgeNormsMap = new Map();
+    const planeBuckets = new Map();
     const p0 = new THREE.Vector3(), p1 = new THREE.Vector3(), p2 = new THREE.Vector3();
     const e1 = new THREE.Vector3(), e2 = new THREE.Vector3(), norm = new THREE.Vector3();
 
@@ -879,6 +883,26 @@ export class CadEngine {
       if (norm.lengthSq() <= 1e-12) continue;
       norm.normalize();
       const nCopy = norm.clone();
+
+      const tri = {
+        p0: p0.clone(),
+        p1: p1.clone(),
+        p2: p2.clone(),
+        norm: nCopy,
+        minX: Math.min(p0.x, p1.x, p2.x) - 0.01,
+        maxX: Math.max(p0.x, p1.x, p2.x) + 0.01,
+        minY: Math.min(p0.y, p1.y, p2.y) - 0.01,
+        maxY: Math.max(p0.y, p1.y, p2.y) + 0.01,
+        minZ: Math.min(p0.z, p1.z, p2.z) - 0.01,
+        maxZ: Math.max(p0.z, p1.z, p2.z) + 0.01
+      };
+      const pk = getPlaneKey(nCopy, p0);
+      let bucket = planeBuckets.get(pk);
+      if (!bucket) {
+        bucket = [];
+        planeBuckets.set(pk, bucket);
+      }
+      bucket.push(tri);
 
       const verts = [p0, p1, p2];
       for (let e = 0; e < 3; e++) {
@@ -898,8 +922,41 @@ export class CadEngine {
       }
     }
 
+    const _sc0 = new THREE.Vector3(), _sc1 = new THREE.Vector3(), _sc2 = new THREE.Vector3();
+    const _sd = new THREE.Vector3(), _c0 = new THREE.Vector3(), _c1 = new THREE.Vector3(), _c2 = new THREE.Vector3();
+
+    const isPointInTriFast = (P, t) => {
+      if (P.x < t.minX || P.x > t.maxX || P.y < t.minY || P.y > t.maxY || P.z < t.minZ || P.z > t.maxZ) {
+        return false;
+      }
+      _sd.subVectors(P, t.p0);
+      if (Math.abs(t.norm.dot(_sd)) > 0.008) return false;
+
+      _sc0.subVectors(t.p1, t.p0);
+      _sc1.subVectors(t.p2, t.p1);
+      _sc2.subVectors(t.p0, t.p2);
+
+      _c0.subVectors(P, t.p0).cross(_sc0);
+      _c1.subVectors(P, t.p1).cross(_sc1);
+      _c2.subVectors(P, t.p2).cross(_sc2);
+
+      const d0 = _c0.dot(t.norm);
+      const d1 = _c1.dot(t.norm);
+      const d2 = _c2.dot(t.norm);
+      return (d0 <= 1e-4 && d1 <= 1e-4 && d2 <= 1e-4) || (d0 >= -1e-4 && d1 >= -1e-4 && d2 >= -1e-4);
+    };
+
+    const isPointInPlaneBucket = (P, bucket) => {
+      for (let i = 0; i < bucket.length; i++) {
+        if (isPointInTriFast(P, bucket[i])) return true;
+      }
+      return false;
+    };
+
     const filteredPositions = [];
     const A = new THREE.Vector3(), B = new THREE.Vector3();
+    const _dir = new THREE.Vector3(), _mid = new THREE.Vector3(), _perp = new THREE.Vector3();
+    const _pLeft = new THREE.Vector3(), _pRight = new THREE.Vector3();
 
     for (let i = 0; i < ePos.count; i += 2) {
       A.fromBufferAttribute(ePos, i);
@@ -929,6 +986,22 @@ export class CadEngine {
         const oppZ = n1.z * n2.z < -0.2;
         if ((oppX || oppY || oppZ) && Math.abs(dot) < 0.3) {
           continue;
+        }
+      }
+
+      // 2. Lọc nét T-junction / nét chéo nội bộ trên cùng một mặt phẳng (O(1) bucket lookup)
+      if (adjNorms && adjNorms.length === 1) {
+        const n = adjNorms[0];
+        const bucket = planeBuckets.get(getPlaneKey(n, A));
+        if (bucket && bucket.length > 1) {
+          _dir.subVectors(B, A).normalize();
+          _mid.addVectors(A, B).multiplyScalar(0.5);
+          _perp.crossVectors(n, _dir).normalize();
+          _pLeft.copy(_mid).addScaledVector(_perp, 0.02);
+          _pRight.copy(_mid).addScaledVector(_perp, -0.02);
+          if (isPointInPlaneBucket(_pLeft, bucket) && isPointInPlaneBucket(_pRight, bucket)) {
+            continue;
+          }
         }
       }
 

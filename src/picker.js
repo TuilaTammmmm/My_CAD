@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { svgIcon } from './ui-icons.js';
+import { requestRender } from './render-scheduler.js';
 
 export class InteractivePicker {
   constructor(scene, camera, renderer, controls, cadEngine, preview, callbacks) {
@@ -325,7 +326,6 @@ export class InteractivePicker {
   }
 
   updateVisibleGridNodes() {
-    this.updateRightToolbar();
     if (this.mode === 'view') {
       if (this.localNodesMesh) this.localNodesMesh.visible = false;
       return;
@@ -403,6 +403,7 @@ export class InteractivePicker {
 
     this.updateHUD();
     this.updateRightToolbar();
+    requestRender();
     if (this.callbacks.onModeChange) {
       this.callbacks.onModeChange(mode);
     }
@@ -432,6 +433,7 @@ export class InteractivePicker {
     this.preview.clear();
     this.updateHUD();
     this.updateRightToolbar();
+    requestRender();
   }
 
   removeLastPoint() {
@@ -568,12 +570,6 @@ export class InteractivePicker {
       } else if (e.key.toLowerCase() === 'g') {
         e.preventDefault();
         if (this.callbacks.onToggleGridSquares) this.callbacks.onToggleGridSquares();
-      } else if (e.key.toLowerCase() === 'd') {
-        e.preventDefault();
-        if (this.callbacks.onToggleDim) this.callbacks.onToggleDim();
-      } else if (e.key.toLowerCase() === 'p') {
-        e.preventDefault();
-        if (this.callbacks.onToggleScreens) this.callbacks.onToggleScreens();
       }
     });
   }
@@ -666,20 +662,6 @@ export class InteractivePicker {
           hitPoint = floorPt;
           hitNormal = new THREE.Vector3(0, 1, 0);
           isFloorGridHit = true;
-        }
-      }
-    }
-
-    // Chống bắt dính xuyên qua màn chiếu: Nếu chuột trỏ vào màn chiếu chắn trước khối
-    if (this.projectionScreens && this.projectionScreens.getScreenPanels) {
-      const sPanels = this.projectionScreens.getScreenPanels();
-      if (sPanels.length > 0) {
-        const sHits = this.raycaster.intersectObjects(sPanels, false);
-        if (sHits.length > 0) {
-          if (!frontHit || sHits[0].distance < frontHit.distance) {
-            this._lastHit = null;
-            return null; // Chuột trỏ trên màn chiếu, không chọn khối phía sau
-          }
         }
       }
     }
@@ -793,10 +775,12 @@ export class InteractivePicker {
 
     const snap = this.findSnapPoint();
     if (!snap || !this._lastHit) {
+      const wasVisible = this.hoverMarker.visible || this.hoverRing.visible;
       this.hoverMarker.visible = false;
       this.hoverRing.visible = false;
       if (this.localNodesMesh) this.localNodesMesh.visible = false;
       if (this.tooltipElement) this.tooltipElement.style.display = 'none';
+      if (wasVisible) requestRender();
       return;
     }
 
@@ -813,6 +797,7 @@ export class InteractivePicker {
     this.hoverRing.position.copy(snap);
     this.hoverRing.quaternion.copy(this.camera.quaternion);
     this.hoverRing.visible = true;
+    requestRender();
 
     if (this.tooltipElement) {
       this.tooltipElement.style.display = 'block';
@@ -1128,6 +1113,7 @@ export class InteractivePicker {
       line.renderOrder = 1004;
       this.pickerGroup.add(line);
     }
+    requestRender();
   }
 
   getCornerParams() {
@@ -2055,8 +2041,6 @@ export class InteractivePicker {
           <span class="hud-badge done">👁️ Chỉ Xem</span>
           <span>Click cạnh hoặc góc để đo kích thước & góc 3D.</span>
           <button class="hud-btn-toggle" id="hud-toggle-grid" title="Bật/Tắt lưới ô vuông hộp ban đầu (Phím tắt: G)">🔲 Ô Vuông</button>
-          <button class="hud-btn-toggle" id="hud-toggle-dim" title="Bật/Tắt khung số đo tổng thể (Phím tắt: D)">📏 Khung Số Đo</button>
-          <button class="hud-btn-toggle" id="hud-toggle-screens" title="Bật/Tắt 3 Màn Chiếu Kỹ Thuật 2D cách khối vài ô (Phím tắt: P)">📺 Màn Chiếu 2D</button>
           <button class="hud-btn-toggle" id="hud-toggle-inspect" title="Mở / Thu gọn bảng đo đạc bên phải">🔍 Bảng Đo</button>
           <button class="hud-btn-toggle" id="hud-clear-measures" style="color: #f87171; border-color: rgba(248, 113, 113, 0.4);" title="Xóa toàn bộ các số đo cạnh & góc đã lưu (Phím tắt: Delete)">🗑️ Xóa Số Đo</button>
         </div>
@@ -2064,14 +2048,6 @@ export class InteractivePicker {
       const btnToggleGrid = document.getElementById('hud-toggle-grid');
       if (btnToggleGrid) btnToggleGrid.addEventListener('click', () => {
         if (this.callbacks.onToggleGridSquares) this.callbacks.onToggleGridSquares();
-      });
-      const btnToggleDim = document.getElementById('hud-toggle-dim');
-      if (btnToggleDim) btnToggleDim.addEventListener('click', () => {
-        if (this.callbacks.onToggleDim) this.callbacks.onToggleDim();
-      });
-      const btnToggleScreens = document.getElementById('hud-toggle-screens');
-      if (btnToggleScreens) btnToggleScreens.addEventListener('click', () => {
-        if (this.callbacks.onToggleScreens) this.callbacks.onToggleScreens();
       });
       const btnToggleInspect = document.getElementById('hud-toggle-inspect');
       if (btnToggleInspect) btnToggleInspect.addEventListener('click', () => {

@@ -264,9 +264,46 @@ export function createModelsHandler(deps = {}) {
           contentType: 'application/json'
         });
 
+        // Thay thế các mẫu cũ cùng tên (không phân biệt hoa/thường) trên thư viện chung
+        const normalizedNewName = validated.name.trim().toLowerCase();
+        const replacedIds = [];
+        try {
+          const { blobs: existingMetaBlobs } = await blobList({ prefix: 'cad-meta/', limit: 200 });
+          const urlsToDelete = [];
+          await Promise.all(
+            existingMetaBlobs.map(async (blob) => {
+              if (blob.pathname === `cad-meta/${id}.json`) return;
+              try {
+                const r = await fetchFn(blob.url);
+                if (!r.ok) return;
+                const oldMeta = await r.json();
+                const oldName = typeof oldMeta?.name === 'string' ? oldMeta.name.trim().toLowerCase() : '';
+                if (oldName && oldName === normalizedNewName && oldMeta.id !== id) {
+                  replacedIds.push(oldMeta.id);
+                  urlsToDelete.push(blob.url);
+                  if (oldMeta.dataUrl) {
+                    urlsToDelete.push(oldMeta.dataUrl);
+                  } else if (oldMeta.id) {
+                    const { blobs: oldDataBlobs } = await blobList({ prefix: `cad-data/${oldMeta.id}.json`, limit: 2 });
+                    oldDataBlobs.forEach((db) => urlsToDelete.push(db.url));
+                  }
+                }
+              } catch {
+                // Ignore corrupted meta blob
+              }
+            })
+          );
+          if (urlsToDelete.length > 0) {
+            await blobDel(urlsToDelete);
+          }
+        } catch (cleanupErr) {
+          console.warn('[api/models] Replace old same-name models warning:', cleanupErr);
+        }
+
         return res.status(201).json({
           model: toPublicMeta(metaRecord),
-          deleteToken
+          deleteToken,
+          replacedIds
         });
       }
 

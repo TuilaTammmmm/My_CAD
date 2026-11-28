@@ -862,71 +862,57 @@ export class CadEngine {
 
     const pos = nonIndexedGeom.attributes.position;
     const triCount = Math.floor(pos.count / 3);
-    const triangles = [];
+
+    // O(T) edge -> adjacent face normals lookup (replaces O(E * T^2) nested triangle scans)
+    const vKey = (x, y, z) => `${Math.round(x * 200)}_${Math.round(y * 200)}_${Math.round(z * 200)}`;
+    const edgeNormsMap = new Map();
+    const p0 = new THREE.Vector3(), p1 = new THREE.Vector3(), p2 = new THREE.Vector3();
+    const e1 = new THREE.Vector3(), e2 = new THREE.Vector3(), norm = new THREE.Vector3();
+
     for (let i = 0; i < triCount; i++) {
-      const p0 = new THREE.Vector3(pos.getX(i*3), pos.getY(i*3), pos.getZ(i*3));
-      const p1 = new THREE.Vector3(pos.getX(i*3+1), pos.getY(i*3+1), pos.getZ(i*3+1));
-      const p2 = new THREE.Vector3(pos.getX(i*3+2), pos.getY(i*3+2), pos.getZ(i*3+2));
-      const norm = new THREE.Vector3().subVectors(p1, p0).cross(new THREE.Vector3().subVectors(p2, p0));
-      const len = norm.length();
-      if (len > 1e-6) {
-        triangles.push({ p0, p1, p2, norm: norm.normalize() });
-      }
-    }
+      p0.fromBufferAttribute(pos, i * 3);
+      p1.fromBufferAttribute(pos, i * 3 + 1);
+      p2.fromBufferAttribute(pos, i * 3 + 2);
+      e1.subVectors(p1, p0);
+      e2.subVectors(p2, p0);
+      norm.crossVectors(e1, e2);
+      if (norm.lengthSq() <= 1e-12) continue;
+      norm.normalize();
+      const nCopy = norm.clone();
 
-    function isPointInTriangle(P, t) {
-      const dist = Math.abs(t.norm.dot(P.clone().sub(t.p0)));
-      if (dist > 0.005) return false;
-
-      const edge0 = new THREE.Vector3().subVectors(t.p1, t.p0);
-      const edge1 = new THREE.Vector3().subVectors(t.p2, t.p1);
-      const edge2 = new THREE.Vector3().subVectors(t.p0, t.p2);
-
-      const c0 = new THREE.Vector3().subVectors(P, t.p0).cross(edge0);
-      const c1 = new THREE.Vector3().subVectors(P, t.p1).cross(edge1);
-      const c2 = new THREE.Vector3().subVectors(P, t.p2).cross(edge2);
-
-      const d0 = c0.dot(t.norm);
-      const d1 = c1.dot(t.norm);
-      const d2 = c2.dot(t.norm);
-
-      return (d0 <= 1e-4 && d1 <= 1e-4 && d2 <= 1e-4) || (d0 >= -1e-4 && d1 >= -1e-4 && d2 >= -1e-4);
-    }
-
-    function isPointInFace(P, N) {
-      for (const t of triangles) {
-        if (t.norm.dot(N) > 0.98) {
-          if (isPointInTriangle(P, t)) return true;
+      const verts = [p0, p1, p2];
+      for (let e = 0; e < 3; e++) {
+        const a = verts[e];
+        const b = verts[(e + 1) % 3];
+        const ka = vKey(a.x, a.y, a.z);
+        const kb = vKey(b.x, b.y, b.z);
+        if (ka === kb) continue;
+        const key = ka < kb ? `${ka}|${kb}` : `${kb}|${ka}`;
+        let list = edgeNormsMap.get(key);
+        if (!list) {
+          list = [nCopy];
+          edgeNormsMap.set(key, list);
+        } else if (!list.some(n => n.dot(nCopy) > 0.95)) {
+          list.push(nCopy);
         }
       }
-      return false;
-    }
-
-    function getAdjacentFaceNormals(A, B) {
-      const distinctNorms = [];
-      for (const t of triangles) {
-        if (Math.abs(t.norm.dot(A.clone().sub(t.p0))) < 0.005 && Math.abs(t.norm.dot(B.clone().sub(t.p0))) < 0.005) {
-          if (!distinctNorms.some(n => n.dot(t.norm) > 0.95)) {
-            distinctNorms.push(t.norm);
-          }
-        }
-      }
-      return distinctNorms;
     }
 
     const filteredPositions = [];
+    const A = new THREE.Vector3(), B = new THREE.Vector3();
 
     for (let i = 0; i < ePos.count; i += 2) {
-      const A = new THREE.Vector3(ePos.getX(i), ePos.getY(i), ePos.getZ(i));
-      const B = new THREE.Vector3(ePos.getX(i+1), ePos.getY(i+1), ePos.getZ(i+1));
-      const dir = new THREE.Vector3().subVectors(B, A);
-      const len = dir.length();
-      if (len < 0.0001) continue;
-      dir.normalize();
+      A.fromBufferAttribute(ePos, i);
+      B.fromBufferAttribute(ePos, i + 1);
+      if (A.distanceToSquared(B) < 1e-8) continue;
 
-      // 1. Lọc nét dư apex rãnh chữ V (nét sống lưng bên trong hầm chữ V)
-      const adjNorms = getAdjacentFaceNormals(A, B);
-      if (adjNorms.length >= 2) {
+      const ka = vKey(A.x, A.y, A.z);
+      const kb = vKey(B.x, B.y, B.z);
+      const key = ka < kb ? `${ka}|${kb}` : `${kb}|${ka}`;
+      const adjNorms = edgeNormsMap.get(key);
+
+      // 1. Lọc nét dư apex rãnh chữ V & nét ranh giới đồng phẳng
+      if (adjNorms && adjNorms.length >= 2) {
         let allCoplanar = true;
         for (let j = 1; j < adjNorms.length; j++) {
           if (adjNorms[0].dot(adjNorms[j]) < 0.96) {
@@ -934,56 +920,33 @@ export class CadEngine {
             break;
           }
         }
-        if (allCoplanar) {
-          // Nét thừa ranh giới giữa 2 mặt phẳng tiếp giáp cùng hướng (khi vẽ thêm lấp đầy góc)
-          continue;
-        }
+        if (allCoplanar) continue;
+
         const n1 = adjNorms[0], n2 = adjNorms[1];
         const dot = n1.dot(n2);
         const oppX = n1.x * n2.x < -0.2;
         const oppY = n1.y * n2.y < -0.2;
         const oppZ = n1.z * n2.z < -0.2;
         if ((oppX || oppY || oppZ) && Math.abs(dot) < 0.3) {
-          // Đây là nét đỉnh rãnh chữ V bên trong hầm, bỏ để không bị nét dư
           continue;
         }
       }
 
-      // 2. Lọc các nét rác chéo nội bộ trên cùng một mặt phẳng phẳng
-      let isCoplanarInternal = false;
-      const mid = new THREE.Vector3().addVectors(A, B).multiplyScalar(0.5);
-
-      for (const t of triangles) {
-        if (Math.abs(t.norm.dot(A.clone().sub(t.p0))) < 0.005 && Math.abs(t.norm.dot(B.clone().sub(t.p0))) < 0.005) {
-          const perp = new THREE.Vector3().crossVectors(t.norm, dir).normalize();
-          const offset = 0.02;
-          const pLeft = mid.clone().addScaledVector(perp, offset);
-          const pRight = mid.clone().addScaledVector(perp, -offset);
-
-          if (isPointInFace(pLeft, t.norm) && isPointInFace(pRight, t.norm)) {
-            isCoplanarInternal = true;
-            break;
-          }
-        }
-      }
-
-      if (!isCoplanarInternal) {
-        filteredPositions.push(A.x, A.y, A.z, B.x, B.y, B.z);
-      }
+      filteredPositions.push(A.x, A.y, A.z, B.x, B.y, B.z);
     }
 
-    // 3. Gộp các đoạn thẳng cùng phương thành nét liền hoàn chỉnh (Heal collinear edges)
+    // 2. Gộp các đoạn thẳng cùng phương thành nét liền hoàn chỉnh (chỉ chạy khi số đoạn <= 150 để tránh đơ với mặt cong/bo góc)
     const segments = [];
     for (let i = 0; i < filteredPositions.length; i += 6) {
-      const p1 = new THREE.Vector3(filteredPositions[i], filteredPositions[i+1], filteredPositions[i+2]);
-      const p2 = new THREE.Vector3(filteredPositions[i+3], filteredPositions[i+4], filteredPositions[i+5]);
-      const len = p1.distanceTo(p2);
+      const sp1 = new THREE.Vector3(filteredPositions[i], filteredPositions[i+1], filteredPositions[i+2]);
+      const sp2 = new THREE.Vector3(filteredPositions[i+3], filteredPositions[i+4], filteredPositions[i+5]);
+      const len = sp1.distanceTo(sp2);
       if (len > 0.005) {
-        segments.push({ p1, p2, len, dir: new THREE.Vector3().subVectors(p2, p1).normalize(), merged: false });
+        segments.push({ p1: sp1, p2: sp2, len, dir: new THREE.Vector3().subVectors(sp2, sp1).normalize(), merged: false });
       }
     }
 
-    let changed = true;
+    let changed = segments.length <= 150;
     while (changed) {
       changed = false;
       for (let i = 0; i < segments.length; i++) {

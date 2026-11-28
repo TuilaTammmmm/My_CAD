@@ -10,14 +10,13 @@ import { InteractivePicker } from './picker.js';
 import { exportToOBJ } from './exporter.js';
 import { ProjectionEngine } from './projection-engine.js';
 import { CAD2DEditor } from './cad2d-editor.js';
-import { DimensionOverlay } from './dimension-overlay.js';
 import { InspectionTool } from './measure-tool.js';
-import { ProjectionScreensOverlay } from './projection-screens.js';
 import { executeCadScript, rotateBrushAroundY, CAD_SCRIPT_PRESETS } from './cad-script.js';
 import { initOCCT } from './occt-kernel.js';
 import { saveProjectState, loadProjectState } from './storage.js';
 import { captureViewportThumbnail } from './cloud-library.js';
 import { initCloudLibraryUI } from './cloud-library-ui.js';
+import { setRenderCallback, requestRender } from './render-scheduler.js';
 import { inject } from '@vercel/analytics';
 import { injectSpeedInsights } from '@vercel/speed-insights';
 
@@ -78,14 +77,9 @@ const cad = new CadEngine();
 const projectionEngine = new ProjectionEngine(cad);
 const gridOverlay = new GridOverlay(scene);
 const preview = new CutterPreview(scene);
-const dimOverlay = new DimensionOverlay(scene, camera);
-const projectionScreens = new ProjectionScreensOverlay(scene, projectionEngine);
 const inspectionTool = new InspectionTool(scene, camera, renderer, controls, cad, {
-  onToggleGridSquares: () => toggleGridSquaresUI(),
-  onToggleDim: () => toggleDimUI(),
-  onToggleScreens: () => toggleScreensUI()
+  onToggleGridSquares: () => toggleGridSquaresUI()
 });
-inspectionTool.setProjectionScreens(projectionScreens);
 
 let currentBrush = null;
 let currentEdges = null;
@@ -110,27 +104,21 @@ function clearHistory() {
 function disposeEdges(edges) {
   if (!edges) return;
   if (edges.geometry) edges.geometry.dispose();
-  if (edges.material) {
-    if (Array.isArray(edges.material)) {
-      edges.material.forEach(m => m && m.dispose && m.dispose());
-    } else if (edges.material.dispose) {
-      edges.material.dispose();
-    }
-  }
 }
 
 function saveHistory(brush) {
   // Giải phóng các trạng thái redo bị loại bỏ
   for (let i = historyIndex + 1; i < history.length; i++) {
-    if (history[i] && history[i].geometry) {
-      history[i].geometry.dispose();
+    if (history[i]) {
+      if (history[i].geometry) history[i].geometry.dispose();
+      if (history[i]._occtEdges) history[i]._occtEdges.dispose();
     }
   }
   history = history.slice(0, historyIndex + 1);
   const clone = brush.clone();
   clone.geometry = brush.geometry.clone();
   clone._replicadShape = brush._replicadShape || null;
-  clone._occtEdges = brush._occtEdges || null;
+  clone._occtEdges = brush._occtEdges ? brush._occtEdges.clone() : null;
   history.push(clone);
   historyIndex = history.length - 1;
   updateHistoryButtons();
@@ -153,37 +141,49 @@ function triggerAutoSave3D() {
   }
   clearTimeout(autoSaveTimeout);
   autoSaveTimeout = setTimeout(() => {
-    try {
-      const geomJson = currentBrush.geometry.toJSON();
-      saveProjectState('state_3d', {
-        w: W,
-        h: H,
-        d: D,
-        geom: geomJson,
-        updatedAt: Date.now()
-      });
-      if (badge) {
-        badge.textContent = '✓ Đã lưu tạm';
-        badge.style.color = '#34d399';
+    const runSave = () => {
+      try {
+        if (!currentBrush || !currentBrush.geometry) return;
+        const geomJson = currentBrush.geometry.toJSON();
+        saveProjectState('state_3d', {
+          w: W,
+          h: H,
+          d: D,
+          geom: geomJson,
+          updatedAt: Date.now()
+        });
+        if (badge) {
+          badge.textContent = '✓ Đã lưu tạm';
+          badge.style.color = '#34d399';
+        }
+      } catch (err) {
+        console.warn('Auto-save 3D failed:', err);
+        if (badge) {
+          badge.textContent = '⚠ Lỗi lưu tạm';
+          badge.style.color = '#f87171';
+        }
       }
-    } catch (err) {
-      console.warn('Auto-save 3D failed:', err);
-      if (badge) {
-        badge.textContent = '⚠ Lỗi lưu tạm';
-        badge.style.color = '#f87171';
-      }
+    };
+    if (typeof requestIdleCallback === 'function') {
+      requestIdleCallback(runSave, { timeout: 1500 });
+    } else {
+      runSave();
     }
-  }, 250);
+  }, 800);
 }
 
 function syncBoundsWithModel(brush) {
   if (!brush || !brush.geometry) return;
-  brush.geometry.computeVertexNormals();
-  brush.geometry.computeBoundingBox();
+  if (!brush.userData?.isBRep) {
+    brush.geometry.computeVertexNormals();
+  }
+  if (!brush.geometry.boundingBox) {
+    brush.geometry.computeBoundingBox();
+  }
   const bb = brush.geometry.boundingBox;
   if (!bb) return;
 
-  if (brush.geometry.computeBoundsTree) {
+  if (!brush.geometry.boundsTree && brush.geometry.computeBoundsTree) {
     try {
       brush.geometry.computeBoundsTree();
     } catch (e) {}
@@ -237,7 +237,6 @@ function setModel(brush, recordHistory = true) {
 
   const snapStep = (typeof picker !== 'undefined' && picker) ? picker.snapStep : 1.0;
   gridOverlay.update(W, H, D, currentBrush, snapStep);
-  dimOverlay.updateBounds(W, H, D, snapStep);
 
   if (picker) {
     picker.updateModel(currentBrush, W, H, D);
@@ -245,10 +244,6 @@ function setModel(brush, recordHistory = true) {
 
   if (inspectionTool) {
     inspectionTool.updateModel(currentBrush, currentEdges);
-  }
-
-  if (projectionScreens) {
-    projectionScreens.update(W, H, D, currentBrush);
   }
 
   requestRender();
@@ -272,7 +267,6 @@ function resetBaseBlock() {
   const snapStep = (typeof picker !== 'undefined' && picker) ? picker.snapStep : 1.0;
   gridOverlay.update(W, H, D, currentBrush, snapStep);
   gridOverlay.setVisible(typeof picker !== 'undefined' && picker ? picker.mode !== 'view' : false);
-  dimOverlay.updateBounds(W, H, D, snapStep);
   centerCamera();
 }
 
@@ -365,7 +359,7 @@ function updateCameraFrustumForView(viewKey = 'iso') {
 }
 
 function updateCameraFrustum() {
-  updateCameraFrustumForView(dimOverlay ? dimOverlay.currentView : 'iso');
+  updateCameraFrustumForView(gridOverlay ? gridOverlay.currentView : 'iso');
 }
 
 function centerCamera() {
@@ -382,7 +376,6 @@ function setCameraIsometric() {
   camera.lookAt(controls.target);
   controls.update();
   setActiveViewButton('view-iso');
-  dimOverlay.setView('iso');
   gridOverlay.setView('iso');
 }
 
@@ -420,19 +413,11 @@ const picker = new InteractivePicker(scene, camera, renderer, controls, cad, pre
   onSnapStepChange: (step) => {
     syncSnapStepUI(step);
     gridOverlay.update(W, H, D, currentBrush, step);
-    dimOverlay.updateBounds(W, H, D, step);
   },
   onToggleGridSquares: () => {
     toggleGridSquaresUI();
-  },
-  onToggleDim: () => {
-    toggleDimUI();
-  },
-  onToggleScreens: () => {
-    toggleScreensUI();
   }
 });
-picker.setProjectionScreens(projectionScreens);
 
 // UI helpers cho bước cắt (1, 1/2, 1/4, 1/8), bật/tắt ô vuông và số đo
 function syncSnapStepUI(step) {
@@ -462,38 +447,6 @@ function toggleGridSquaresUI() {
   syncGridSquaresUI(visible);
 }
 
-function syncDimUI(enabled) {
-  const btn = document.getElementById('btn-toggle-dim');
-  const lbl = document.getElementById('lbl-toggle-dim');
-  if (btn) btn.classList.toggle('active', enabled);
-  if (lbl) lbl.textContent = enabled ? 'Số đo: BẬT' : 'Số đo: TẮT';
-  const viewDimBadge = document.getElementById('view-dim-badge');
-  if (viewDimBadge) viewDimBadge.style.display = (enabled && appMode === '3d') ? 'flex' : 'none';
-  if (inspectionTool && inspectionTool.syncDimUI) {
-    inspectionTool.syncDimUI(enabled);
-  }
-}
-
-function toggleDimUI() {
-  const enabled = dimOverlay.toggle();
-  syncDimUI(enabled);
-}
-
-function syncScreensUI(enabled) {
-  const btn = document.getElementById('inspect-toggle-screens');
-  const lbl = document.getElementById('lbl-inspect-screens');
-  if (btn) btn.classList.toggle('active', enabled);
-  if (lbl) lbl.textContent = enabled ? 'Màn chiếu: BẬT' : 'Màn chiếu: TẮT';
-  if (inspectionTool && inspectionTool.syncScreensUI) {
-    inspectionTool.syncScreensUI(enabled);
-  }
-}
-
-function toggleScreensUI() {
-  const enabled = projectionScreens.toggle();
-  syncScreensUI(enabled);
-}
-
 document.querySelectorAll('.subdiv-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     const step = parseFloat(btn.getAttribute('data-step')) || 1.0;
@@ -504,7 +457,6 @@ document.querySelectorAll('.subdiv-btn').forEach(btn => {
 
 document.getElementById('btn-toggle-snap-step')?.addEventListener('click', toggleSnapStepUI);
 document.getElementById('btn-toggle-grid-squares')?.addEventListener('click', toggleGridSquaresUI);
-document.getElementById('btn-toggle-dim')?.addEventListener('click', toggleDimUI);
 
 // Đồng bộ trạng thái active của các nút chế độ trên thanh công cụ
 function syncModeUI(mode) {
@@ -734,7 +686,6 @@ function applyHorizontalView(stepNext = false) {
   controls.update();
 
   setActiveViewButton('view-horizontal');
-  dimOverlay.setView(viewKey);
   gridOverlay.setView(viewKey);
 }
 
@@ -758,11 +709,10 @@ document.getElementById('view-top').addEventListener('click', () => {
   controls.update();
 
   setActiveViewButton('view-top');
-  dimOverlay.setView('top');
   gridOverlay.setView('top');
 });
 
-// Tự động chuyển đổi hiển thị số đo & lưới theo góc xoay tự do của chuột
+// Tự động chuyển đổi hiển thị lưới theo góc xoay tự do của chuột
 let lastDetectedView = 'iso';
 controls.addEventListener('change', () => {
   if (appMode !== '3d') return;
@@ -781,7 +731,6 @@ controls.addEventListener('change', () => {
 
   if (detected !== lastDetectedView) {
     lastDetectedView = detected;
-    dimOverlay.setView(detected);
     gridOverlay.setView(detected);
 
     if (detected === 'iso') {
@@ -814,6 +763,7 @@ window.addEventListener('resize', () => {
   camera.bottom = -frustumSize / 2;
   camera.updateProjectionMatrix();
   renderer.setSize(w, h);
+  requestRender();
   if (typeof cad2dEditor !== 'undefined' && cad2dEditor && cad2dEditor.isVisible) {
     cad2dEditor.resize();
   }
@@ -827,8 +777,6 @@ let appMode = '3d'; // '3d' hoặc '2d'
 
 function switchTo2D() {
   gridOverlay.setAllVisible(false);
-  dimOverlay.setEnabled(false);
-  if (projectionScreens) projectionScreens.group.visible = false;
   inspectionTool.hide();
   appMode = '2d';
   saveProjectState('app_mode', '2d');
@@ -880,12 +828,6 @@ function switchTo2D() {
 function switchTo3D() {
   gridOverlay.setAllVisible(true);
   gridOverlay.setVisible(picker ? picker.mode !== 'view' : false);
-  const dimBtn = document.getElementById('inspect-toggle-dim') || document.getElementById('btn-toggle-dim');
-  const isDimOn = dimBtn ? dimBtn.classList.contains('active') : false;
-  dimOverlay.setEnabled(isDimOn);
-  const viewDimBadge = document.getElementById('view-dim-badge');
-  if (viewDimBadge) viewDimBadge.style.display = isDimOn ? 'flex' : 'none';
-  if (projectionScreens) projectionScreens.group.visible = projectionScreens.enabled;
   appMode = '3d';
   saveProjectState('app_mode', '3d');
   document.getElementById('switch-to-2d')?.classList.remove('active');
@@ -1078,21 +1020,8 @@ if (window.innerWidth <= 768) {
   inspectionTool.collapsePanel();
 }
 syncGridSquaresUI(gridOverlay.showGridSquares);
-syncDimUI(dimOverlay.enabled);
-syncScreensUI(projectionScreens.enabled);
 syncSnapStepUI(picker.snapStep);
 initAppStorage();
-
-// Thanh trượt điều chỉnh khoảng cách màn chiếu (2 -> 10)
-const screenDistSlider = document.getElementById('screen-dist-slider');
-const lblScreenDist = document.getElementById('lbl-screen-dist');
-screenDistSlider?.addEventListener('input', (e) => {
-  const val = parseFloat(e.target.value);
-  if (!isNaN(val)) {
-    if (lblScreenDist) lblScreenDist.textContent = val.toFixed(1);
-    projectionScreens.setOffsetDist(val);
-  }
-});
 
 // --- CODE -> 3D (CAD SCRIPT) ---
 const modalBackdrop = document.getElementById('modal-backdrop');
@@ -1195,7 +1124,6 @@ async function runCadScriptFromModal() {
 
     setModel(brush, true);
     gridOverlay.update(W, H, D, currentBrush, picker.snapStep);
-    dimOverlay.updateBounds(W, H, D, picker.snapStep);
     centerCamera();
     if (scriptModal) scriptModal.style.display = 'none';
     syncModalBackdrop();
@@ -1228,7 +1156,6 @@ document.getElementById('btn-rotate-model-90')?.addEventListener('click', async 
     if (dimD) dimD.value = D;
     setModel(brush, true);
     gridOverlay.update(W, H, D, currentBrush, picker.snapStep);
-    dimOverlay.updateBounds(W, H, D, picker.snapStep);
     centerCamera();
   } catch (err) {
     alert(`Không thể xoay khối: ${err.message || err}`);
@@ -1315,9 +1242,9 @@ initOCCT()
 
 // On-demand Rendering & Tối ưu hiệu năng / giảm giật lag
 let needsRender = true;
-export function requestRender() {
+setRenderCallback(() => {
   needsRender = true;
-}
+});
 
 controls.addEventListener('change', () => {
   needsRender = true;

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { requestRender } from './render-scheduler.js';
 
 /**
  * GridOverlay
@@ -75,6 +76,7 @@ export class GridOverlay {
   setView(viewName) {
     this.currentView = viewName;
     this.rebuild();
+    requestRender();
   }
 
   // Chuyển chế độ thao tác: Giữ nguyên trạng thái bật/tắt ô vuông của người dùng
@@ -87,6 +89,7 @@ export class GridOverlay {
     this.gridGroup.visible = visible && this.showGridSquares;
     this.arrowGroup.visible = visible && (this.currentView === 'iso');
     this.floorGrid.visible = visible && (this.currentView === 'iso');
+    requestRender();
   }
 
   // Người dùng chủ động Bật / Tắt Lưới Ô Vuông (hoạt động ở cả Chỉ Xem lẫn Cắt Gọt)
@@ -103,6 +106,7 @@ export class GridOverlay {
 
   updateVisibility() {
     this.gridGroup.visible = this.showGridSquares;
+    requestRender();
   }
 
   getDisplayStep(maxDim) {

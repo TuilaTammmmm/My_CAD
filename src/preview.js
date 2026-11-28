@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { ConvexGeometry } from 'three/addons/geometries/ConvexGeometry.js';
 import { Brush, INTERSECTION } from 'three-bvh-csg';
+import { requestRender } from './render-scheduler.js';
 
 export class CutterPreview {
   constructor(scene) {
@@ -26,16 +27,20 @@ export class CutterPreview {
   }
 
   clear() {
+    let hadPreview = false;
     if (this.previewMesh) {
       this.scene.remove(this.previewMesh);
       if (this.previewMesh.geometry) this.previewMesh.geometry.dispose();
       this.previewMesh = null;
+      hadPreview = true;
     }
     if (this.previewEdges) {
       this.scene.remove(this.previewEdges);
       if (this.previewEdges.geometry) this.previewEdges.geometry.dispose();
       this.previewEdges = null;
+      hadPreview = true;
     }
+    if (hadPreview) requestRender();
   }
 
   setOpMode(opMode = 'cut') {
@@ -49,6 +54,7 @@ export class CutterPreview {
       this.edgeMaterial.color.setHex(0xff1744);
       this.material.opacity = 0.42;
     }
+    if (this.previewMesh) requestRender();
   }
 
   setPreviewGeom(geom) {
@@ -59,6 +65,7 @@ export class CutterPreview {
     this.previewEdges.renderOrder = 1003;
     this.scene.add(this.previewMesh);
     this.scene.add(this.previewEdges);
+    requestRender();
   }
 
   // TRUNG TÂM GIAO THỂ TÍCH: Chỉ hiển thị vùng đỏ nằm THỰC SỰ BÊN TRONG KHỐI VẬT THỂ

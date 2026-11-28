@@ -295,9 +295,18 @@ export function initCloudLibraryUI({ getPayload, applyPayload }) {
       });
       const created = await saveCloudModel(payload);
       if (nameInput) nameInput.value = '';
-      cachedModels = [created, ...cachedModels];
+      const normName = (created.name || '').trim().toLowerCase();
+      const replacedSet = new Set(created._replacedIds || []);
+      cachedModels = [
+        created,
+        ...cachedModels.filter((m) => !replacedSet.has(m.id) && (m.name || '').trim().toLowerCase() !== normName)
+      ];
       renderModels();
-      setStatus(`Đã lưu "${created.name}" lên Thư viện chung! Người khác mở app có thể dùng ngay.`, 'success');
+      if (replacedSet.size > 0) {
+        setStatus(`Đã cập nhật (thay thế mẫu cũ) "${created.name}" trên Thư viện chung!`, 'success');
+      } else {
+        setStatus(`Đã lưu "${created.name}" lên Thư viện chung! Người khác mở app có thể dùng ngay.`, 'success');
+      }
     } catch (err) {
       setStatus(err.message || 'Lưu lên thư viện thất bại.', 'error');
     } finally {

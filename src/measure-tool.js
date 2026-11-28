@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { svgIcon } from './ui-icons.js';
+import { requestRender } from './render-scheduler.js';
 
 /**
  * InspectionTool (Công cụ kiểm tra & đo đạc CAD 3D)
@@ -69,13 +70,6 @@ export class InspectionTool {
     this.initEvents();
   }
 
-  setProjectionScreens(screens) {
-    this.projectionScreens = screens;
-    this.projectionScreens.onUpdate = () => {
-      this.cacheEdges();
-    };
-  }
-
   // Khởi tạo các sự kiện DOM trên bảng công cụ bên phải
   initDOM() {
     if (!this.panelElement) return;
@@ -118,22 +112,6 @@ export class InspectionTool {
         if (this.callbacks.onToggleGridSquares) this.callbacks.onToggleGridSquares();
       });
     }
-
-    // Nút Bật/Tắt Số đo khối trong bảng Chỉ Xem
-    const btnToggleDim = document.getElementById('inspect-toggle-dim');
-    if (btnToggleDim) {
-      btnToggleDim.addEventListener('click', () => {
-        if (this.callbacks.onToggleDim) this.callbacks.onToggleDim();
-      });
-    }
-
-    // Nút Bật/Tắt Màn Chiếu 2D trong bảng Chỉ Xem
-    const btnToggleScreens = document.getElementById('inspect-toggle-screens');
-    if (btnToggleScreens) {
-      btnToggleScreens.addEventListener('click', () => {
-        if (this.callbacks.onToggleScreens) this.callbacks.onToggleScreens();
-      });
-    }
   }
 
   syncGridSquaresUI(visible) {
@@ -141,20 +119,6 @@ export class InspectionTool {
     const lbl = document.getElementById('lbl-inspect-grid');
     if (btn) btn.classList.toggle('active', visible);
     if (lbl) lbl.textContent = visible ? 'Ô vuông: BẬT' : 'Ô vuông: TẮT';
-  }
-
-  syncDimUI(enabled) {
-    const btn = document.getElementById('inspect-toggle-dim');
-    const lbl = document.getElementById('lbl-inspect-dim');
-    if (btn) btn.classList.toggle('active', enabled);
-    if (lbl) lbl.textContent = enabled ? 'Số đo: BẬT' : 'Số đo: TẮT';
-  }
-
-  syncScreensUI(enabled) {
-    const btn = document.getElementById('inspect-toggle-screens');
-    const lbl = document.getElementById('lbl-inspect-screens');
-    if (btn) btn.classList.toggle('active', enabled);
-    if (lbl) lbl.textContent = enabled ? 'Màn chiếu: BẬT' : 'Màn chiếu: TẮT';
   }
 
   // Thu gọn bảng đo đạc
@@ -233,11 +197,9 @@ export class InspectionTool {
       } else if (e.key === 'Delete' || (e.ctrlKey && e.key.toLowerCase() === 'k')) {
         this.clearAll();
       } else if (e.key.toLowerCase() === 'm') {
-        const modes = ['edge', 'angle-edges', 'angle-faces', 'distance', 'circle'];
+        const modes = ['edge', 'angle-edges', 'angle-faces', 'distance'];
         const nextIdx = (modes.indexOf(this.subMode) + 1) % modes.length;
         this.setSubMode(modes[nextIdx]);
-      } else if (e.key.toLowerCase() === 'p') {
-        if (this.callbacks.onToggleScreens) this.callbacks.onToggleScreens();
       }
     });
   }
@@ -250,7 +212,6 @@ export class InspectionTool {
     if (this._cacheDirty || (this.currentEdges && this.edgesList.length === 0)) {
       this._cacheDirty = false;
       this.cacheEdges();
-      this.cacheCircles();
       this.cacheFaces();
     }
     if (this.isCollapsed) {
@@ -269,6 +230,7 @@ export class InspectionTool {
     }
     this.updateInstruction();
     this.updateUIList();
+    requestRender();
   }
 
   // Ẩn khi rời khỏi tab "Chỉ Xem" (Cắt gọt hoặc chuyển sang 2D CAD)
@@ -280,6 +242,7 @@ export class InspectionTool {
     this.clearPreview();
     if (this.panelElement) this.panelElement.style.display = 'none';
     if (this.floatingBtn) this.floatingBtn.style.display = 'none';
+    requestRender();
   }
 
   // Đổi chế độ đo đạc con
@@ -322,8 +285,6 @@ export class InspectionTool {
         const p = this.selectedPoint1;
         this.instructionElement.innerHTML = `<strong>Điểm 1 (${p.x.toFixed(1)}, ${p.y.toFixed(1)}, ${p.z.toFixed(1)}).</strong> Hãy <strong>Click điểm thứ hai</strong> để đo khoảng cách.`;
       }
-    } else if (this.subMode === 'circle') {
-      this.instructionElement.innerHTML = `<strong>Rê chuột vào đường tròn hoặc cung bo</strong> rồi <strong>Click</strong> để đo Bán kính (R) &amp; Đường kính (Ø).`;
     }
   }
 
@@ -339,7 +300,6 @@ export class InspectionTool {
     }
     this._cacheDirty = false;
     this.cacheEdges();
-    this.cacheCircles();
     this.cacheFaces();
     this.resetSelection();
     this.clearPreview();
@@ -367,53 +327,56 @@ export class InspectionTool {
     }
 
     // Thuật toán gộp các đoạn thẳng cùng phương trên cùng đường thẳng 3D (1D Interval Projection)
-    let changed = true;
-    while (changed) {
-      changed = false;
-      for (let i = 0; i < rawSegments.length; i++) {
-        if (rawSegments[i].merged) continue;
-        const s1 = rawSegments[i];
-        const u = s1.dir;
-        const p0 = s1.p1;
+    // Giới hạn <= 200 đoạn để tránh treo UI khi khối có nhiều cung tròn/bo góc
+    if (rawSegments.length <= 200) {
+      let changed = true;
+      while (changed) {
+        changed = false;
+        for (let i = 0; i < rawSegments.length; i++) {
+          if (rawSegments[i].merged) continue;
+          const s1 = rawSegments[i];
+          const u = s1.dir;
+          const p0 = s1.p1;
 
-        for (let j = i + 1; j < rawSegments.length; j++) {
-          if (rawSegments[j].merged) continue;
-          const s2 = rawSegments[j];
+          for (let j = i + 1; j < rawSegments.length; j++) {
+            if (rawSegments[j].merged) continue;
+            const s2 = rawSegments[j];
 
-          // 1. Kiểm tra cùng phương (song song hoặc ngược chiều)
-          const dot = Math.abs(u.dot(s2.dir));
-          if (dot < 0.99) continue;
+            // 1. Kiểm tra cùng phương (song song hoặc ngược chiều)
+            const dot = Math.abs(u.dot(s2.dir));
+            if (dot < 0.99) continue;
 
-          // 2. Kiểm tra s2 có nằm trên cùng đường thẳng 3D đi qua p0 với vector chỉ phương u
-          const v1 = new THREE.Vector3().subVectors(s2.p1, p0);
-          const proj1 = v1.dot(u);
-          const dist1 = new THREE.Vector3().subVectors(v1, u.clone().multiplyScalar(proj1)).length();
-          if (dist1 > 0.05) continue;
+            // 2. Kiểm tra s2 có nằm trên cùng đường thẳng 3D đi qua p0 với vector chỉ phương u
+            const v1 = new THREE.Vector3().subVectors(s2.p1, p0);
+            const proj1 = v1.dot(u);
+            const dist1 = new THREE.Vector3().subVectors(v1, u.clone().multiplyScalar(proj1)).length();
+            if (dist1 > 0.05) continue;
 
-          const v2 = new THREE.Vector3().subVectors(s2.p2, p0);
-          const proj2 = v2.dot(u);
-          const dist2 = new THREE.Vector3().subVectors(v2, u.clone().multiplyScalar(proj2)).length();
-          if (dist2 > 0.05) continue;
+            const v2 = new THREE.Vector3().subVectors(s2.p2, p0);
+            const proj2 = v2.dot(u);
+            const dist2 = new THREE.Vector3().subVectors(v2, u.clone().multiplyScalar(proj2)).length();
+            if (dist2 > 0.05) continue;
 
-          // 3. Tính khoảng 1D (Intervals) của cả 2 đoạn trên trục u
-          const int1Min = 0;
-          const int1Max = s1.len;
-          const int2Min = Math.min(proj1, proj2);
-          const int2Max = Math.max(proj1, proj2);
+            // 3. Tính khoảng 1D (Intervals) của cả 2 đoạn trên trục u
+            const int1Min = 0;
+            const int1Max = s1.len;
+            const int2Min = Math.min(proj1, proj2);
+            const int2Max = Math.max(proj1, proj2);
 
-          // 4. Kiểm tra xem 2 khoảng có giao nhau hoặc tiếp giáp (cho phép khe hở sai số <= 0.06)
-          const gap = Math.max(0, -int2Max, int2Min - int1Max);
-          if (gap <= 0.06) {
-            const newMin = Math.min(int1Min, int2Min);
-            const newMax = Math.max(int1Max, int2Max);
+            // 4. Kiểm tra xem 2 khoảng có giao nhau hoặc tiếp giáp (cho phép khe hở sai số <= 0.06)
+            const gap = Math.max(0, -int2Max, int2Min - int1Max);
+            if (gap <= 0.06) {
+              const newMin = Math.min(int1Min, int2Min);
+              const newMax = Math.max(int1Max, int2Max);
 
-            s1.p1 = p0.clone().addScaledVector(u, newMin);
-            s1.p2 = p0.clone().addScaledVector(u, newMax);
-            s1.len = newMax - newMin;
-            s1.dir = u;
-            s2.merged = true;
-            changed = true;
-            break;
+              s1.p1 = p0.clone().addScaledVector(u, newMin);
+              s1.p2 = p0.clone().addScaledVector(u, newMax);
+              s1.len = newMax - newMin;
+              s1.dir = u;
+              s2.merged = true;
+              changed = true;
+              break;
+            }
           }
         }
       }
@@ -430,13 +393,6 @@ export class InspectionTool {
           mid: new THREE.Vector3().addVectors(s.p1, s.p2).multiplyScalar(0.5),
           dir: s.dir
         });
-      }
-    }
-
-    // Thêm các cạnh trên 3 Màn Chiếu Kỹ Thuật (nếu đang bật màn chiếu) để đo trực tiếp cạnh & góc trên màn chiếu
-    if (this.projectionScreens && this.projectionScreens.enabled && this.projectionScreens.screenEdges) {
-      for (const se of this.projectionScreens.screenEdges) {
-        this.edgesList.push(se);
       }
     }
   }
@@ -564,28 +520,6 @@ export class InspectionTool {
     const p2Screen = new THREE.Vector3();
     const occRay = new THREE.Raycaster();
 
-    // Lấy danh sách các tấm nền màn chiếu đang hiển thị (nếu có)
-    const screenPanels = (this.projectionScreens && this.projectionScreens.getScreenPanels)
-      ? this.projectionScreens.getScreenPanels()
-      : [];
-
-    // Kiểm tra xem chuột có đang trỏ thẳng vào tấm màn chiếu nào không
-    let mouseHitScreen = false;
-    let mouseHitScreenDist = Infinity;
-    if (screenPanels.length > 0) {
-      const mouseRay = new THREE.Raycaster();
-      const mouseNDC = new THREE.Vector2(
-        (mouseX / width) * 2 - 1,
-        -(mouseY / height) * 2 + 1
-      );
-      mouseRay.setFromCamera(mouseNDC, this.camera);
-      const sHits = mouseRay.intersectObjects(screenPanels, false);
-      if (sHits.length > 0) {
-        mouseHitScreen = true;
-        mouseHitScreenDist = sHits[0].distance;
-      }
-    }
-
     for (const edge of this.edgesList) {
       p1Screen.copy(edge.p1).project(this.camera);
       p2Screen.copy(edge.p2).project(this.camera);
@@ -600,12 +534,6 @@ export class InspectionTool {
 
       const dist = this.pointToSegmentDistance2D(mouseX, mouseY, x1, y1, x2, y2);
       if (dist >= minScreenDist) continue;
-
-      // KIỂM TRA CHE KHUẤT BỞI MÀN CHIẾU KỸ THUẬT:
-      // A. Nếu chuột đang trỏ trên màn chiếu, tuyệt đối không bắt dính cạnh của khối 3D phía sau màn chiếu
-      if (mouseHitScreen && !edge.isScreenEdge) {
-        continue;
-      }
 
       // B. Kiểm tra nếu có màn chiếu nào chắn giữa camera và trung điểm cạnh của khối 3D
       if (!edge.isScreenEdge && screenPanels.length > 0) {
@@ -672,18 +600,8 @@ export class InspectionTool {
     this.mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
     this.raycaster.setFromCamera(this.mouse, this.camera);
 
-    const screenPanels = (this.projectionScreens && this.projectionScreens.getScreenPanels)
-      ? this.projectionScreens.getScreenPanels()
-      : [];
-    const screenHits = (screenPanels.length > 0) ? this.raycaster.intersectObjects(screenPanels, false) : [];
-
     const hits = this.raycaster.intersectObject(this.currentBrush, false);
     if (hits.length === 0) return null;
-
-    // Nếu màn chiếu ở phía trước khối 3D, không cho chọn mặt khối xuyên qua màn chiếu
-    if (screenHits.length > 0 && screenHits[0].distance < hits[0].distance) {
-      return null;
-    }
 
     const camDir = new THREE.Vector3();
     this.camera.getWorldDirection(camDir);
@@ -779,18 +697,8 @@ export class InspectionTool {
       if (this.selectedPoint1) {
         this.previewGroup.add(this.createPointHighlight(this.selectedPoint1, 0x10b981));
       }
-
-    } else if (this.subMode === 'circle') {
-      const circle = this.findNearestCircle(e.clientX, e.clientY);
-      this.hoveredCircle = circle;
-      if (circle) {
-        this.renderer.domElement.style.cursor = 'pointer';
-        this.previewGroup.add(this.createCircleHighlight(circle, 0xfbbf24));
-        this.previewGroup.add(this.createPointHighlight(circle.center, 0xfbbf24, 0.11));
-      } else {
-        this.renderer.domElement.style.cursor = 'grab';
-      }
     }
+    requestRender();
   }
 
   // Xử lý nhấp chuột (Click)
@@ -799,12 +707,7 @@ export class InspectionTool {
       const edge = this.findNearestEdge(e.clientX, e.clientY);
       if (edge) {
         this.addMeasureEdge(edge);
-      }
-
-    } else if (this.subMode === 'circle') {
-      const circle = this.findNearestCircle(e.clientX, e.clientY);
-      if (circle) {
-        this.addMeasureCircle(circle);
+        requestRender();
       }
 
     } else if (this.subMode === 'angle-edges') {
@@ -1513,6 +1416,7 @@ export class InspectionTool {
     this.resetSelection();
     this.clearPreview();
     this.updateUIList();
+    requestRender();
   }
 
   // Xóa riêng lẻ 1 số đo
@@ -1524,6 +1428,7 @@ export class InspectionTool {
       this.disposeObject(item.group);
       this.measurements.splice(idx, 1);
       this.updateUIList();
+      requestRender();
     }
   }
 
@@ -1552,11 +1457,13 @@ export class InspectionTool {
   }
 
   clearPreview() {
+    let hadPreview = this.previewGroup.children.length > 0;
     while (this.previewGroup.children.length > 0) {
       const obj = this.previewGroup.children[0];
       this.previewGroup.remove(obj);
       this.disposeObject(obj);
     }
+    if (hadPreview) requestRender();
   }
 
   // Cập nhật danh sách trên giao diện bảng điều khiển bên phải

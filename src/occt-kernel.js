@@ -61,8 +61,8 @@ export { replicad };
  * into a Three.js Brush with exact B-Rep mesh + exact B-Rep edge polylines.
  */
 export function replicadToBrush(shape3d, material, options = {}) {
-  const tolerance = options.tolerance ?? 0.2;
-  const angularTolerance = options.angularTolerance ?? 0.25;
+  const tolerance = options.tolerance ?? 0.25;
+  const angularTolerance = options.angularTolerance ?? 0.35;
 
   const meshData = shape3d.mesh({ tolerance, angularTolerance });
   const edgeData = shape3d.meshEdges({ tolerance, angularTolerance });

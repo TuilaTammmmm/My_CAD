@@ -107,10 +107,17 @@ export async function saveCloudModel(payload) {
     body: JSON.stringify(payload)
   });
   const data = await parseApiJson(res);
+  const replacedIds = Array.isArray(data?.replacedIds) ? data.replacedIds : [];
   if (data?.model?.id && data?.deleteToken) {
     const map = readOwnTokensMap();
+    for (const oldId of replacedIds) {
+      delete map[oldId];
+    }
     map[data.model.id] = data.deleteToken;
     writeOwnTokensMap(map);
+  }
+  if (data?.model && replacedIds.length > 0) {
+    data.model._replacedIds = replacedIds;
   }
   return data.model;
 }

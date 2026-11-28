@@ -1,8 +1,10 @@
 /**
  * Client-side 2D image vectorizer & CAD Script converter.
  * - Filters out white background and thin/faint construction lines.
- * - Traces bold/colored drawing strokes into `line` and `circle` elements
- *   in calibrated 2D CAD world coordinates (u, v).
+ * - Applies Zhang-Suen skeletonization (1px thinning) so thick lines & circles
+ *   never produce double walls or zig-zags.
+ * - Splits at junctions, fits clean circles, simplifies polylines, and snaps
+ *   near-horizontal/near-vertical lines.
  */
 
 function rdpSimplify(pts, eps) {
@@ -40,10 +42,10 @@ function rdpSimplify(pts, eps) {
 }
 
 function fitCircleIfClosed(pts) {
-  if (pts.length < 10) return null;
+  if (pts.length < 16) return null;
   const first = pts[0];
   const last = pts[pts.length - 1];
-  if (Math.hypot(first.x - last.x, first.y - last.y) > 8) return null;
+  if (Math.hypot(first.x - last.x, first.y - last.y) > 10) return null;
 
   let sx = 0, sy = 0;
   for (const p of pts) {
@@ -61,7 +63,7 @@ function fitCircleIfClosed(pts) {
     rSum += d;
   }
   const r = rSum / pts.length;
-  if (r < 4) return null;
+  if (r < 6) return null;
 
   let maxErr = 0;
   for (const d of dists) {
@@ -73,13 +75,79 @@ function fitCircleIfClosed(pts) {
 }
 
 /**
+ * Zhang-Suen thinning to reduce thick strokes to clean 1px skeletons.
+ */
+function skeletonize(mask, w, h) {
+  const img = new Uint8Array(mask);
+  const toClear = [];
+  let changed = true;
+  let iter = 0;
+
+  while (changed && iter < 24) {
+    changed = false;
+    iter++;
+
+    for (let step = 0; step < 2; step++) {
+      toClear.length = 0;
+      for (let y = 1; y < h - 1; y++) {
+        const row = y * w;
+        for (let x = 1; x < w - 1; x++) {
+          const idx = row + x;
+          if (!img[idx]) continue;
+
+          const p2 = img[idx - w];
+          const p3 = img[idx - w + 1];
+          const p4 = img[idx + 1];
+          const p5 = img[idx + w + 1];
+          const p6 = img[idx + w];
+          const p7 = img[idx + w - 1];
+          const p8 = img[idx - 1];
+          const p9 = img[idx - w - 1];
+
+          const B = p2 + p3 + p4 + p5 + p6 + p7 + p8 + p9;
+          if (B < 2 || B > 6) continue;
+
+          let A = 0;
+          if (!p2 && p3) A++;
+          if (!p3 && p4) A++;
+          if (!p4 && p5) A++;
+          if (!p5 && p6) A++;
+          if (!p6 && p7) A++;
+          if (!p7 && p8) A++;
+          if (!p8 && p9) A++;
+          if (!p9 && p2) A++;
+          if (A !== 1) continue;
+
+          if (step === 0) {
+            if (p2 * p4 * p6 !== 0) continue;
+            if (p4 * p6 * p8 !== 0) continue;
+          } else {
+            if (p2 * p4 * p8 !== 0) continue;
+            if (p2 * p6 * p8 !== 0) continue;
+          }
+
+          toClear.push(idx);
+        }
+      }
+      if (toClear.length > 0) {
+        changed = true;
+        for (let k = 0; k < toClear.length; k++) {
+          img[toClear[k]] = 0;
+        }
+      }
+    }
+  }
+  return img;
+}
+
+/**
  * Trace bold/colored strokes from an HTMLImageElement into 2D CAD elements.
  * @param {HTMLImageElement} img
  * @param {{ originU: number, originV: number, worldWidth: number, worldHeight: number, snapStep?: number }} rect
  * @returns {Array}
  */
 export function traceImageTo2DElements(img, rect) {
-  const maxDim = 640;
+  const maxDim = 760;
   const scale = Math.min(1, maxDim / Math.max(img.naturalWidth || img.width, img.naturalHeight || img.height));
   const w = Math.max(16, Math.round((img.naturalWidth || img.width) * scale));
   const h = Math.max(16, Math.round((img.naturalHeight || img.height) * scale));
@@ -104,13 +172,12 @@ export function traceImageTo2DElements(img, rect) {
     const minC = Math.min(r, g, b);
     const luma = 0.299 * r + 0.587 * g + 0.114 * b;
     const sat = maxC - minC;
-    // Keep dark strokes (luma < 155) OR saturated strokes (sat > 55 && luma < 215)
-    if (luma < 155 || (sat > 55 && luma < 215)) {
+    if (luma < 150 || (sat > 60 && luma < 210)) {
       rawMask[i] = 1;
     }
   }
 
-  // 2. Remove 1px-thin faint construction lines via simple 3x3 neighbor density filter
+  // 2. Keep only bold strokes (filter out 1px thin construction/projection lines)
   const boldMask = new Uint8Array(w * h);
   for (let y = 1; y < h - 1; y++) {
     for (let x = 1; x < w - 1; x++) {
@@ -122,49 +189,86 @@ export function traceImageTo2DElements(img, rect) {
           if (rawMask[(y + dy) * w + (x + dx)]) count++;
         }
       }
-      if (count >= 4) boldMask[idx] = 1;
+      if (count >= 5) boldMask[idx] = 1;
     }
   }
 
-  // 3. Extract 8-connected stroke chains
+  // 3. Thin bold strokes to crisp 1px skeleton
+  const skel = skeletonize(boldMask, w, h);
+
+  // 4. Trace 1px skeleton chains cleanly
   const visited = new Uint8Array(w * h);
   const dirs = [
-    [1, 0], [1, 1], [0, 1], [-1, 1],
-    [-1, 0], [-1, -1], [0, -1], [1, -1]
+    [1, 0], [0, 1], [-1, 0], [0, -1],
+    [1, 1], [-1, 1], [-1, -1], [1, -1]
   ];
   const chains = [];
 
-  for (let y = 1; y < h - 1; y++) {
-    for (let x = 1; x < w - 1; x++) {
-      const startIdx = y * w + x;
-      if (!boldMask[startIdx] || visited[startIdx]) continue;
+  const countNeighbors = (cx, cy) => {
+    let c = 0;
+    for (const [dx, dy] of dirs) {
+      const nx = cx + dx;
+      const ny = cy + dy;
+      if (nx > 0 && nx < w - 1 && ny > 0 && ny < h - 1 && skel[ny * w + nx]) c++;
+    }
+    return c;
+  };
 
-      const chain = [];
-      let cx = x;
-      let cy = y;
-      while (true) {
-        const idx = cy * w + cx;
-        visited[idx] = 1;
-        chain.push({ x: cx, y: cy });
+  // Trace starting from endpoints (1 neighbor) first, then remaining closed loops
+  for (let pass = 0; pass < 2; pass++) {
+    for (let y = 1; y < h - 1; y++) {
+      for (let x = 1; x < w - 1; x++) {
+        const startIdx = y * w + x;
+        if (!skel[startIdx] || visited[startIdx]) continue;
+        if (pass === 0 && countNeighbors(x, y) !== 1) continue;
 
-        let next = null;
-        for (const [dx, dy] of dirs) {
-          const nx = cx + dx;
-          const ny = cy + dy;
-          if (nx <= 0 || nx >= w - 1 || ny <= 0 || ny >= h - 1) continue;
-          const nIdx = ny * w + nx;
-          if (boldMask[nIdx] && !visited[nIdx]) {
-            next = { x: nx, y: ny };
-            break;
+        const chain = [];
+        let cx = x;
+        let cy = y;
+        let prevDx = 0;
+        let prevDy = 0;
+
+        while (true) {
+          const idx = cy * w + cx;
+          visited[idx] = 1;
+          chain.push({ x: cx, y: cy });
+
+          let best = null;
+          let bestScore = -Infinity;
+          for (const [dx, dy] of dirs) {
+            const nx = cx + dx;
+            const ny = cy + dy;
+            if (nx <= 0 || nx >= w - 1 || ny <= 0 || ny >= h - 1) continue;
+            const nIdx = ny * w + nx;
+            if (!skel[nIdx] || visited[nIdx]) continue;
+            // Prefer continuing in the same direction
+            const align = prevDx * dx + prevDy * dy;
+            const orthoBonus = (dx === 0 || dy === 0) ? 0.2 : 0;
+            const score = align + orthoBonus;
+            if (score > bestScore) {
+              bestScore = score;
+              best = { x: nx, y: ny, dx, dy };
+            }
           }
+          if (!best) break;
+          prevDx = best.dx;
+          prevDy = best.dy;
+          cx = best.x;
+          cy = best.y;
         }
-        if (!next) break;
-        cx = next.x;
-        cy = next.y;
-      }
 
-      if (chain.length >= 6) {
-        chains.push(chain);
+        // Filter out tiny noise/text (e.g. "45°" label)
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        for (const p of chain) {
+          if (p.x < minX) minX = p.x;
+          if (p.x > maxX) maxX = p.x;
+          if (p.y < minY) minY = p.y;
+          if (p.y > maxY) maxY = p.y;
+        }
+        const span = Math.max(maxX - minX, maxY - minY);
+        if (chain.length >= 12 && span >= 12) {
+          chains.push(chain);
+        }
       }
     }
   }
@@ -186,7 +290,7 @@ export function traceImageTo2DElements(img, rect) {
     if (circle) {
       const cWorld = toWorld(circle.cx, circle.cy);
       const rWorld = Number(((circle.r / w) * rect.worldWidth).toFixed(2));
-      if (rWorld > 0.1) {
+      if (rWorld > 0.15) {
         elements.push({
           type: 'circle',
           style: 'visible',
@@ -198,11 +302,25 @@ export function traceImageTo2DElements(img, rect) {
       continue;
     }
 
-    const simplified = rdpSimplify(chain, 2.5);
+    const simplified = rdpSimplify(chain, 3.0);
     for (let i = 0; i < simplified.length - 1; i++) {
-      const p1 = toWorld(simplified[i].x, simplified[i].y);
-      const p2 = toWorld(simplified[i + 1].x, simplified[i + 1].y);
-      if (Math.hypot(p2.u - p1.u, p2.v - p1.v) > 0.15) {
+      let p1 = toWorld(simplified[i].x, simplified[i].y);
+      let p2 = toWorld(simplified[i + 1].x, simplified[i + 1].y);
+
+      // Snap near-horizontal or near-vertical lines cleanly
+      const du = Math.abs(p2.u - p1.u);
+      const dv = Math.abs(p2.v - p1.v);
+      if (du > 0.2 && dv < du * 0.08) {
+        const avgV = Number(((p1.v + p2.v) / 2).toFixed(2));
+        p1 = { u: p1.u, v: avgV };
+        p2 = { u: p2.u, v: avgV };
+      } else if (dv > 0.2 && du < dv * 0.08) {
+        const avgU = Number(((p1.u + p2.u) / 2).toFixed(2));
+        p1 = { u: avgU, v: p1.v };
+        p2 = { u: avgU, v: p2.v };
+      }
+
+      if (Math.hypot(p2.u - p1.u, p2.v - p1.v) > 0.2) {
         elements.push({
           type: 'line',
           style: 'visible',

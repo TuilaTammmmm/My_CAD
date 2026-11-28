@@ -73,13 +73,13 @@ function fitArcFromPoints(pts) {
   const fit = fitCircle3Pts(pA, pMid, pB);
   if (!fit) return null;
 
-  // Must curve meaningfully away from the chord
+  // Must curve meaningfully away from the chord with tight 1px-skeleton tolerance
   let maxErr = 0;
   for (const p of pts) {
     const err = Math.abs(Math.hypot(p.x - fit.cx, p.y - fit.cy) - fit.r);
     if (err > maxErr) maxErr = err;
   }
-  if (maxErr > Math.max(2.6, fit.r * 0.065)) return null;
+  if (maxErr > Math.min(2.2, fit.r * 0.045)) return null;
 
   // Check sweep angle >= 30 deg
   const a1 = Math.atan2(pA.y - fit.cy, pA.x - fit.cx);

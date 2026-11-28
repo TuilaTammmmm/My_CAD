@@ -1,6 +1,7 @@
 import { DXFExporter } from './dxf-exporter.js';
 import { saveProjectState } from './storage.js';
 import { svgIcon } from './ui-icons.js';
+import { traceImageTo2DElements, elementsToCadScript } from './image-tracer.js';
 
 /**
  * CAD2DEditor
@@ -42,6 +43,11 @@ export class CAD2DEditor {
 
     // Chế độ hiển thị khung bản vẽ CAD: 'none' (Tự do không khung) | 'block' (Khung phôi 3D) | 'a4' (Khung A4 ISO)
     this.frameMode = 'none';
+
+    // Ảnh mẫu nền 2D để chuẩn cỡ & tự vẽ nét
+    this.bgImage = null;
+    this.isCalibratingImage = false;
+    this.calibPoints = [];
 
     // Bán kính cho bo cung (Fillet) & tạo nhanh
     this.filletRadius = 1.0;
@@ -932,6 +938,31 @@ export class CAD2DEditor {
         const rawU = Number(((mouseX - this.offsetX) / this.scale).toFixed(3));
         const rawV = Number((-(mouseY - this.offsetY) / this.scale).toFixed(3));
         const rawPoint = { u: rawU, v: rawV };
+
+        if (this.isCalibratingImage && this.bgImage) {
+          this.calibPoints.push(rawPoint);
+          if (this.calibPoints.length === 2) {
+            const p1 = this.calibPoints[0];
+            const p2 = this.calibPoints[1];
+            const dist = Math.hypot(p2.u - p1.u, p2.v - p1.v);
+            this.isCalibratingImage = false;
+            this.calibPoints = [];
+            this.canvas.style.cursor = 'crosshair';
+            if (dist > 0.05) {
+              const input = prompt('Nhập chiều dài thực tế giữa 2 điểm vừa chọn (ví dụ: 60 hoặc 12):', String(Math.round(dist) || 60));
+              const realLen = parseFloat(input);
+              if (Number.isFinite(realLen) && realLen > 0) {
+                const factor = realLen / dist;
+                this.bgImage.originU = p1.u - (p1.u - this.bgImage.originU) * factor;
+                this.bgImage.originV = p1.v - (p1.v - this.bgImage.originV) * factor;
+                this.bgImage.worldWidth *= factor;
+                this.bgImage.worldHeight *= factor;
+              }
+            }
+          }
+          this.render();
+          return;
+        }
 
         // 1. Nếu đang ở công cụ Erase: click trúng số đo là xóa ngay lập tức
         if (this.tool === 'erase') {
@@ -2575,6 +2606,41 @@ export class CAD2DEditor {
       ctx.stroke();
     }
 
+    // Ảnh mẫu nền 2D (nếu có)
+    if (this.bgImage && this.bgImage.img) {
+      ctx.save();
+      ctx.globalAlpha = this.bgImage.opacity ?? 0.45;
+      const imgX = this.offsetX + this.bgImage.originU * s;
+      const imgY = this.offsetY - (this.bgImage.originV + this.bgImage.worldHeight) * s;
+      const imgW = this.bgImage.worldWidth * s;
+      const imgH = this.bgImage.worldHeight * s;
+      ctx.drawImage(this.bgImage.img, imgX, imgY, imgW, imgH);
+      ctx.restore();
+    }
+
+    if (this.isCalibratingImage && this.calibPoints.length > 0) {
+      ctx.save();
+      const p1 = this.calibPoints[0];
+      const cx1 = this.offsetX + p1.u * s;
+      const cy1 = this.offsetY - p1.v * s;
+      ctx.fillStyle = '#fbbf24';
+      ctx.beginPath();
+      ctx.arc(cx1, cy1, 5, 0, Math.PI * 2);
+      ctx.fill();
+      if (this.hoverSnap) {
+        const cx2 = this.hoverSnap.canvasX;
+        const cy2 = this.hoverSnap.canvasY;
+        ctx.strokeStyle = '#fbbf24';
+        ctx.setLineDash([5, 4]);
+        ctx.beginPath();
+        ctx.moveTo(cx1, cy1);
+        ctx.lineTo(cx2, cy2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+      ctx.restore();
+    }
+
     // Chấm nút lưới bắt dính (chỉ vẽ khi zoom gần để tối ưu tốc độ và không làm mờ hình)
     if (s >= 26) {
       ctx.fillStyle = 'rgba(56, 189, 248, 0.32)';
@@ -3822,5 +3888,77 @@ export class CAD2DEditor {
     link.download = `ban_ve_ky_thuat_2d_XY_${this.bounds.w}x${this.bounds.h}.png`;
     link.href = exportCanvas.toDataURL('image/png');
     link.click();
+  }
+
+  loadBackgroundImage(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          const aspect = (img.naturalWidth || img.width) / Math.max(1, img.naturalHeight || img.height);
+          const worldHeight = Math.max(12, this.bounds.h * 2);
+          const worldWidth = worldHeight * aspect;
+          this.bgImage = {
+            img,
+            originU: 0,
+            originV: 0,
+            worldWidth,
+            worldHeight,
+            opacity: 0.45
+          };
+          this.isCalibratingImage = false;
+          this.calibPoints = [];
+          this.render();
+          resolve(this.bgImage);
+        };
+        img.onerror = () => reject(new Error('Không đọc được file ảnh.'));
+        img.src = reader.result;
+      };
+      reader.onerror = () => reject(new Error('Không đọc được file ảnh.'));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  setBackgroundImageOpacity(opacity) {
+    if (!this.bgImage) return;
+    this.bgImage.opacity = Math.max(0.05, Math.min(1, Number(opacity) || 0.45));
+    this.render();
+  }
+
+  startImageCalibration() {
+    if (!this.bgImage) return;
+    this.isCalibratingImage = true;
+    this.calibPoints = [];
+    this.canvas.style.cursor = 'crosshair';
+    this.render();
+  }
+
+  traceBackgroundImage() {
+    if (!this.bgImage || !this.bgImage.img) return 0;
+    const traced = traceImageTo2DElements(this.bgImage.img, {
+      originU: this.bgImage.originU,
+      originV: this.bgImage.originV,
+      worldWidth: this.bgImage.worldWidth,
+      worldHeight: this.bgImage.worldHeight,
+      snapStep: this.snapMode === 'grid' ? this.snapStep : 0
+    });
+    if (traced.length === 0) return 0;
+    this.saveHistory();
+    this.elements.push(...traced);
+    this.triggerAutoSave();
+    this.render();
+    return traced.length;
+  }
+
+  clearBackgroundImage() {
+    this.bgImage = null;
+    this.isCalibratingImage = false;
+    this.calibPoints = [];
+    this.render();
+  }
+
+  generate3DScript(depth = 20) {
+    return elementsToCadScript(this.elements, depth);
   }
 }

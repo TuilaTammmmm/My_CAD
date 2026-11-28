@@ -36,7 +36,7 @@ export class InspectionTool {
     this.paintGroup.renderOrder = 1020;
     this.scene.add(this.paintGroup);
     this.paintTarget = 'edge'; // 'edge' | 'face'
-    this.paintColor = 0xef4444; // null = eraser
+    this.paintColor = 0xff1744; // null = eraser
     this.paintedEdges = new Map();
     this.paintedFaces = new Map();
 
@@ -750,7 +750,7 @@ export class InspectionTool {
         this.hoveredEdge = edge;
         if (edge) {
           this.renderer.domElement.style.cursor = 'pointer';
-          this.previewGroup.add(this.createEdgeHighlight(edge.p1, edge.p2, previewColor, 0.065));
+          this.previewGroup.add(this.createPaintedEdgeMesh(edge.p1, edge.p2, previewColor, 1.25));
         } else {
           this.renderer.domElement.style.cursor = 'grab';
         }
@@ -759,7 +759,7 @@ export class InspectionTool {
         this.hoveredFace = face;
         if (face) {
           this.renderer.domElement.style.cursor = 'pointer';
-          this.previewGroup.add(this.createFaceHighlight(face, previewColor, 0.45));
+          this.previewGroup.add(this.createFaceHighlight(face, previewColor, 0.55));
         } else {
           this.renderer.domElement.style.cursor = 'grab';
         }
@@ -1494,6 +1494,43 @@ export class InspectionTool {
     return `${Math.round(n.x * 20)}_${Math.round(n.y * 20)}_${Math.round(n.z * 20)}_${Math.round(n.dot(p) * 20)}_${Math.round(p.x * 10)}_${Math.round(p.y * 10)}_${Math.round(p.z * 10)}`;
   }
 
+  createPaintedEdgeMesh(p1, p2, colorHex, scaleMult = 1.0) {
+    const viewSpan = (this.camera && this.camera.top !== undefined && this.camera.bottom !== undefined)
+      ? Math.abs(this.camera.top - this.camera.bottom) / Math.max(0.1, this.camera.zoom || 1)
+      : 12;
+    const radius = Math.max(0.055, viewSpan * 0.0048) * scaleMult;
+    const group = new THREE.Group();
+    const dir = new THREE.Vector3().subVectors(p2, p1);
+    const len = dir.length();
+    if (len < 0.001) return group;
+
+    const mat = new THREE.MeshBasicMaterial({
+      color: colorHex,
+      depthTest: true,
+      depthWrite: true
+    });
+
+    const cylGeom = new THREE.CylinderGeometry(radius, radius, len, 10, 1, false);
+    const cyl = new THREE.Mesh(cylGeom, mat);
+    cyl.position.addVectors(p1, p2).multiplyScalar(0.5);
+    cyl.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
+    cyl.renderOrder = 1028;
+    group.add(cyl);
+
+    const sphereGeom = new THREE.SphereGeometry(radius * 1.15, 10, 10);
+    const s1 = new THREE.Mesh(sphereGeom, mat);
+    s1.position.copy(p1);
+    s1.renderOrder = 1028;
+    group.add(s1);
+
+    const s2 = new THREE.Mesh(sphereGeom, mat);
+    s2.position.copy(p2);
+    s2.renderOrder = 1028;
+    group.add(s2);
+
+    return group;
+  }
+
   togglePaintEdge(edge) {
     const key = this.getEdgePaintKey(edge.p1, edge.p2);
     const existing = this.paintedEdges.get(key);
@@ -1510,7 +1547,7 @@ export class InspectionTool {
       requestRender();
       return;
     }
-    const mesh = this.createEdgeHighlight(edge.p1, edge.p2, this.paintColor, 0.055);
+    const mesh = this.createPaintedEdgeMesh(edge.p1, edge.p2, this.paintColor, 1.0);
     mesh.renderOrder = 1022;
     mesh.userData.paintColor = this.paintColor;
     this.paintGroup.add(mesh);
@@ -1534,7 +1571,7 @@ export class InspectionTool {
       requestRender();
       return;
     }
-    const mesh = this.createFaceHighlight(face, this.paintColor, 0.72);
+    const mesh = this.createFaceHighlight(face, this.paintColor, 0.88);
     mesh.renderOrder = 1018;
     mesh.userData.paintColor = this.paintColor;
     this.paintGroup.add(mesh);

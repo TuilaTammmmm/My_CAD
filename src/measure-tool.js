@@ -23,13 +23,22 @@ export class InspectionTool {
 
     this.container = renderer.domElement.parentElement;
     this.active = false;
-    this.subMode = 'edge'; // 'edge', 'angle-edges', 'angle-faces', 'distance'
+    this.subMode = 'edge'; // 'edge', 'angle-edges', 'angle-faces', 'distance', 'paint'
     this.isCollapsed = false;
 
     // Nhóm 3D chứa tất cả các số đo đã lưu (Persistent Measurements)
     this.measurementsGroup = new THREE.Group();
     this.measurementsGroup.renderOrder = 1025;
     this.scene.add(this.measurementsGroup);
+
+    // Nhóm 3D chứa các cạnh & mặt đã tô màu trong chế độ Chỉ xem
+    this.paintGroup = new THREE.Group();
+    this.paintGroup.renderOrder = 1020;
+    this.scene.add(this.paintGroup);
+    this.paintTarget = 'edge'; // 'edge' | 'face'
+    this.paintColor = 0xef4444; // null = eraser
+    this.paintedEdges = new Map();
+    this.paintedFaces = new Map();
 
     // Nhóm 3D chứa các hiệu ứng xem trước khi hover / chọn tạm thời
     this.previewGroup = new THREE.Group();
@@ -111,6 +120,34 @@ export class InspectionTool {
       btnToggleGrid.addEventListener('click', () => {
         if (this.callbacks.onToggleGridSquares) this.callbacks.onToggleGridSquares();
       });
+    }
+
+    // Điều khiển Tô màu cạnh / mặt
+    this.panelElement.querySelectorAll('.paint-target-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        this.paintTarget = btn.getAttribute('data-paint-target') === 'face' ? 'face' : 'edge';
+        this.panelElement.querySelectorAll('.paint-target-btn').forEach(b => {
+          b.classList.toggle('active', b === btn);
+        });
+        this.clearPreview();
+        this.updateInstruction();
+      });
+    });
+
+    this.panelElement.querySelectorAll('.paint-swatch').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const c = btn.getAttribute('data-paint-color');
+        this.paintColor = (c === 'eraser') ? null : parseInt(c.replace('#', ''), 16);
+        this.panelElement.querySelectorAll('.paint-swatch').forEach(b => {
+          b.classList.toggle('active', b === btn);
+        });
+        this.clearPreview();
+      });
+    });
+
+    const btnClearPaint = document.getElementById('btn-clear-all-paint');
+    if (btnClearPaint) {
+      btnClearPaint.addEventListener('click', () => this.clearAllPaint());
     }
   }
 
@@ -197,7 +234,7 @@ export class InspectionTool {
       } else if (e.key === 'Delete' || (e.ctrlKey && e.key.toLowerCase() === 'k')) {
         this.clearAll();
       } else if (e.key.toLowerCase() === 'm') {
-        const modes = ['edge', 'angle-edges', 'angle-faces', 'distance'];
+        const modes = ['edge', 'angle-edges', 'angle-faces', 'distance', 'paint'];
         const nextIdx = (modes.indexOf(this.subMode) + 1) % modes.length;
         this.setSubMode(modes[nextIdx]);
       }
@@ -208,6 +245,7 @@ export class InspectionTool {
   show() {
     this.active = true;
     this.measurementsGroup.visible = true;
+    this.paintGroup.visible = true;
     this.previewGroup.visible = true;
     if (this._cacheDirty || (this.currentEdges && this.edgesList.length === 0)) {
       this._cacheDirty = false;
@@ -237,6 +275,7 @@ export class InspectionTool {
   hide() {
     this.active = false;
     this.measurementsGroup.visible = false;
+    this.paintGroup.visible = false;
     this.previewGroup.visible = false;
     this.resetSelection();
     this.clearPreview();
@@ -255,6 +294,11 @@ export class InspectionTool {
       this.panelElement.querySelectorAll('.measure-mode-btn').forEach(btn => {
         btn.classList.toggle('active', btn.getAttribute('data-measure-mode') === mode);
       });
+    }
+
+    const paintControls = document.getElementById('paint-controls');
+    if (paintControls) {
+      paintControls.style.display = (mode === 'paint') ? 'flex' : 'none';
     }
 
     this.updateInstruction();
@@ -292,6 +336,7 @@ export class InspectionTool {
   updateModel(brush, edges) {
     this.currentBrush = brush;
     this.currentEdges = edges;
+    this.clearAllPaint();
     if (!this.active) {
       this._cacheDirty = true;
       this.resetSelection();
@@ -697,12 +742,45 @@ export class InspectionTool {
       if (this.selectedPoint1) {
         this.previewGroup.add(this.createPointHighlight(this.selectedPoint1, 0x10b981));
       }
+
+    } else if (this.subMode === 'paint') {
+      const previewColor = (this.paintColor === null) ? 0xf87171 : this.paintColor;
+      if (this.paintTarget === 'edge') {
+        const edge = this.findNearestEdge(e.clientX, e.clientY);
+        this.hoveredEdge = edge;
+        if (edge) {
+          this.renderer.domElement.style.cursor = 'pointer';
+          this.previewGroup.add(this.createEdgeHighlight(edge.p1, edge.p2, previewColor, 0.065));
+        } else {
+          this.renderer.domElement.style.cursor = 'grab';
+        }
+      } else {
+        const face = this.findHitFace(e.clientX, e.clientY);
+        this.hoveredFace = face;
+        if (face) {
+          this.renderer.domElement.style.cursor = 'pointer';
+          this.previewGroup.add(this.createFaceHighlight(face, previewColor, 0.45));
+        } else {
+          this.renderer.domElement.style.cursor = 'grab';
+        }
+      }
     }
     requestRender();
   }
 
   // Xử lý nhấp chuột (Click)
   handleClick(e) {
+    if (this.subMode === 'paint') {
+      if (this.paintTarget === 'edge') {
+        const edge = this.findNearestEdge(e.clientX, e.clientY);
+        if (edge) this.togglePaintEdge(edge);
+      } else {
+        const face = this.findHitFace(e.clientX, e.clientY);
+        if (face) this.togglePaintFace(face);
+      }
+      return;
+    }
+
     if (this.subMode === 'edge') {
       const edge = this.findNearestEdge(e.clientX, e.clientY);
       if (edge) {
@@ -1398,6 +1476,81 @@ export class InspectionTool {
 
     this.measurements.push(item);
     this.updateUIList();
+  }
+
+  // ==========================================
+  // TÔ MÀU CẠNH & MẶT TRONG CHẾ ĐỘ CHỈ XEM
+  // ==========================================
+
+  getEdgePaintKey(p1, p2) {
+    const k1 = `${Math.round(p1.x * 100)}_${Math.round(p1.y * 100)}_${Math.round(p1.z * 100)}`;
+    const k2 = `${Math.round(p2.x * 100)}_${Math.round(p2.y * 100)}_${Math.round(p2.z * 100)}`;
+    return k1 < k2 ? `${k1}|${k2}` : `${k2}|${k1}`;
+  }
+
+  getFacePaintKey(face) {
+    const n = face.norm;
+    const p = face.triangles[0]?.p0 || face.p0 || new THREE.Vector3();
+    return `${Math.round(n.x * 20)}_${Math.round(n.y * 20)}_${Math.round(n.z * 20)}_${Math.round(n.dot(p) * 20)}_${Math.round(p.x * 10)}_${Math.round(p.y * 10)}_${Math.round(p.z * 10)}`;
+  }
+
+  togglePaintEdge(edge) {
+    const key = this.getEdgePaintKey(edge.p1, edge.p2);
+    const existing = this.paintedEdges.get(key);
+    if (existing) {
+      this.paintGroup.remove(existing);
+      this.disposeObject(existing);
+      this.paintedEdges.delete(key);
+      if (this.paintColor === null || existing.userData?.paintColor === this.paintColor) {
+        requestRender();
+        return;
+      }
+    }
+    if (this.paintColor === null) {
+      requestRender();
+      return;
+    }
+    const mesh = this.createEdgeHighlight(edge.p1, edge.p2, this.paintColor, 0.055);
+    mesh.renderOrder = 1022;
+    mesh.userData.paintColor = this.paintColor;
+    this.paintGroup.add(mesh);
+    this.paintedEdges.set(key, mesh);
+    requestRender();
+  }
+
+  togglePaintFace(face) {
+    const key = this.getFacePaintKey(face);
+    const existing = this.paintedFaces.get(key);
+    if (existing) {
+      this.paintGroup.remove(existing);
+      this.disposeObject(existing);
+      this.paintedFaces.delete(key);
+      if (this.paintColor === null || existing.userData?.paintColor === this.paintColor) {
+        requestRender();
+        return;
+      }
+    }
+    if (this.paintColor === null) {
+      requestRender();
+      return;
+    }
+    const mesh = this.createFaceHighlight(face, this.paintColor, 0.72);
+    mesh.renderOrder = 1018;
+    mesh.userData.paintColor = this.paintColor;
+    this.paintGroup.add(mesh);
+    this.paintedFaces.set(key, mesh);
+    requestRender();
+  }
+
+  clearAllPaint() {
+    while (this.paintGroup.children.length > 0) {
+      const obj = this.paintGroup.children[0];
+      this.paintGroup.remove(obj);
+      this.disposeObject(obj);
+    }
+    this.paintedEdges.clear();
+    this.paintedFaces.clear();
+    requestRender();
   }
 
   // ==========================================

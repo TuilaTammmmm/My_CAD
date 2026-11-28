@@ -689,6 +689,32 @@
             </span>
             <span class="m-text">2 điểm</span>
           </button>
+          <button class="measure-mode-btn" type="button" data-measure-mode="paint" title="Tô màu cạnh hoặc mặt giống hình mẫu">
+            <span class="m-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M18.37 2.63L14 7l-1.59-1.59a2 2 0 0 0-2.82 0L8 7l9 9 1.59-1.59a2 2 0 0 0 0-2.82L17 10l4.37-4.37a2.12 2.12 0 1 0-3-3z"/><path d="M9 8c-2 3-4 3.5-7 4l8 10c2-1 6-5 6-7"/></svg>
+            </span>
+            <span class="m-text">Tô màu</span>
+          </button>
+        </div>
+
+        <div id="paint-controls" class="paint-controls" style="display: none;">
+          <div class="paint-target-row">
+            <button type="button" class="paint-target-btn active" data-paint-target="edge">Tô cạnh</button>
+            <button type="button" class="paint-target-btn" data-paint-target="face">Tô mặt</button>
+          </div>
+          <div class="paint-swatches" id="paint-swatches">
+            <button type="button" class="paint-swatch active" data-paint-color="#ef4444" style="background:#ef4444;" title="Đỏ"></button>
+            <button type="button" class="paint-swatch" data-paint-color="#f97316" style="background:#f97316;" title="Cam"></button>
+            <button type="button" class="paint-swatch" data-paint-color="#eab308" style="background:#eab308;" title="Vàng"></button>
+            <button type="button" class="paint-swatch" data-paint-color="#22c55e" style="background:#22c55e;" title="Xanh lá"></button>
+            <button type="button" class="paint-swatch" data-paint-color="#06b6d4" style="background:#06b6d4;" title="Xanh ngọc"></button>
+            <button type="button" class="paint-swatch" data-paint-color="#3b82f6" style="background:#3b82f6;" title="Xanh dương"></button>
+            <button type="button" class="paint-swatch" data-paint-color="#a855f7" style="background:#a855f7;" title="Tím"></button>
+            <button type="button" class="paint-swatch" data-paint-color="#ec4899" style="background:#ec4899;" title="Hồng"></button>
+            <button type="button" class="paint-swatch" data-paint-color="#f8fafc" style="background:#f8fafc;" title="Trắng"></button>
+            <button type="button" class="paint-swatch eraser" data-paint-color="eraser" title="Tẩy màu từng nét/mặt">✕</button>
+          </div>
+          <button type="button" id="btn-clear-all-paint" class="btn-clear-paint">Xóa hết màu đã tô</button>
         </div>
       </div>
 

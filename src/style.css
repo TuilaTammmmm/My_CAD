@@ -1014,6 +1014,90 @@ textarea {
   gap: 6px;
 }
 
+.measure-modes-grid .measure-mode-btn[data-measure-mode="paint"] {
+  grid-column: span 2;
+}
+
+.paint-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  background: var(--p-surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-btn);
+}
+
+.paint-target-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.paint-target-btn {
+  padding: 5px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--p-surface-1);
+  color: var(--p-ink-soft);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.paint-target-btn.active {
+  background: rgba(56, 189, 248, 0.18);
+  border-color: #38bdf8;
+  color: #e0f2fe;
+}
+
+.paint-swatches {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+}
+
+.paint-swatch {
+  height: 24px;
+  border-radius: 6px;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  cursor: pointer;
+  transition: transform 0.1s ease, border-color 0.1s ease;
+}
+
+.paint-swatch:hover {
+  transform: scale(1.06);
+}
+
+.paint-swatch.active {
+  border-color: #ffffff;
+  box-shadow: 0 0 0 2px #38bdf8;
+}
+
+.paint-swatch.eraser {
+  background: #1e293b;
+  color: #f87171;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-clear-paint {
+  padding: 5px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  background: rgba(248, 113, 113, 0.1);
+  color: #fca5a5;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.btn-clear-paint:hover {
+  background: rgba(248, 113, 113, 0.2);
+}
+
 .measure-toggles-grid .inspect-toggle-btn:nth-child(3) {
   grid-column: span 2;
 }

@@ -1,10 +1,9 @@
 /**
  * Client-side 2D image vectorizer & CAD Script converter.
- * - Filters out white background and thin/faint construction lines.
- * - Applies Zhang-Suen skeletonization (1px thinning) so thick lines & circles
- *   never produce double walls or zig-zags.
- * - Splits at junctions, fits clean circles, simplifies polylines, and snaps
- *   near-horizontal/near-vertical lines.
+ * - Filters out white background and pale construction/projection lines.
+ * - Applies Zhang-Suen skeletonization (1px thinning) for crisp visible lines & circles.
+ * - Detects dashed hidden lines (`style: 'hidden'`) and merges collinear dashes.
+ * - Draws directly onto exact image coordinates without grid-snap distortion.
  */
 
 function rdpSimplify(pts, eps) {
@@ -74,9 +73,6 @@ function fitCircleIfClosed(pts) {
   return { cx, cy, r };
 }
 
-/**
- * Zhang-Suen thinning to reduce thick strokes to clean 1px skeletons.
- */
 function skeletonize(mask, w, h) {
   const img = new Uint8Array(mask);
   const toClear = [];
@@ -140,63 +136,7 @@ function skeletonize(mask, w, h) {
   return img;
 }
 
-/**
- * Trace bold/colored strokes from an HTMLImageElement into 2D CAD elements.
- * @param {HTMLImageElement} img
- * @param {{ originU: number, originV: number, worldWidth: number, worldHeight: number, snapStep?: number }} rect
- * @returns {Array}
- */
-export function traceImageTo2DElements(img, rect) {
-  const maxDim = 760;
-  const scale = Math.min(1, maxDim / Math.max(img.naturalWidth || img.width, img.naturalHeight || img.height));
-  const w = Math.max(16, Math.round((img.naturalWidth || img.width) * scale));
-  const h = Math.max(16, Math.round((img.naturalHeight || img.height) * scale));
-
-  const canvas = document.createElement('canvas');
-  canvas.width = w;
-  canvas.height = h;
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, w, h);
-  ctx.drawImage(img, 0, 0, w, h);
-
-  const imgData = ctx.getImageData(0, 0, w, h).data;
-
-  // 1. Detect dark or strongly colored pixels (ignoring white bg and pale thin projection lines)
-  const rawMask = new Uint8Array(w * h);
-  for (let i = 0; i < w * h; i++) {
-    const r = imgData[i * 4];
-    const g = imgData[i * 4 + 1];
-    const b = imgData[i * 4 + 2];
-    const maxC = Math.max(r, g, b);
-    const minC = Math.min(r, g, b);
-    const luma = 0.299 * r + 0.587 * g + 0.114 * b;
-    const sat = maxC - minC;
-    if (luma < 150 || (sat > 60 && luma < 210)) {
-      rawMask[i] = 1;
-    }
-  }
-
-  // 2. Keep only bold strokes (filter out 1px thin construction/projection lines)
-  const boldMask = new Uint8Array(w * h);
-  for (let y = 1; y < h - 1; y++) {
-    for (let x = 1; x < w - 1; x++) {
-      const idx = y * w + x;
-      if (!rawMask[idx]) continue;
-      let count = 0;
-      for (let dy = -1; dy <= 1; dy++) {
-        for (let dx = -1; dx <= 1; dx++) {
-          if (rawMask[(y + dy) * w + (x + dx)]) count++;
-        }
-      }
-      if (count >= 5) boldMask[idx] = 1;
-    }
-  }
-
-  // 3. Thin bold strokes to crisp 1px skeleton
-  const skel = skeletonize(boldMask, w, h);
-
-  // 4. Trace 1px skeleton chains cleanly
+function traceSkeletonChains(skel, w, h, minLen, minSpan) {
   const visited = new Uint8Array(w * h);
   const dirs = [
     [1, 0], [0, 1], [-1, 0], [0, -1],
@@ -214,7 +154,6 @@ export function traceImageTo2DElements(img, rect) {
     return c;
   };
 
-  // Trace starting from endpoints (1 neighbor) first, then remaining closed loops
   for (let pass = 0; pass < 2; pass++) {
     for (let y = 1; y < h - 1; y++) {
       for (let x = 1; x < w - 1; x++) {
@@ -241,7 +180,6 @@ export function traceImageTo2DElements(img, rect) {
             if (nx <= 0 || nx >= w - 1 || ny <= 0 || ny >= h - 1) continue;
             const nIdx = ny * w + nx;
             if (!skel[nIdx] || visited[nIdx]) continue;
-            // Prefer continuing in the same direction
             const align = prevDx * dx + prevDy * dy;
             const orthoBonus = (dx === 0 || dy === 0) ? 0.2 : 0;
             const score = align + orthoBonus;
@@ -257,7 +195,6 @@ export function traceImageTo2DElements(img, rect) {
           cy = best.y;
         }
 
-        // Filter out tiny noise/text (e.g. "45°" label)
         let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
         for (const p of chain) {
           if (p.x < minX) minX = p.x;
@@ -266,26 +203,193 @@ export function traceImageTo2DElements(img, rect) {
           if (p.y > maxY) maxY = p.y;
         }
         const span = Math.max(maxX - minX, maxY - minY);
-        if (chain.length >= 12 && span >= 12) {
+        if (chain.length >= minLen && span >= minSpan) {
           chains.push(chain);
         }
       }
     }
   }
+  return chains;
+}
 
-  const snapStep = rect.snapStep || 0;
-  const toWorld = (px, py) => {
-    let u = rect.originU + (px / w) * rect.worldWidth;
-    let v = rect.originV + (1 - py / h) * rect.worldHeight;
-    if (snapStep > 0) {
-      u = Math.round(u / snapStep) * snapStep;
-      v = Math.round(v / snapStep) * snapStep;
+/**
+ * Merge collinear dash segments into full hidden lines (`style: 'hidden'`).
+ */
+function mergeCollinearDashes(dashes) {
+  const segs = dashes.map((d) => {
+    const dx = d.p2.u - d.p1.u;
+    const dy = d.p2.v - d.p1.v;
+    const len = Math.hypot(dx, dy);
+    return {
+      p1: d.p1,
+      p2: d.p2,
+      len,
+      ux: dx / len,
+      uy: dy / len,
+      count: 1,
+      merged: false
+    };
+  });
+
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (let i = 0; i < segs.length; i++) {
+      if (segs[i].merged) continue;
+      const s1 = segs[i];
+      for (let j = i + 1; j < segs.length; j++) {
+        if (segs[j].merged) continue;
+        const s2 = segs[j];
+
+        const dot = Math.abs(s1.ux * s2.ux + s1.uy * s2.uy);
+        if (dot < 0.98) continue;
+
+        const v1x = s2.p1.u - s1.p1.u;
+        const v1y = s2.p1.v - s1.p1.v;
+        const proj1 = v1x * s1.ux + v1y * s1.uy;
+        const perp1 = Math.hypot(v1x - proj1 * s1.ux, v1y - proj1 * s1.uy);
+        if (perp1 > 0.16) continue;
+
+        const v2x = s2.p2.u - s1.p1.u;
+        const v2y = s2.p2.v - s1.p1.v;
+        const proj2 = v2x * s1.ux + v2y * s1.uy;
+        const perp2 = Math.hypot(v2x - proj2 * s1.ux, v2y - proj2 * s1.uy);
+        if (perp2 > 0.16) continue;
+
+        const min2 = Math.min(proj1, proj2);
+        const max2 = Math.max(proj1, proj2);
+        const gap = Math.max(0, -max2, min2 - s1.len);
+        if (gap <= 1.2) {
+          const newMin = Math.min(0, min2);
+          const newMax = Math.max(s1.len, max2);
+          const baseU = s1.p1.u;
+          const baseV = s1.p1.v;
+          s1.p1 = {
+            u: Number((baseU + s1.ux * newMin).toFixed(2)),
+            v: Number((baseV + s1.uy * newMin).toFixed(2))
+          };
+          s1.p2 = {
+            u: Number((baseU + s1.ux * newMax).toFixed(2)),
+            v: Number((baseV + s1.uy * newMax).toFixed(2))
+          };
+          s1.len = newMax - newMin;
+          s1.count += s2.count;
+          s2.merged = true;
+          changed = true;
+          break;
+        }
+      }
     }
-    return { u: Number(u.toFixed(2)), v: Number(v.toFixed(2)) };
+  }
+
+  return segs
+    .filter((s) => !s.merged && s.count >= 2 && s.len > 0.5)
+    .map((s) => ({
+      type: 'line',
+      style: 'hidden',
+      p1: s.p1,
+      p2: s.p2
+    }));
+}
+
+/**
+ * Trace bold visible strokes + dashed hidden lines from an HTMLImageElement into 2D CAD elements.
+ */
+export function traceImageTo2DElements(img, rect) {
+  const maxDim = 760;
+  const scale = Math.min(1, maxDim / Math.max(img.naturalWidth || img.width, img.naturalHeight || img.height));
+  const w = Math.max(16, Math.round((img.naturalWidth || img.width) * scale));
+  const h = Math.max(16, Math.round((img.naturalHeight || img.height) * scale));
+
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, w, h);
+  ctx.drawImage(img, 0, 0, w, h);
+
+  const imgData = ctx.getImageData(0, 0, w, h).data;
+
+  // 1. Classify visible strokes (dark or saturated) vs thin dark hidden dashes
+  const rawMask = new Uint8Array(w * h);
+  const darkNeutralMask = new Uint8Array(w * h);
+  for (let i = 0; i < w * h; i++) {
+    const r = imgData[i * 4];
+    const g = imgData[i * 4 + 1];
+    const b = imgData[i * 4 + 2];
+    const maxC = Math.max(r, g, b);
+    const minC = Math.min(r, g, b);
+    const luma = 0.299 * r + 0.587 * g + 0.114 * b;
+    const sat = maxC - minC;
+    if (luma < 150 || (sat > 60 && luma < 210)) {
+      rawMask[i] = 1;
+    }
+    if (luma < 145 && sat < 45) {
+      darkNeutralMask[i] = 1;
+    }
+  }
+
+  // 2. Bold mask for visible lines
+  const boldMask = new Uint8Array(w * h);
+  for (let y = 1; y < h - 1; y++) {
+    for (let x = 1; x < w - 1; x++) {
+      const idx = y * w + x;
+      if (!rawMask[idx]) continue;
+      let count = 0;
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          if (rawMask[(y + dy) * w + (x + dx)]) count++;
+        }
+      }
+      if (count >= 5) boldMask[idx] = 1;
+    }
+  }
+
+  // 3. Hidden-line mask: dark neutral pixels NOT near any bold visible stroke
+  const hiddenMask = new Uint8Array(w * h);
+  for (let y = 2; y < h - 2; y++) {
+    for (let x = 2; x < w - 2; x++) {
+      const idx = y * w + x;
+      if (!darkNeutralMask[idx] || boldMask[idx]) continue;
+      let nearBold = false;
+      for (let dy = -2; dy <= 2 && !nearBold; dy++) {
+        for (let dx = -2; dx <= 2; dx++) {
+          if (boldMask[(y + dy) * w + (x + dx)]) {
+            nearBold = true;
+            break;
+          }
+        }
+      }
+      if (!nearBold) hiddenMask[idx] = 1;
+    }
+  }
+
+  const toWorld = (px, py) => ({
+    u: Number((rect.originU + (px / w) * rect.worldWidth).toFixed(2)),
+    v: Number((rect.originV + (1 - py / h) * rect.worldHeight).toFixed(2))
+  });
+
+  const snapOrtho = (p1, p2) => {
+    const du = Math.abs(p2.u - p1.u);
+    const dv = Math.abs(p2.v - p1.v);
+    if (du > 0.15 && dv < du * 0.08) {
+      const avgV = Number(((p1.v + p2.v) / 2).toFixed(2));
+      return [{ u: p1.u, v: avgV }, { u: p2.u, v: avgV }];
+    }
+    if (dv > 0.15 && du < dv * 0.08) {
+      const avgU = Number(((p1.u + p2.u) / 2).toFixed(2));
+      return [{ u: avgU, v: p1.v }, { u: avgU, v: p2.v }];
+    }
+    return [p1, p2];
   };
 
+  // 4. Trace visible lines & circles
+  const boldSkel = skeletonize(boldMask, w, h);
+  const boldChains = traceSkeletonChains(boldSkel, w, h, 18, 18);
+
   const elements = [];
-  for (const chain of chains) {
+  for (const chain of boldChains) {
     const circle = fitCircleIfClosed(chain);
     if (circle) {
       const cWorld = toWorld(circle.cx, circle.cy);
@@ -302,41 +406,34 @@ export function traceImageTo2DElements(img, rect) {
       continue;
     }
 
-    const simplified = rdpSimplify(chain, 3.0);
+    const simplified = rdpSimplify(chain, 2.0);
     for (let i = 0; i < simplified.length - 1; i++) {
-      let p1 = toWorld(simplified[i].x, simplified[i].y);
-      let p2 = toWorld(simplified[i + 1].x, simplified[i + 1].y);
-
-      // Snap near-horizontal or near-vertical lines cleanly
-      const du = Math.abs(p2.u - p1.u);
-      const dv = Math.abs(p2.v - p1.v);
-      if (du > 0.2 && dv < du * 0.08) {
-        const avgV = Number(((p1.v + p2.v) / 2).toFixed(2));
-        p1 = { u: p1.u, v: avgV };
-        p2 = { u: p2.u, v: avgV };
-      } else if (dv > 0.2 && du < dv * 0.08) {
-        const avgU = Number(((p1.u + p2.u) / 2).toFixed(2));
-        p1 = { u: avgU, v: p1.v };
-        p2 = { u: avgU, v: p2.v };
-      }
-
-      if (Math.hypot(p2.u - p1.u, p2.v - p1.v) > 0.2) {
-        elements.push({
-          type: 'line',
-          style: 'visible',
-          p1,
-          p2
-        });
+      const [p1, p2] = snapOrtho(toWorld(simplified[i].x, simplified[i].y), toWorld(simplified[i + 1].x, simplified[i + 1].y));
+      if (Math.hypot(p2.u - p1.u, p2.v - p1.v) > 0.25) {
+        elements.push({ type: 'line', style: 'visible', p1, p2 });
       }
     }
   }
 
+  // 5. Trace dashed hidden lines and merge collinear dashes
+  const hiddenSkel = skeletonize(hiddenMask, w, h);
+  const dashChains = traceSkeletonChains(hiddenSkel, w, h, 5, 5);
+  const rawDashes = [];
+  for (const chain of dashChains) {
+    if (chain.length > 35) continue; // ignore long non-dash shapes
+    const [p1, p2] = snapOrtho(toWorld(chain[0].x, chain[0].y), toWorld(chain[chain.length - 1].x, chain[chain.length - 1].y));
+    const len = Math.hypot(p2.u - p1.u, p2.v - p1.v);
+    if (len >= 0.15 && len <= 1.6) {
+      rawDashes.push({ p1, p2 });
+    }
+  }
+
+  const hiddenLines = mergeCollinearDashes(rawDashes);
+  elements.push(...hiddenLines);
+
   return elements;
 }
 
-/**
- * Convert 2D elements (outer contour + circular holes) into a CAD Script.
- */
 export function elementsToCadScript(elements, depth = 20) {
   const circles = elements.filter((e) => e.type === 'circle' && e.style !== 'hidden');
   const lines = elements.filter((e) => e.type === 'line' && e.style !== 'hidden');

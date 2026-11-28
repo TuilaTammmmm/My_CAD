@@ -3941,7 +3941,7 @@ export class CAD2DEditor {
       originV: this.bgImage.originV,
       worldWidth: this.bgImage.worldWidth,
       worldHeight: this.bgImage.worldHeight,
-      snapStep: this.snapMode === 'grid' ? this.snapStep : 0
+      snapStep: 0
     });
     if (traced.length === 0) return 0;
     this.saveHistory();

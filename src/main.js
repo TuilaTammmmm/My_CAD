@@ -1263,15 +1263,13 @@ window.addEventListener('paste', (e) => {
   }
 });
 
-// --- NHẬP ẢNH 2D, CHUẨN CỠ & TỰ VẼ NÉT TRONG 2D CAD ---
+// --- NHẬP ẢNH 2D & TỰ VẼ NÉT TRONG 2D CAD ---
 const btn2dImportImg = document.getElementById('btn-2d-import-image');
 const input2dImportImg = document.getElementById('input-2d-import-image');
 const cad2dImgControls = document.getElementById('cad2d-image-controls');
 const slider2dImgOpacity = document.getElementById('slider-2d-img-opacity');
 const lbl2dImgOpacity = document.getElementById('lbl-2d-img-opacity');
-const btn2dCalibrateImg = document.getElementById('btn-2d-calibrate-image');
 const btn2dTraceImg = document.getElementById('btn-2d-trace-image');
-const btn2dTo3dScript = document.getElementById('btn-2d-to-3d-script');
 const btn2dClearImg = document.getElementById('btn-2d-clear-image');
 
 btn2dImportImg?.addEventListener('click', () => input2dImportImg?.click());
@@ -1283,7 +1281,7 @@ input2dImportImg?.addEventListener('change', async (e) => {
     await cad2dEditor.loadBackgroundImage(file);
     if (cad2dImgControls) cad2dImgControls.style.display = 'flex';
   } catch (err) {
-    alert(err.message || 'Không thể nạp ảnh 2D.');
+    console.warn('Load 2D image failed:', err);
   }
 });
 
@@ -1293,28 +1291,8 @@ slider2dImgOpacity?.addEventListener('input', (e) => {
   cad2dEditor.setBackgroundImageOpacity(val);
 });
 
-btn2dCalibrateImg?.addEventListener('click', () => {
-  cad2dEditor.startImageCalibration();
-  alert('Hãy click 2 điểm trên ảnh (ví dụ 2 đầu một cạnh đã biết độ dài) để nhập kích thước chuẩn.');
-});
-
 btn2dTraceImg?.addEventListener('click', () => {
-  const count = cad2dEditor.traceBackgroundImage();
-  if (count === 0) {
-    alert('Không tìm thấy nét đậm rõ nào trên ảnh để tách.');
-  } else {
-    alert(`Đã tự động vẽ ${count} nét 2D từ ảnh đúng theo kích thước hiện tại!`);
-  }
-});
-
-btn2dTo3dScript?.addEventListener('click', () => {
-  const depthInput = prompt('Nhập độ dày đùn khối 3D (trục Z):', String(D || 20));
-  const depth = parseFloat(depthInput) || 20;
-  const code = cad2dEditor.generate3DScript(depth);
-  if (scriptInput) scriptInput.value = code;
-  if (appMode !== '3d') switchTo3D();
-  if (scriptModal) scriptModal.style.display = 'flex';
-  syncModalBackdrop();
+  cad2dEditor.traceBackgroundImage();
 });
 
 btn2dClearImg?.addEventListener('click', () => {

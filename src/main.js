@@ -920,21 +920,12 @@ document.querySelectorAll('.accordion-toggle').forEach(btn => {
 
     if (isSidebarCompact) {
       setSidebarCompact(false);
-      containerGroup?.querySelectorAll('.sidebar-accordion').forEach(el => {
-        const isTarget = (el === acc);
-        el.classList.toggle('open', isTarget);
-        el.querySelector('.accordion-toggle')?.setAttribute('aria-expanded', String(isTarget));
-      });
+      acc.classList.add('open');
+      btn.setAttribute('aria-expanded', 'true');
     } else {
       const willOpen = !acc.classList.contains('open');
-      containerGroup?.querySelectorAll('.sidebar-accordion').forEach(el => {
-        el.classList.remove('open');
-        el.querySelector('.accordion-toggle')?.setAttribute('aria-expanded', 'false');
-      });
-      if (willOpen) {
-        acc.classList.add('open');
-        btn.setAttribute('aria-expanded', 'true');
-      }
+      acc.classList.toggle('open', willOpen);
+      btn.setAttribute('aria-expanded', String(willOpen));
     }
   });
 });

@@ -188,7 +188,23 @@ function traceSkeletonChains(skel, w, h, minLen, minSpan) {
               best = { x: nx, y: ny, dx, dy };
             }
           }
-          if (!best) break;
+          if (!best) {
+            // Connect to adjacent visited junction pixel so T-junctions & corners don't leave a 1px gap
+            for (const [dx, dy] of dirs) {
+              const nx = cx + dx;
+              const ny = cy + dy;
+              if (nx > 0 && nx < w - 1 && ny > 0 && ny < h - 1 && skel[ny * w + nx] && visited[ny * w + nx]) {
+                if (chain.length > 2) {
+                  const prev = chain[chain.length - 2];
+                  if (prev.x !== nx || prev.y !== ny) {
+                    chain.push({ x: nx, y: ny });
+                  }
+                }
+                break;
+              }
+            }
+            break;
+          }
           prevDx = best.dx;
           prevDy = best.dy;
           cx = best.x;
@@ -431,7 +447,74 @@ export function traceImageTo2DElements(img, rect) {
   const hiddenLines = mergeCollinearDashes(rawDashes);
   elements.push(...hiddenLines);
 
+  // 6. Weld nearby endpoints & snap T-junctions so all lines connect cleanly with 0 gap
+  weldAndSnapLines(elements, 0.28);
+
   return elements;
+}
+
+function weldAndSnapLines(elements, tol = 0.28) {
+  const lines = elements.filter((e) => e.type === 'line');
+  if (lines.length === 0) return;
+
+  // A. Cluster nearby endpoints into exact shared vertices
+  const endpoints = [];
+  for (const l of lines) {
+    endpoints.push(l.p1, l.p2);
+  }
+  const used = new Uint8Array(endpoints.length);
+  for (let i = 0; i < endpoints.length; i++) {
+    if (used[i]) continue;
+    const cluster = [endpoints[i]];
+    used[i] = 1;
+    for (let j = i + 1; j < endpoints.length; j++) {
+      if (used[j]) continue;
+      if (Math.hypot(endpoints[j].u - endpoints[i].u, endpoints[j].v - endpoints[i].v) <= tol) {
+        cluster.push(endpoints[j]);
+        used[j] = 1;
+      }
+    }
+    if (cluster.length > 1) {
+      let su = 0, sv = 0;
+      for (const p of cluster) {
+        su += p.u;
+        sv += p.v;
+      }
+      const avgU = Number((su / cluster.length).toFixed(2));
+      const avgV = Number((sv / cluster.length).toFixed(2));
+      for (const p of cluster) {
+        p.u = avgU;
+        p.v = avgV;
+      }
+    }
+  }
+
+  // B. Snap remaining free endpoints onto nearby segments (T-junctions)
+  for (const l of lines) {
+    for (const pt of [l.p1, l.p2]) {
+      let bestDist = tol;
+      let bestProj = null;
+      for (const other of lines) {
+        if (other === l) continue;
+        const dx = other.p2.u - other.p1.u;
+        const dy = other.p2.v - other.p1.v;
+        const lenSq = dx * dx + dy * dy;
+        if (lenSq < 1e-6) continue;
+        const t = Math.max(0, Math.min(1, ((pt.u - other.p1.u) * dx + (pt.v - other.p1.v) * dy) / lenSq));
+        const px = other.p1.u + t * dx;
+        const py = other.p1.v + t * dy;
+        const d = Math.hypot(pt.u - px, pt.v - py);
+        if (d > 1e-4 && d < bestDist) {
+          bestDist = d;
+          bestProj = { u: Number(px.toFixed(2)), v: Number(py.toFixed(2)) };
+        }
+      }
+      if (bestProj) {
+        pt.u = bestProj.u;
+        pt.v = bestProj.v;
+      }
+    }
+  }
 }
 
 export function elementsToCadScript(elements, depth = 20) {
